@@ -1,5 +1,7 @@
-import { COMMENT_KIND, replyTarget, repostTarget } from "../nostr/event-refs";
+import { COMMENT_KIND } from "../nostr/comment";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
+import { replyTarget } from "../nostr/reply";
+import { repostTarget } from "../nostr/repost";
 import type { EventStore } from "../read/event-store";
 import { reactionKey } from "./reaction-groups";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../event";
 import { parseReaction } from "../reaction";
-import { buildReaction } from "./reaction";
+import { buildReaction } from "../reaction";
 
 const evt = (fields: Partial<NostrEvent>): NostrEvent =>
   ({

@@ -1,6 +1,7 @@
 import { columnForEvent } from "@streets/core/deck/open-event";
+import { COMMENT_KIND } from "@streets/core/nostr/comment";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { COMMENT_KIND, type EventRef } from "@streets/core/nostr/event-refs";
+import { type EventRef } from "@streets/core/nostr/event-refs";
 import { mediaPostTitle } from "@streets/core/nostr/media-post";
 import {
   type CommentScope,

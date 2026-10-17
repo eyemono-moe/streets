@@ -1,8 +1,24 @@
+/**
+ * NIP-28 の公開チャンネル（kind:40〜44）。
+ *
+ * - 発言（kind:42）と情報の更新（kind:41）は、チャンネルを NIP-10 の印付きで指す
+ *   （`["e", <kind:40 の id>, relay, "root"]`。"Clients SHOULD use NIP-10 marked "e" tags
+ *   to recommend a relay"）
+ * - 発言への返信は、返信先を `["e", id, relay, "reply"]` で足し、その人を `p` に入れる
+ * - 発言を隠す（kind:43）は `["e", <kind:42 の id>]`、人を隠す（kind:44）は `["p", pubkey]`
+ */
 import * as v from "valibot";
 import type { RelayUrl } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
+import {
+  type EventDraft,
+  type Mutation,
+  addTagValue,
+  removeTagValue,
+} from "./build/draft";
 import type { NostrEvent } from "./event";
-import { type EventRef, replyTarget } from "./event-refs";
+import type { EventRef } from "./event-refs";
+import { replyTarget } from "./reply";
 
 /** NIP-28 のチャンネル。 */
 export const CHANNEL_CREATE_KIND = 40;
@@ -221,3 +237,90 @@ export const activeChannels = (
     .map(([id, lastMessageAt]) => ({ id, lastMessageAt }))
     .sort((a, b) => b.lastMessageAt - a.lastMessageAt);
 };
+
+export type ChannelMetadataInput = {
+  name: string;
+  about?: string;
+  picture?: string;
+  relays: readonly RelayUrl[];
+};
+
+/** 空の項目は書かない。空文字の `about` を書くと、読む側が「説明あり」と扱いうる。 */
+const metadataContent = (input: ChannelMetadataInput): string =>
+  JSON.stringify({
+    name: input.name.trim(),
+    ...(input.about?.trim() ? { about: input.about.trim() } : {}),
+    ...(input.picture?.trim() ? { picture: input.picture.trim() } : {}),
+    relays: [...input.relays],
+  });
+
+/** チャンネルを作る（kind:40）。情報は `content` の JSON に入れる（NIP-28 の SHOULD）。 */
+export const buildChannelCreate = (
+  input: ChannelMetadataInput,
+): EventDraft => ({
+  kind: CHANNEL_CREATE_KIND,
+  tags: [],
+  content: metadataContent(input),
+});
+
+/**
+ * チャンネルの情報を直す（kind:41）。作った人が出したものだけが採られる。
+ * 全部の項目を書く —— 読む側が前の値を残すかは実装しだいなので、消したつもりの
+ * 項目が残らないよう、今の値をそろえて出す。
+ */
+export const buildChannelMetadata = (
+  channelId: string,
+  input: ChannelMetadataInput,
+  relayHint: RelayUrl = "",
+): EventDraft => ({
+  kind: CHANNEL_METADATA_KIND,
+  tags: [["e", channelId, relayHint, "root"]],
+  content: metadataContent(input),
+});
+
+/**
+ * チャンネルでの発言（kind:42）。返信なら、返信先を `reply` の印で足し、
+ * 返信先の人を `p` に入れる（NIP-28 は NIP-10 の印付きタグを使う）。
+ * relay-url は無くても空文字で埋める —— 省くと印が relay-url の位置にずれる。
+ */
+export const buildChannelMessage = (
+  channelId: string,
+  content: string,
+  options: { relayHint?: RelayUrl; replyTo?: NostrEvent } = {},
+): EventDraft => {
+  const hint = options.relayHint ?? "";
+  const tags: string[][] = [["e", channelId, hint, "root"]];
+  const parent = options.replyTo;
+  if (parent) {
+    tags.push(["e", parent.id, hint, "reply", parent.pubkey]);
+    tags.push(["p", parent.pubkey, hint]);
+  }
+  return { kind: CHANNEL_MESSAGE_KIND, tags, content };
+};
+
+const reasonContent = (reason: string | undefined): string =>
+  reason?.trim() ? JSON.stringify({ reason: reason.trim() }) : "";
+
+/** この発言をチャット内でミュートする（kind:43）。 */
+export const buildHideMessage = (
+  messageId: string,
+  reason?: string,
+): EventDraft => ({
+  kind: CHANNEL_HIDE_MESSAGE_KIND,
+  tags: [["e", messageId]],
+  content: reasonContent(reason),
+});
+
+/** この人をチャット内でミュートする（kind:44）。どのチャンネルかは指さない。 */
+export const buildMuteUser = (pubkey: string, reason?: string): EventDraft => ({
+  kind: CHANNEL_MUTE_USER_KIND,
+  tags: [["p", pubkey]],
+  content: reasonContent(reason),
+});
+
+/** お気に入りに入れる・外す。公開の `e` タグだけを触り、暗号化した `content` はそのまま残す。 */
+export const addFavoriteChannel = (channelId: string): Mutation =>
+  addTagValue(PUBLIC_CHATS_KIND, "e", channelId);
+
+export const removeFavoriteChannel = (channelId: string): Mutation =>
+  removeTagValue(PUBLIC_CHATS_KIND, "e", channelId);

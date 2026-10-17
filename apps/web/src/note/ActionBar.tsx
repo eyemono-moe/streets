@@ -1,11 +1,11 @@
 import { Menu } from "@ark-ui/solid/menu";
-import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   canBookmark,
   canPin,
   canReply,
 } from "@streets/core/nostr/event-actions";
+import { buildRepost } from "@streets/core/nostr/repost";
 import type { EventActionId } from "@streets/core/settings/action-layout";
 import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";

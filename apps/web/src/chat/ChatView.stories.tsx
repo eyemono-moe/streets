@@ -1,9 +1,9 @@
+import type { EventDraft } from "@streets/core/nostr/build/draft";
 import {
   buildChannelMessage,
   buildHideMessage,
   buildMuteUser,
-} from "@streets/core/nostr/build/channel";
-import type { EventDraft } from "@streets/core/nostr/build/draft";
+} from "@streets/core/nostr/channel";
 import { chatModeration } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { NewerPaging } from "@streets/core/read/newer-page";

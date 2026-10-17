@@ -1,10 +1,10 @@
 import type { LinkCardMode } from "@streets/core/deck/deck";
+import type { NostrEvent } from "@streets/core/nostr/event";
+import { encodeBech32 } from "@streets/core/nostr/nip19";
 import {
   type ReactionInput,
   buildReaction,
-} from "@streets/core/nostr/build/reaction";
-import type { NostrEvent } from "@streets/core/nostr/event";
-import { encodeBech32 } from "@streets/core/nostr/nip19";
+} from "@streets/core/nostr/reaction";
 import {
   type ActionLayout,
   defaultActionLayout,

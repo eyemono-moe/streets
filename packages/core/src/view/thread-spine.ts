@@ -1,5 +1,6 @@
 import type { NostrEvent } from "../nostr/event";
-import { type EventRef, replyTarget } from "../nostr/event-refs";
+import { type EventRef } from "../nostr/event-refs";
+import { replyTarget } from "../nostr/reply";
 
 type IdRef = Extract<EventRef, { form: "id" }>;
 import { compareEvents } from "../read/sorted-events";

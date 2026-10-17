@@ -1,7 +1,9 @@
 import { parseEventAddress } from "../nostr/address";
+import { commentRefs } from "../nostr/comment";
 import type { NostrEvent } from "../nostr/event";
-import { type EventRef, commentRefs, replyTarget } from "../nostr/event-refs";
+import { type EventRef } from "../nostr/event-refs";
 import { KIND_SUPPORT } from "../nostr/kind-support";
+import { replyTarget } from "../nostr/reply";
 
 /**
  * コメントが何について書かれたか。投稿のスレッドの中のコメント（根が kind:1）は

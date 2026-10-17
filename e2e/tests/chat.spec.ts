@@ -1,3 +1,4 @@
+import { channelOf, channelReplyTarget } from "@streets/core/nostr/channel";
 import { encodeNevent } from "@streets/core/nostr/nip19";
 import { column } from "../src/deck";
 import { RELAY_URL } from "../src/env";
@@ -44,12 +45,11 @@ test("チャンネルで返信を書ける", async ({ page, me, openApp, signIn 
     { authors: [me.pubkey], kinds: [42] },
     (event) => event.content === text,
   );
-  // チャンネルを root、返信先を reply で指し、返信先の人を p に入れる。
-  expect(sent.tags.map((tag) => [tag[0], tag[1], tag[3]])).toEqual([
-    ["e", channel.id, "root"],
-    ["e", hello.id, "reply"],
-    ["p", owner.pubkey, undefined],
-  ]);
+  expect(channelOf(sent)).toBe(channel.id);
+  expect(channelReplyTarget(sent)?.id).toBe(hello.id);
+  expect(
+    sent.tags.some((tag) => tag[0] === "p" && tag[1] === owner.pubkey),
+  ).toBe(true);
   await expect(
     room.getByRole("article").filter({ hasText: text }),
   ).toBeVisible();

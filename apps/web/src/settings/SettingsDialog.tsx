@@ -1,5 +1,5 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";

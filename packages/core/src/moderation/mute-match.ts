@@ -1,11 +1,7 @@
 import { type NostrEvent, isNostrEvent } from "../nostr/event";
-import {
-  embeddedRepostEvent,
-  replyTarget,
-  repostTarget,
-  threadRoot,
-} from "../nostr/event-refs";
 import { parseReaction } from "../nostr/reaction";
+import { replyTarget, threadRoot } from "../nostr/reply";
+import { embeddedRepostEvent, repostTarget } from "../nostr/repost";
 import type { MuteEntry } from "./mute-list";
 
 /** イベントがミュートに当たるか。 */

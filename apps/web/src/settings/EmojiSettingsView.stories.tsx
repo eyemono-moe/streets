@@ -1,4 +1,4 @@
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { CustomEmoji } from "@streets/core/settings/emoji-list";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";

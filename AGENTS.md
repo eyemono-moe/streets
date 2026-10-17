@@ -86,6 +86,7 @@ pnpm workspace の 2 パッケージ。
 - kind の「表示対応」は `apps/web/src/note/Event.tsx` に渡すと専用表示がある場合だけ宣言する。kind を `note/event-kinds.ts` の `RENDERED_KINDS` に足し、型検査が求めるとおり `Event.tsx` の `EVENT_VIEWS` に描き方を書く。描き分けのために kind で分岐する場所をほかに作らない。ストーリーを用意し、`scripts/nip-support.test.mjs` の照合を通す。読み書きだけなら「内部利用」にする。NIP の「対応」と kind の「表示対応」は別に判断する
 - NIPs 側の仕様が変わったら、変更箇所を既存の実装・`nip-support.json` の記載と照らす。Streets の動作に影響するなら実装とテストを直し、両一覧の対応度・kind・タグ・実装ファイル・残る差を更新する。未実装の仕様なら差を記録し、対応が必要なら Issue にする。仕様変更だけを理由に対応済みとは宣言しない
 - 一覧を直したら `vp run nips:generate` で `docs/nips.md` を再生成し、`vp run verify` を通す。「Streets について」は同じ JSON を読むので別に転記しない
+- 他のイベントを指すタグを持つ kind は、組み立てと読み取りを `packages/core/src/nostr/<kind>.ts` の 1 ファイルに置く（`reply.ts`・`comment.ts`・`quote.ts`・`repost.ts`・`reaction.ts`・`channel.ts`）。ファイルの冒頭に、タグの形と根拠の NIP の原文を書く。`e` タグの形は kind で違う（返信とチャンネルは NIP-10 の `["e", id, relay, marker, pubkey]`、それ以外は NIP-01 の `["e", id, relay, pubkey]`）ので、別の kind の書き方を写さない
 
 ### カラムを足す
 
@@ -98,9 +99,10 @@ pnpm workspace の 2 パッケージ。
 ## テスト
 
 - テストは core の純粋なロジック（パース、フィルタ、ストア、イベントの組み立て）に書く
+- タグの形（位置・印・必須かどうか）を確かめるテストは、NIPs の記述を正にする。期待するイベントは実装の出力ではなく NIPs の文と例から組み立て、テストのコメントに NIP の番号と原文を引く。NIPs に例があれば、それをそのまま読ませる。書く側と読む側が同じ思い込みで作られると、往復のテストは通ってしまう
 - 書き込み経路を足すときは、その経路が作る kind を使った core のテストを同じ PR に足し、`assertNip46SignPermission` で NIP-46 の要求権限に含まれることを確かめる。`Writer` のテストは権限検査付きの偽署名器を使い、署名器を直接呼ぶ経路はイベントの組み立てテストで確かめる
 - UI コンポーネントの単体テストは原則書かない。画面の確認は手で動かして行う
-- E2E（`e2e/`、Playwright）は、ふつうの人がする主な操作の流れ（ログイン・投稿・リアクション・カラムの編集など）が通ることだけを守る。見た目や端の状態は E2E で見ず、Storybook で見る。書き方は [e2e/README.md](./e2e/README.md)
+- E2E（`e2e/`、Playwright）は、ふつうの人がする主な操作の流れ（ログイン・投稿・リアクション・カラムの編集など）が通ることだけを守る。見た目や端の状態は E2E で見ず、Storybook で見る。書いたイベントのタグの形も E2E で見ず、core のテストで見る。書き方は [e2e/README.md](./e2e/README.md)
 - 部品の見た目は Storybook（`apps/web/src/**/*.stories.tsx`）で確認する。ストーリーはテストではなく、リレーに繋がずに固定のイベントを並べるカタログ。署名済みイベントの作り方と読み取り層の差し替えは `apps/web/src/storybook/` にある
 - ストーリーはリレーや外のサーバーへ繋がない。外の答えで見た目が変わると、レビューする人ごとに違うものを見る。`apps/web/.storybook/offline-guard.ts` が `fetch` と `WebSocket` を手元に限って外へは例外にし、画像と動画は `.storybook/main.ts` の CSP が手元と `data:`・`blob:` に限る。リレーの情報（NIP-11）・NIP-05・リンクのカードは `EventScene` の `relayInfo`・`nip05`・`linkCards` で答えを渡し、画像や動画は `apps/web/src/storybook/` の見本を使う。部品が外の URL を組み立てるもの（YouTube のサムネイルなど）は、差し替える props を足す。読めない URL を見せたいときは実在しない `example.invalid` を使い、実在する `example.com` を使わない
 - メディアの URL を本文に入れるストーリーでは、import した fixture のパスを `new URL(asset, location.href).href` で絶対 URL にする。本文の URL パーサーは `http(s)` で始まるものだけを拾う

@@ -9,9 +9,9 @@ import type {
   MuteVisibility,
 } from "@streets/core/moderation/mute-list";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ItemVisibility } from "@streets/core/nostr/private-tags";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { SearchHistoryEvent } from "@streets/core/search/history";
 import type {

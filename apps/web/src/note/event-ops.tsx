@@ -3,10 +3,10 @@ import {
   buildTimeslipColumn,
 } from "@streets/core/deck/column-presets";
 import { threadMuteTarget } from "@streets/core/moderation/mute-list";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { canBookmark, canPin } from "@streets/core/nostr/event-actions";
 import { encodeEventPointer } from "@streets/core/nostr/event-pointer";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { EventActionId } from "@streets/core/settings/action-layout";
 import { reactionContentOf } from "@streets/core/settings/default-reaction";

@@ -2,13 +2,13 @@ import { Drawer } from "@ark-ui/solid/drawer";
 import { Menu } from "@ark-ui/solid/menu";
 import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
-import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   canBookmark,
   canPin,
   canReply,
 } from "@streets/core/nostr/event-actions";
+import { buildRepost } from "@streets/core/nostr/repost";
 import {
   type EventActionId,
   allActionsOf,

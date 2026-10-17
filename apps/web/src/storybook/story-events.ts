@@ -1,9 +1,10 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import type { EventDraft } from "@streets/core/nostr/build/draft";
-import { buildQuote, buildReply } from "@streets/core/nostr/build/note";
-import { buildRepost } from "@streets/core/nostr/build/repost";
 import { type NostrEvent, computeEventId } from "@streets/core/nostr/event";
+import { buildQuote } from "@streets/core/nostr/quote";
+import { buildReply } from "@streets/core/nostr/reply";
+import { buildRepost } from "@streets/core/nostr/repost";
 
 export type StoryProfile = {
   name?: string;

@@ -126,6 +126,24 @@ describe("buildZapRequest", () => {
     });
   });
 
+  it("記事への Zap は、住所を a タグで指す", () => {
+    // NIP-57: "`a` is an optional event coordinate that allows tipping addressable events
+    // such as NIP-23 long-form notes."
+    const article = { ...target, kind: 30023, tags: [["d", "x"]] };
+    const draft = buildZapRequest({
+      target: { type: "event", event: article },
+      endpoint,
+      amountMsat: 21_000,
+      relays: ["wss://a.example/"],
+      message: "",
+    });
+    expect(draft.tags.slice(4)).toEqual([
+      ["e", article.id],
+      ["a", `30023:${article.pubkey}:x`],
+      ["k", "30023"],
+    ]);
+  });
+
   it("人への Zap は投稿を指すタグを付けない", () => {
     const draft = buildZapRequest({
       target: { type: "profile", pubkey: target.pubkey },

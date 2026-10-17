@@ -1,5 +1,8 @@
 import { pointsTo } from "@streets/core/nostr/event-pointer";
 import { decodeNip19 } from "@streets/core/nostr/nip19";
+import { parseReaction } from "@streets/core/nostr/reaction";
+import { replyTarget } from "@streets/core/nostr/reply";
+import { repostTarget } from "@streets/core/nostr/repost";
 import { column } from "../src/deck";
 import { expect, test } from "../src/fixtures";
 import { waitForEvent } from "../src/relay";
@@ -35,13 +38,12 @@ test("リアクションできる", async ({ page, me, openApp, signIn }) => {
     { kinds: [7], authors: [me.pubkey] },
     (event) => event.tags.some((tag) => tag[0] === "e" && tag[1] === note.id),
   );
-  expect(reaction.content).toBe("+");
-  const eTag = reaction.tags.find((tag) => tag[0] === "e");
-  expect(eTag?.[1]).toBe(note.id);
-  expect(eTag?.[3]).toBe(alice.pubkey);
-  expect(
-    reaction.tags.some((tag) => tag[0] === "p" && tag[1] === alice.pubkey),
-  ).toBe(true);
+  // タグの形は core のテストで見る。ここでは、その投稿へのいいねとして読めて、相手に届くこと。
+  expect(parseReaction(reaction)).toEqual({
+    content: { type: "like" },
+    targetId: note.id,
+    targetPubkey: alice.pubkey,
+  });
 });
 
 test("リポストできる", async ({ page, me, openApp, signIn }) => {
@@ -65,15 +67,13 @@ test("リポストできる", async ({ page, me, openApp, signIn }) => {
     { kinds: [6], authors: [me.pubkey] },
     (event) => event.tags.some((tag) => tag[0] === "e" && tag[1] === note.id),
   );
-  const eTag = repost.tags.find((tag) => tag[0] === "e");
-  // NIP-18 は印を定めないので、e タグは NIP-01 の ["e", id, relay, pubkey]。
-  expect(eTag?.[1]).toBe(note.id);
-  expect(eTag?.[2]).toMatch(/^wss?:\/\//);
-  expect(eTag?.[3]).toBe(alice.pubkey);
+  expect(repostTarget(repost)).toMatchObject({
+    id: note.id,
+    pubkey: alice.pubkey,
+  });
   expect(
     repost.tags.some((tag) => tag[0] === "p" && tag[1] === alice.pubkey),
   ).toBe(true);
-  expect(JSON.parse(repost.content).id).toBe(note.id);
 });
 
 test("返信できる", async ({ page, me, openApp, signIn }) => {
@@ -98,10 +98,7 @@ test("返信できる", async ({ page, me, openApp, signIn }) => {
     { kinds: [1], authors: [me.pubkey] },
     (event) => event.content === replyText,
   );
-  const eTag = reply.tags.find((tag) => tag[0] === "e");
-  expect(eTag?.[1]).toBe(note.id);
-  expect(eTag?.[3]).toBe("root");
-  expect(eTag?.[4]).toBe(alice.pubkey);
+  expect(replyTarget(reply)?.id).toBe(note.id);
   expect(
     reply.tags.some((tag) => tag[0] === "p" && tag[1] === alice.pubkey),
   ).toBe(true);

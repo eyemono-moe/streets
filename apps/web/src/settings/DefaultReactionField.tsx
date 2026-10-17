@@ -1,4 +1,4 @@
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import { type Component, Show } from "solid-js";
 import { useEmojiGroups } from "../emoji/custom-emojis";
 import EmojiPicker from "../emoji/EmojiPicker";

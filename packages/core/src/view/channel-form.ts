@@ -1,4 +1,4 @@
-import type { ChannelMetadataInput } from "../nostr/build/channel";
+import type { ChannelMetadataInput } from "../nostr/channel";
 import type { Channel } from "../nostr/channel";
 import type { RelayUrl } from "../relay/relay-connection";
 

@@ -1,4 +1,4 @@
-import { buildChannelMessage } from "@streets/core/nostr/build/channel";
+import { buildChannelMessage } from "@streets/core/nostr/channel";
 import {
   type ChatMuteKind,
   type ChatMuteScope,

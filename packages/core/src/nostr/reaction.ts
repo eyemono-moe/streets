@@ -1,3 +1,18 @@
+/**
+ * NIP-25 のリアクション（kind:7）。
+ *
+ * - `e` は必須で、対象を最後に置く（"There MUST be always an `e` tag set to the `id` of the
+ *   event that is being reacted to ... the target event `id` should be last of the `e` tags"）
+ * - 形は NIP-01 の `["e", id, relay, pubkey]`（"The `e` and `a` tags SHOULD include relay
+ *   and pubkey hints"）。住所を持つ先には `a` も添える（"an `a` SHOULD be included together
+ *   with the `e` tag"）
+ * - 作者を `["p", pubkey, relay]` に入れる（"There SHOULD be a `p` tag"、"The `p` tags
+ *   SHOULD include relay hints"）
+ * - `content` の `+` と空文字は「いいね」
+ */
+import type { RelayUrl } from "../relay/relay-connection";
+import { addressOfEvent, formatEventAddress } from "./address";
+import type { EventDraft } from "./build/draft";
 import type { NostrEvent } from "./event";
 
 const REACTION_KIND = 7;
@@ -66,4 +81,43 @@ export const parseReaction = (
   return targetPubkey
     ? { content, targetId, targetPubkey }
     : { content, targetId };
+};
+
+export type ReactionInput =
+  | { type: "like" }
+  | { type: "text"; content: string }
+  | { type: "emoji"; shortcode: string; url: string };
+
+/**
+ * NIP-25 のリアクション。`k` タグは NIP-25 上は MAY だが必ず入れる ——
+ * 読み取り側の `parseReaction` が既に見ており、落とすと自分で書いたものを自分で読めなくなる。
+ */
+export const buildReaction = (
+  target: NostrEvent,
+  input: ReactionInput,
+  options?: { relayHint?: RelayUrl },
+): EventDraft => {
+  const hint = options?.relayHint ?? "";
+  const address = addressOfEvent(target);
+  const tags: string[][] = [
+    ["e", target.id, hint, target.pubkey],
+    // NIP-25: 住所を持つ先には `a` も添える。版が変わっても同じものへの反応として数えられる。
+    ...(address ? [["a", formatEventAddress(address), hint]] : []),
+    ["p", target.pubkey, hint],
+    ["k", String(target.kind)],
+  ];
+  if (input.type === "emoji") {
+    tags.push(["emoji", input.shortcode, input.url]);
+  }
+  return {
+    kind: 7,
+    tags,
+    content:
+      input.type === "like"
+        ? "+"
+        : input.type === "text"
+          ? input.content
+          : // NIP-25: "The content can be set only one `:shortcode:`." 飾りを足すと他クライアントが素のテキストとして描く
+            `:${input.shortcode}:`,
+  };
 };

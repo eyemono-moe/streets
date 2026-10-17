@@ -1,9 +1,9 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { buildReplyTo } from "../nostr/build/note";
 import { computeEventId } from "../nostr/event";
 import type { NostrEvent } from "../nostr/event";
+import { buildReplyTo } from "../nostr/reply";
 import { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
 import { createFakeSigner as createRawFakeSigner } from "../signer/fake-signer";

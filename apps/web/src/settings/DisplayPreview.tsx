@@ -1,5 +1,5 @@
-import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
+import { buildReaction } from "@streets/core/nostr/reaction";
 import type { Component } from "solid-js";
 import Event from "../note/Event";
 import { EventSceneProvider } from "../storybook/EventScene";
