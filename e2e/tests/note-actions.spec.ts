@@ -66,8 +66,10 @@ test("リポストできる", async ({ page, me, openApp, signIn }) => {
     (event) => event.tags.some((tag) => tag[0] === "e" && tag[1] === note.id),
   );
   const eTag = repost.tags.find((tag) => tag[0] === "e");
+  // NIP-18 は印を定めないので、e タグは NIP-01 の ["e", id, relay, pubkey]。
   expect(eTag?.[1]).toBe(note.id);
-  expect(eTag?.[4]).toBe(alice.pubkey);
+  expect(eTag?.[2]).toMatch(/^wss?:\/\//);
+  expect(eTag?.[3]).toBe(alice.pubkey);
   expect(
     repost.tags.some((tag) => tag[0] === "p" && tag[1] === alice.pubkey),
   ).toBe(true);
