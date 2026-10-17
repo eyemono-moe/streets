@@ -109,8 +109,15 @@ const LoginPanel: Component<{
               trailing="next"
               onClick={() => setStep("existing")}
             />
-            {/* カラムを横に並べているなら、流れている投稿は隣にもう見えている。 */}
-            <Show when={!isMultiColumn()}>
+            {/* カラムを横に並べているなら、流れている投稿は隣にもう見えているので、一言だけ添える。 */}
+            <Show
+              when={!isMultiColumn()}
+              fallback={
+                <p class="c-secondary text-caption">
+                  ログインしなくても、ほかのカラムで投稿を読めます。
+                </p>
+              }
+            >
               <ChoiceButton
                 icon="i-material-symbols:visibility-outline-rounded"
                 title="ログインせずに読む"

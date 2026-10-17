@@ -86,7 +86,7 @@ const meta = {
     );
   },
   args: {
-    width: "400px",
+    width: "440px",
     keyboard: true,
     login: { pending: false },
     onExtension: () => {},

@@ -6,6 +6,7 @@ import { type ColorScheme, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
+import { GUIDE, GuideLink } from "./guide";
 import NostrDiagram from "./NostrDiagram";
 import ReorderDemo from "./ReorderDemo";
 
@@ -29,8 +30,7 @@ const SCHEMES: { value: ColorScheme; label: string }[] = [
 ];
 
 const OTHERS = [
-  "書きかけの投稿を下書きに残せる",
-  "日時を選び、その時点から投稿を読み返せる",
+  "投稿の日時へタイムスリップして、その前後のタイムラインを見返せる",
   "文字からカスタム絵文字を作れる",
   "カラムをピクチャーインピクチャーで表示して、別の画面を開いていても読める",
 ];
@@ -110,6 +110,9 @@ const WelcomeFeatures: Component<{
         <Point title="相手の投稿先を探して読む">
           Streetsは、フォロー中の人が投稿に使っているリレーを調べ、そこから読み取ります。
         </Point>
+        <p class="text-caption">
+          <GuideLink href={GUIDE}>Nostr について詳しく知る</GuideLink>
+        </p>
       </Section>
 
       <Section
@@ -142,7 +145,7 @@ const WelcomeFeatures: Component<{
       <Section
         id="welcome-custom"
         title="見やすく、操作しやすく"
-        lead="カラーテーマを選んだり、ショートカットキーを変えたりできます。"
+        lead="カラーテーマやショートカットキーを柔軟に変更できます。"
       >
         <Card title="カラーテーマ">
           <PalettePicker
@@ -178,7 +181,15 @@ const WelcomeFeatures: Component<{
                 <dt>
                   <Key>{displayHotkey(keymap().palette)}</Key>
                 </dt>
-                <dd>機能を名前で探して開く</dd>
+                <dd>
+                  <button
+                    type="button"
+                    class="cursor-pointer bg-transparent p-0 text-link"
+                    onClick={() => dispatch({ type: "deck/open-palette" })}
+                  >
+                    機能を名前で探して開く
+                  </button>
+                </dd>
               </div>
               <div class="flex items-center gap-3">
                 <dt>

@@ -22,6 +22,10 @@ describe("guestDeckSet", () => {
     expect(columns.some(columnNeedsAccount)).toBe(false);
   });
 
+  it("紹介とログインのカラムは L の幅で置く", () => {
+    expect(columns[0]?.width).toBe("l");
+  });
+
   it("ハッシュタグは検索のカラムで開く", () => {
     expect(columns[2]?.source).toEqual({ kind: "search", query: "#foodstr" });
   });

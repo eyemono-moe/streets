@@ -30,6 +30,8 @@ export const welcomeColumn = (): ColumnDef => ({
   id: crypto.randomUUID(),
   title: "Streets へようこそ",
   source: { kind: "welcome" },
+  // 紹介を兼ねて図や説明が多いので、ほかのカラムより広く取る。
+  width: "l",
 });
 
 /**
