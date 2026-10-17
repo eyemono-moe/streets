@@ -85,7 +85,14 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
         >
           <Show
             when={props.signedIn || !columnNeedsAccount(props.column)}
-            fallback={<NeedsAccount column={props.column} />}
+            fallback={
+              <Show
+                when={view().Sample}
+                fallback={<NeedsAccount column={props.column} />}
+              >
+                {(Sample) => <Dynamic component={Sample()} />}
+              </Show>
+            }
           >
             <Show when={props.remembersTabs} fallback={content()}>
               <TabMemoryProvider value={columnTabMemory(props.column.id)}>

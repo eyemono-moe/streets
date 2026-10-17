@@ -1,7 +1,15 @@
 import { KIND_SUPPORT } from "@streets/core/nostr/kind-support";
 import { NIP_SUPPORT } from "@streets/core/nostr/nip-support";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import { type Component, For, type JSX, Show, createSignal } from "solid-js";
+import {
+  type Component,
+  For,
+  type JSX,
+  Show,
+  createEffect,
+  createSignal,
+  on,
+} from "solid-js";
 import type { ReleaseNote } from "../../release-notes-plugin";
 import SettingsSection from "../settings/SettingsSection";
 import { Mediates, useDispatch } from "../ui-events";
@@ -355,6 +363,8 @@ const AboutDialog: Component<{
   releaseNotes?: readonly ReleaseNote[];
   /** 最初に開くページ。ストーリーで各ページを見せるため。 */
   initialPage?: string;
+  /** 開くたびに見せるページ（紹介のカラムのリンクなど）。省くと前に見ていたページのまま。 */
+  requestedPage?: string;
   /**
    * リリースノートの中の人を押した。デッキはダイアログを閉じてその人のカラムを
    * 開く。省くと（入口の画面など、カラムが無いとき）njump.me でその人を開く。
@@ -363,6 +373,14 @@ const AboutDialog: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   const [page, setPage] = createSignal(props.initialPage ?? "overview");
+  createEffect(
+    on(
+      () => [props.open, props.requestedPage] as const,
+      ([open, requested]) => {
+        if (open && requested) setPage(requested);
+      },
+    ),
+  );
   const pages: DialogPage[] = [
     {
       value: "overview",

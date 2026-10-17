@@ -2,19 +2,20 @@ import { Collapsible } from "@ark-ui/solid/collapsible";
 import { type DeviceKind, deviceKind } from "@streets/core/view/device-kind";
 import {
   type Component,
+  type JSX,
   Match,
   Show,
   Switch,
   createEffect,
   createSignal,
   on,
+  onCleanup,
 } from "solid-js";
 import { isMultiColumn } from "../deck-layout-setting";
 import type { ConnectAttempt } from "../session";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
-import Intro from "./Intro";
 import NewcomerGuide from "./NewcomerGuide";
 import RemoteSignerLogin from "./RemoteSignerLogin";
 
@@ -28,6 +29,11 @@ export type LoginState = {
 };
 
 export type LoginStep = "choose" | "new" | "existing";
+
+/** 促されてからこの間に描かれたら揺らす。それより後に描き直されたときは揺らさない。 */
+const NUDGE_FRESH_MS = 1000;
+/** 枠を残す長さ。揺れが止まった後も、どこを見ればよいかを少し示しておく。 */
+const NUDGE_SHOW_MS = 1600;
 
 const BackButton: Component<{ onClick: () => void }> = (props) => (
   <button
@@ -62,6 +68,10 @@ const LoginPanel: Component<{
   initialDevice?: DeviceKind;
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
+  /** 始め方を選ぶ段にだけ、選択肢の下に置くもの（Streets の紹介）。 */
+  children?: JSX.Element;
+  /** ログインを促された時刻（ミリ秒）。直後に描かれたら、いまの段を揺らして目立たせる。 */
+  nudgedAt?: number;
 }> = (props) => {
   const dispatch = useDispatch();
   // スマートフォンで始め方を読み終えた人は、リモート署名器で繋ぐ。
@@ -82,146 +92,197 @@ const LoginPanel: Component<{
     ),
   );
 
+  // ログインの要る操作やメニューから促されたら、いまの段に枠を付けて揺らす。促した側が
+  // このカラムを足し直したときは、描かれた時点で時刻がもう進んでいるので、時刻で判断する。
+  let nudgeTarget: HTMLElement | undefined;
+  const [nudged, setNudged] = createSignal(false);
+  let nudgeTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(nudgeTimer));
+  createEffect(
+    on(
+      () => props.nudgedAt,
+      (at) => {
+        if (at === undefined || Date.now() - at > NUDGE_FRESH_MS) return;
+        // 続けて促されたときも揺らし直せるよう、一度外してから付ける。
+        setNudged(false);
+        requestAnimationFrame(() => {
+          setNudged(true);
+          nudgeTarget?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          clearTimeout(nudgeTimer);
+          nudgeTimer = setTimeout(() => setNudged(false), NUDGE_SHOW_MS);
+        });
+      },
+    ),
+  );
+  const nudgeClass = () =>
+    nudged()
+      ? "animate-shake outline outline-2 outline-offset-4 outline-accent-5"
+      : "";
+
   return (
     <Switch>
       <Match when={step() === "choose"}>
-        <section
-          class="flex animate-fade-in flex-col gap-3"
-          aria-labelledby="choose-heading"
-        >
-          <Intro />
-          <h2 id="choose-heading" class="mt-3 font-600 text-body">
-            はじめる
-          </h2>
-          <ChoiceButton
-            icon="i-material-symbols:person-add-outline-rounded"
-            title="はじめての方"
-            description="Nostr のアカウントを作るところから案内します"
-            trailing="next"
-            onClick={() => setStep("new")}
-          />
-          <ChoiceButton
-            icon="i-material-symbols:login-rounded"
-            title="Nostr のアカウントを持っている方"
-            description="拡張機能かリモート署名器でログインします"
-            trailing="next"
-            onClick={() => setStep("existing")}
-          />
-          {/* カラムを横に並べているなら、流れている投稿は隣にもう見えている。 */}
-          <Show when={!isMultiColumn()}>
-            <ChoiceButton
-              icon="i-material-symbols:visibility-outline-rounded"
-              title="ログインせずに見てみる"
-              description="いま流れている投稿を読みます"
-              trailing="next"
-              onClick={() => dispatch({ type: "deck/browse" })}
-            />
-          </Show>
-        </section>
+        <div class="flex animate-fade-in flex-col">
+          <section
+            class="flex flex-col gap-3 px-4 pb-8"
+            aria-labelledby="choose-heading"
+          >
+            <h2 id="choose-heading" class="sr-only">
+              はじめる
+            </h2>
+            <div
+              ref={(element) => (nudgeTarget = element)}
+              class={`flex scroll-m-4 flex-col gap-3 rounded-3 ${nudgeClass()}`}
+            >
+              <ChoiceButton
+                icon="i-material-symbols:person-add-outline-rounded"
+                title="Nostrをはじめる"
+                description="アカウントの作成から案内します"
+                trailing="next"
+                onClick={() => setStep("new")}
+              />
+              <ChoiceButton
+                icon="i-material-symbols:login-rounded"
+                title="アカウントを持っている方"
+                description="今のNostrアカウントでログインします"
+                trailing="next"
+                onClick={() => setStep("existing")}
+              />
+              {/* カラムを横に並べているなら、流れている投稿は隣にもう見えているので、一言だけ添える。 */}
+              <Show
+                when={!isMultiColumn()}
+                fallback={
+                  <p class="c-secondary text-caption">
+                    ログインしなくても、ほかのカラムで投稿を読めます。
+                  </p>
+                }
+              >
+                <ChoiceButton
+                  icon="i-material-symbols:visibility-outline-rounded"
+                  title="ログインせずに読む"
+                  description="投稿を見るだけならアカウントは不要です"
+                  trailing="next"
+                  onClick={() => dispatch({ type: "deck/browse" })}
+                />
+              </Show>
+            </div>
+          </section>
+          {props.children}
+        </div>
       </Match>
 
       <Match when={step() === "new"}>
         <section
-          class="flex animate-fade-in flex-col gap-3"
+          class="animate-fade-in px-4 pb-4"
           aria-labelledby="new-heading"
         >
-          <BackButton onClick={() => setStep("choose")} />
-          <h2 id="new-heading" class="font-600 text-body">
-            はじめての方
-          </h2>
-          <NewcomerGuide
-            initialDevice={
-              props.initialDevice ??
-              deviceKind(navigator.userAgent, navigator.maxTouchPoints)
-            }
-            onDone={(device) => {
-              setRemoteOpen(device !== "pc");
-              setStep("existing");
-            }}
-          />
+          <div
+            ref={(element) => (nudgeTarget = element)}
+            class={`flex scroll-m-4 flex-col gap-3 rounded-3 ${nudgeClass()}`}
+          >
+            <BackButton onClick={() => setStep("choose")} />
+            <h2 id="new-heading" class="font-600 text-body">
+              Nostrをはじめる
+            </h2>
+            <NewcomerGuide
+              initialDevice={
+                props.initialDevice ??
+                deviceKind(navigator.userAgent, navigator.maxTouchPoints)
+              }
+              onDone={(device) => {
+                setRemoteOpen(device !== "pc");
+                setStep("existing");
+              }}
+            />
+          </div>
         </section>
       </Match>
 
       <Match when={step() === "existing"}>
         <section
-          class="flex animate-fade-in flex-col gap-3"
+          class="animate-fade-in px-4 pb-4"
           aria-labelledby="existing-heading"
         >
-          <BackButton onClick={() => setStep("choose")} />
-          <h2 id="existing-heading" class="font-600 text-body">
-            Nostr のアカウントを持っている方
-          </h2>
-
-          <Show when={props.state.error}>
-            {(message) => (
-              <div
-                role="alert"
-                class="flex flex-col items-start gap-2 rounded-2 bg-danger-subtle px-3 py-2"
-              >
-                <p class="c-danger text-caption">{message()}</p>
-                <Show when={props.state.restoreFailed}>
-                  <Button
-                    size="sm"
-                    icon="i-material-symbols:refresh-rounded"
-                    disabled={props.state.pending}
-                    onClick={() => props.onRetryRestore()}
-                  >
-                    もう一度試す
-                  </Button>
-                </Show>
-              </div>
-            )}
-          </Show>
-
-          <ChoiceButton
-            icon="i-material-symbols:extension-outline-rounded"
-            title="拡張機能でログイン"
-            description="nos2x や Alby など、ブラウザの拡張機能に署名を頼みます"
-            disabled={props.state.pending}
-            onClick={() => props.onExtension()}
-          />
-
-          <Collapsible.Root
-            lazyMount
-            unmountOnExit
-            defaultOpen={remoteOpen()}
-            class="flex flex-col gap-2"
+          <div
+            ref={(element) => (nudgeTarget = element)}
+            class={`flex scroll-m-4 flex-col gap-3 rounded-3 ${nudgeClass()}`}
           >
-            <Collapsible.Trigger
-              asChild={(trigger) => (
-                <ChoiceButton
-                  {...trigger()}
-                  icon="i-material-symbols:phonelink-lock-outline-rounded"
-                  title="リモート署名器でログイン"
-                  description="Amber や Primal など、鍵を預かる別のアプリに署名を頼みます"
-                  trailing="expand"
-                />
-              )}
-            />
-            <Collapsible.Content class="motion-collapse">
-              <div class="pt-1">
-                <RemoteSignerLogin
-                  pending={props.state.pending}
-                  onBunker={props.onBunker}
-                  onNostrConnect={props.onNostrConnect}
-                  initialBunkerUri={props.initialBunkerUri}
-                />
-              </div>
-            </Collapsible.Content>
-          </Collapsible.Root>
+            <BackButton onClick={() => setStep("choose")} />
+            <h2 id="existing-heading" class="font-600 text-body">
+              アカウントを持っている方
+            </h2>
 
-          <Show when={props.state.authUrl}>
-            {(url) => (
-              <a
-                class="text-caption text-link"
-                href={url().href}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                署名器で接続を承認する
-              </a>
-            )}
-          </Show>
+            <Show when={props.state.error}>
+              {(message) => (
+                <div
+                  role="alert"
+                  class="flex flex-col items-start gap-2 rounded-2 bg-danger-subtle px-3 py-2"
+                >
+                  <p class="c-danger text-caption">{message()}</p>
+                  <Show when={props.state.restoreFailed}>
+                    <Button
+                      size="sm"
+                      icon="i-material-symbols:refresh-rounded"
+                      disabled={props.state.pending}
+                      onClick={() => props.onRetryRestore()}
+                    >
+                      もう一度試す
+                    </Button>
+                  </Show>
+                </div>
+              )}
+            </Show>
+
+            <ChoiceButton
+              icon="i-material-symbols:extension-outline-rounded"
+              title="拡張機能でログイン"
+              description="nos2x や Alby など、ブラウザの拡張機能に署名を頼みます"
+              disabled={props.state.pending}
+              onClick={() => props.onExtension()}
+            />
+
+            <Collapsible.Root
+              lazyMount
+              unmountOnExit
+              defaultOpen={remoteOpen()}
+              class="flex flex-col gap-2"
+            >
+              <Collapsible.Trigger
+                asChild={(trigger) => (
+                  <ChoiceButton
+                    {...trigger()}
+                    icon="i-material-symbols:phonelink-lock-outline-rounded"
+                    title="リモート署名器でログイン"
+                    description="Amber や Primal など、鍵を預かる別のアプリに署名を頼みます"
+                    trailing="expand"
+                  />
+                )}
+              />
+              <Collapsible.Content class="motion-collapse">
+                <div class="pt-1">
+                  <RemoteSignerLogin
+                    pending={props.state.pending}
+                    onBunker={props.onBunker}
+                    onNostrConnect={props.onNostrConnect}
+                    initialBunkerUri={props.initialBunkerUri}
+                  />
+                </div>
+              </Collapsible.Content>
+            </Collapsible.Root>
+
+            <Show when={props.state.authUrl}>
+              {(url) => (
+                <a
+                  class="text-caption text-link"
+                  href={url().href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  署名器で接続を承認する
+                </a>
+              )}
+            </Show>
+          </div>
         </section>
       </Match>
     </Switch>

@@ -7,19 +7,29 @@ describe("guestDeckSet", () => {
   const set = guestDeckSet(["wss://a.example/"]);
   const columns = set.decks[0]?.columns ?? [];
 
-  it("紹介とログインを先頭に、ログインせずに読めるカラムを並べる", () => {
+  it("紹介とログインに続けて、ログインせずに読めるカラム、最後に見本の通知を並べる", () => {
     expect(columns.map((column) => column.source.kind)).toEqual([
       "welcome",
       "literal",
       "search",
       "user",
+      "notifications",
     ]);
     expect(columns[3]?.source).toEqual({
       kind: "user",
       pubkey: STREETS_PUBKEY,
     });
-    // 捕まえる変異: ログインが要るカラム（ホーム・通知）を混ぜる
-    expect(columns.some(columnNeedsAccount)).toBe(false);
+  });
+
+  it("ログインが要るカラムは、見本の通知だけ", () => {
+    // 捕まえる変異: ホームなど、ほかのログインが要るカラムも混ぜる
+    expect(
+      columns.filter(columnNeedsAccount).map((column) => column.source.kind),
+    ).toEqual(["notifications"]);
+  });
+
+  it("紹介とログインのカラムは L の幅で置く", () => {
+    expect(columns[0]?.width).toBe("l");
   });
 
   it("ハッシュタグは検索のカラムで開く", () => {
@@ -30,7 +40,7 @@ describe("guestDeckSet", () => {
     const kinds = guestDeckSet([]).decks[0]?.columns.map(
       (column) => column.source.kind,
     );
-    expect(kinds).toEqual(["welcome", "search", "user"]);
+    expect(kinds).toEqual(["welcome", "search", "user", "notifications"]);
   });
 
   it("保存して読み戻せる", () => {

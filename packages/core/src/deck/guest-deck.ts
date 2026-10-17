@@ -1,6 +1,7 @@
 import type { RelayUrl } from "../relay/relay-connection";
 import { columnNeedsAccount } from "./column-kinds";
 import {
+  buildColumn,
   buildHashtagColumn,
   buildRelayColumn,
   buildUserColumn,
@@ -30,11 +31,14 @@ export const welcomeColumn = (): ColumnDef => ({
   id: crypto.randomUUID(),
   title: "Streets へようこそ",
   source: { kind: "welcome" },
+  // 紹介を兼ねて図や説明が多いので、ほかのカラムより広く取る。
+  width: "l",
 });
 
 /**
  * ログインしていない人に最初に見せるデッキ。紹介とログインのカラムに続けて、
  * ログインせずに読めるカラムを種類を変えて並べ、組み合わせられることを見せる。
+ * 最後に、ログインすると見られる通知を見本で 1 本置く。
  */
 export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
   const relayColumn = buildRelayColumn(relays);
@@ -49,6 +53,8 @@ export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
           ...(relayColumn ? [relayColumn] : []),
           buildHashtagColumn(GUEST_HASHTAG)!,
           { ...buildUserColumn(STREETS_PUBKEY), id: crypto.randomUUID() },
+          // 見本はログインするまで読めないので、読めるカラムより後ろに置く。
+          buildColumn("notifications", "")!,
         ],
       },
     ],

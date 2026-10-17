@@ -1,41 +1,102 @@
-import { createSignal } from "solid-js";
+import type { DeckAppearance } from "@streets/core/deck/deck";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import AboutDialog from "../about/AboutDialog";
+import {
+  type ColorScheme,
+  DEFAULT_APPEARANCE,
+  applyColors,
+  savedColorScheme,
+  setColorScheme,
+} from "../theme";
 import { Mediates } from "../ui-events";
 import type { LoginState } from "./LoginPanel";
-import { WelcomeColumnView } from "./WelcomeColumn";
+import { type WelcomeLogin, WelcomeColumnView } from "./WelcomeColumn";
 
-type Props = Omit<Parameters<typeof WelcomeColumnView>[0], "state"> & {
-  login: LoginState;
-  /** カラムの幅。狭い画面では画面いっぱいになる。 */
-  width: string;
-};
+type Props = Omit<
+  Parameters<typeof WelcomeColumnView>[0],
+  "login" | "scheme" | "appearance"
+> &
+  Omit<WelcomeLogin, "state"> & {
+    login: LoginState;
+    /** ログインしている人の見た目にする（始め方の選択肢を出さない）。 */
+    signedIn?: boolean;
+    /** ログインを促され続ける（数秒ごとに揺れる）。 */
+    nudging?: boolean;
+    /** カラムの幅。狭い画面では画面いっぱいになる。 */
+    width: string;
+  };
 
 const meta = {
   title: "カラム/紹介とログイン",
   component: (props: Props) => {
-    const [about, setAbout] = createSignal(false);
+    const [about, setAbout] = createSignal<string | undefined>();
+    // 色と明るさはデッキの段が持つ。ストーリーでは手元に持ち、選んだら画面に当てる。
+    const [scheme, setScheme] = createSignal<ColorScheme>(savedColorScheme());
+    const [appearance, setAppearance] =
+      createSignal<DeckAppearance>(DEFAULT_APPEARANCE);
+    const [nudgedAt, setNudgedAt] = createSignal<number>();
+    onMount(() => {
+      if (!props.nudging) return;
+      const timer = setInterval(() => setNudgedAt(Date.now()), 2500);
+      onCleanup(() => clearInterval(timer));
+    });
     return (
       <Mediates
         handle={(event) => {
-          if (event.type === "deck/open-about") setAbout(true);
-          else if (event.type === "deck/close-about") setAbout(false);
-          else return false;
-          return true;
+          switch (event.type) {
+            case "deck/open-about":
+              setAbout(event.page ?? "overview");
+              return true;
+            case "deck/close-about":
+              setAbout(undefined);
+              return true;
+            case "deck/set-color-scheme":
+              setScheme(event.scheme);
+              setColorScheme(event.scheme, false);
+              return true;
+            case "deck/set-appearance":
+              setAppearance(event.appearance);
+              applyColors(event.appearance);
+              return true;
+            default:
+              return false;
+          }
         }}
       >
         <div
           class="h-dvh overflow-y-auto border-primary border-r bg-primary"
           style={{ width: props.width }}
         >
-          <WelcomeColumnView {...props} state={() => props.login} />
+          <WelcomeColumnView
+            {...props}
+            scheme={scheme()}
+            appearance={appearance()}
+            loginNudgedAt={nudgedAt()}
+            login={
+              props.signedIn
+                ? undefined
+                : {
+                    state: () => props.login,
+                    onExtension: props.onExtension,
+                    onBunker: props.onBunker,
+                    onNostrConnect: props.onNostrConnect,
+                    onRetryRestore: props.onRetryRestore,
+                  }
+            }
+          />
         </div>
-        <AboutDialog open={about()} wide />
+        <AboutDialog
+          open={about() !== undefined}
+          requestedPage={about()}
+          wide
+        />
       </Mediates>
     );
   },
   args: {
-    width: "380px",
+    width: "440px",
+    keyboard: true,
     login: { pending: false },
     onExtension: () => {},
     onBunker: () => {},
@@ -53,15 +114,26 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const 最初の二択: Story = {};
+export const 最初の画面: Story = {};
+
+/** ログインの要る操作やメニューから促されると、始め方の欄に枠を付けて揺らす。 */
+export const ログインを促された: Story = { args: { nudging: true } };
+
+/** 途中の段で促されたときは、その段を揺らす。 */
+export const 途中の段でログインを促された: Story = {
+  args: { nudging: true, initialStep: "existing" },
+};
+
+/** ログインしている人にも同じ紹介を見せ、始め方の選択肢だけを出さない。 */
+export const ログインしている: Story = { args: { signedIn: true } };
 
 export const 幅の狭いカラム: Story = { args: { width: "320px" } };
 
-/** ロゴの横に題名が入らないので、題名を次の行へ送る。 */
 export const 細いカラム: Story = { args: { width: "200px" } };
 
+/** 狭い画面やタッチの端末では、キーボードの操作を紹介しない。 */
 export const 狭い画面: Story = {
-  args: { width: "100%" },
+  args: { width: "100%", keyboard: false },
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 

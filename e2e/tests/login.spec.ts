@@ -3,7 +3,7 @@ import { expect, test } from "../src/fixtures";
 import { createUser } from "../src/users";
 
 const accountButton = { name: "アカウント", exact: true } as const;
-const welcome = { name: /Nostr のアカウントを持っている方/ } as const;
+const welcome = { name: /アカウントを持っている方/ } as const;
 
 test("ログインできる", async ({ page, openApp, signIn }) => {
   await openApp();

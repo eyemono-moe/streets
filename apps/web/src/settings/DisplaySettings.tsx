@@ -1,5 +1,4 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
-import { RadioGroup } from "@ark-ui/solid/radio-group";
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import {
   ACTION_BAR_MAX,
@@ -41,13 +40,8 @@ import {
   type UiContrast,
 } from "@streets/core/settings/ui-contrast";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
-import { type Component, For } from "solid-js";
-import {
-  DEFAULT_APPEARANCE,
-  PALETTES,
-  type PaletteName,
-  paletteOf,
-} from "../theme";
+import type { Component } from "solid-js";
+import { DEFAULT_APPEARANCE, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -55,6 +49,7 @@ import Slider from "../ui/Slider";
 import Switch from "../ui/Switch";
 import ActionLayoutField from "./ActionLayoutField";
 import DisplayPreview from "./DisplayPreview";
+import PalettePicker from "./PalettePicker";
 import SettingsDetails from "./SettingsDetails";
 import SettingsSection from "./SettingsSection";
 
@@ -200,46 +195,12 @@ const DisplaySettings: Component<{
         }
         description="ボタン、リンク、自分が付けたいいねなどに使う色を設定できます。"
       >
-        <RadioGroup.Root
-          orientation="horizontal"
-          class="flex flex-wrap gap-2"
-          value={current() ?? ""}
-          onValueChange={(details) => {
-            const palette = PALETTES[details.value as PaletteName];
-            if (palette) commit({ accent: palette.accent, ui: palette.ui });
-          }}
-        >
-          <RadioGroup.Label class="sr-only">色の組み合わせ</RadioGroup.Label>
-          <For each={Object.entries(PALETTES)}>
-            {([name, palette]) => (
-              <RadioGroup.Item
-                value={name}
-                class="group grid size-12 cursor-pointer place-items-center rounded-full border border-primary transition-colors data-[state=checked]:border-2 data-[state=checked]:border-ui-9 dark:data-[state=checked]:border-ui-1"
-              >
-                {/*
-                  左がアクセント、右が文字と背景の色味。境目は斜めにする（v0 と同じ）。
-                  斜めにすると角が欠けるので、中身を丸より広げてはみ出させる。
-                */}
-                <span class="h-8 w-8 overflow-hidden rounded-full">
-                  <span class="-ml-[20%] -skew-x-12 flex h-full w-[140%]">
-                    <span
-                      class="h-full w-1/2"
-                      style={{ background: palette.accent }}
-                    />
-                    <span
-                      class="h-full w-1/2"
-                      style={{ background: palette.ui }}
-                    />
-                  </span>
-                </span>
-                <RadioGroup.ItemText class="sr-only">
-                  {palette.label}
-                </RadioGroup.ItemText>
-                <RadioGroup.ItemHiddenInput />
-              </RadioGroup.Item>
-            )}
-          </For>
-        </RadioGroup.Root>
+        <PalettePicker
+          value={current()}
+          onChange={(palette) =>
+            commit({ accent: palette.accent, ui: palette.ui })
+          }
+        />
 
         <Collapsible.Root
           lazyMount

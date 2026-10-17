@@ -72,6 +72,12 @@ import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
 import ColumnProfile from "./ColumnProfile";
+import {
+  ActivitySample,
+  FollowSetsSample,
+  NotificationsSample,
+  TimelineSample,
+} from "./sample/SampleColumn";
 import TimeCircuits from "./TimeCircuits";
 
 /**
@@ -105,6 +111,11 @@ type ColumnView<S> = {
   ownComposer?: boolean;
   /** ブロックを組み合わせた中身。 */
   Content: Component<{ source: S; inputs: ColumnInputs }>;
+  /**
+   * ログインしていない人に、中身の代わりに見せる見本。アカウントが要る種類だけが持つ。
+   * 無ければ、ログインが要ることだけを出す。
+   */
+  Sample?: Component;
   /** 見出しの右に置く、その種類だけの操作（チャンネルのお気に入りなど）。 */
   HeaderActions?: Component<{ source: S }>;
   /** その種類だけの設定。共通の設定の下に出す。 */
@@ -336,6 +347,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:home-outline-rounded",
       subtitle: "フォロー中",
     }),
+    Sample: () => (
+      <TimelineSample
+        heading="フォローしている人の投稿がここに流れます"
+        body="いま見えているのは見本です。ログインすると、あなたがフォローしている人の投稿に変わります。"
+      />
+    ),
     Content: (props) => {
       const scope = useColumnScope();
       return (
@@ -357,6 +374,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:history-rounded",
       subtitle: `${formatEventTimeFull(new Date(source.until * 1000))} から過去へ`,
     }),
+    Sample: () => (
+      <TimelineSample
+        heading="フォローしている人の、過去のタイムラインを読み返せます"
+        body="いま見えているのは見本です。ログインすると、選んだ日時のタイムラインに変わります。"
+      />
+    ),
     Content: (props) => {
       const scope = useColumnScope();
       return (
@@ -410,6 +433,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:vital-signs-rounded",
       subtitle: "フォロー中の人のリアクション・リポスト",
     }),
+    Sample: () => (
+      <ActivitySample
+        heading="フォローしている人のリアクションやリポストがここに届きます"
+        body="いま見えているのは見本です。ログインすると、あなたがフォローしている人の反応に変わります。"
+      />
+    ),
     Content: (props) => (
       <ActionFeed
         source={() =>
@@ -424,6 +453,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:notifications-outline-rounded",
       subtitle: "自分宛の返信・リアクション・リポスト",
     }),
+    Sample: () => (
+      <NotificationsSample
+        heading="あなたへの返信やリアクションがここに届きます"
+        body="いま見えているのは見本です。ログインすると、あなた宛の通知に変わります。"
+      />
+    ),
     Content: (props) => (
       <NotificationList
         viewer={props.inputs.viewer}
@@ -443,6 +478,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:bookmark-outline-rounded",
       subtitle: "保存したノート",
     }),
+    Sample: () => (
+      <TimelineSample
+        heading="ブックマークした投稿がここに並びます"
+        body="いま見えているのは見本です。ログインすると、あなたがブックマークした投稿に変わります。"
+      />
+    ),
     Content: (props) => (
       <EventList source={() => bookmarksSource(props.inputs.bookmarks())} />
     ),
@@ -620,6 +661,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:format-list-bulleted-rounded",
       subtitle: "人をまとめたリスト",
     }),
+    Sample: () => (
+      <FollowSetsSample
+        heading="ユーザーリストを作れます"
+        body="いま見えているのは見本です。ログインすると、あなたが作ったリストに変わります。"
+      />
+    ),
     Content: (props) => (
       <FollowSetList
         viewerRead={() => viewerReadRelays(props.inputs.relayList())}

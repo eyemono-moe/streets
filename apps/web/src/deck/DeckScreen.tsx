@@ -154,10 +154,7 @@ import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
 import { WELCOME_RELAYS } from "../welcome/welcome-relays";
-import {
-  type WelcomeLogin,
-  WelcomeLoginProvider,
-} from "../welcome/WelcomeColumn";
+import { type WelcomeLogin, WelcomeProvider } from "../welcome/WelcomeColumn";
 import { trackReplaces } from "../write-progress";
 import {
   setShowWriteProgress,
@@ -727,6 +724,8 @@ const DeckScreen: Component<{
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
   onCleanup(() => applyColors(DEFAULT_APPEARANCE));
 
+  // ログインを促した時刻。紹介のカラムが、始め方の段を揺らして目立たせる。
+  const [loginNudgedAt, setLoginNudgedAt] = createSignal<number>();
   // ログインしていない人に、紹介とログインのカラムを見せる。外していたら先頭に戻す。
   const showLogin = (what?: string) => {
     if (what) notifyInfo(`ログインすると、${what}ができます`);
@@ -741,7 +740,10 @@ const DeckScreen: Component<{
       );
     }
     const target = id;
-    requestAnimationFrame(() => focusColumn(target));
+    requestAnimationFrame(() => {
+      focusColumn(target);
+      setLoginNudgedAt(Date.now());
+    });
   };
   // 紹介のカラムからのログイン。ログインしたら App がこの画面ごと作り直す。
   const welcomeLogin: WelcomeLogin = {
@@ -1477,6 +1479,7 @@ const DeckScreen: Component<{
       <Show when={aboutMounted()}>
         <AboutDialog
           open={ui.aboutOpen}
+          requestedPage={ui.aboutPage}
           wide={isWide()}
           tour
           onOpenUser={(pubkey) => {
@@ -1523,127 +1526,135 @@ const DeckScreen: Component<{
   return (
     <EventActionsProvider value={actions}>
       <LoginGateProvider value={gate}>
-        <Show
-          when={write}
-          fallback={
-            <Mediates handle={handle}>
-              <GuestMediator>
-                <WelcomeLoginProvider value={welcomeLogin}>
-                  {body()}
-                </WelcomeLoginProvider>
-              </GuestMediator>
-            </Mediates>
-          }
+        <WelcomeProvider
+          value={{
+            login: account === undefined ? welcomeLogin : undefined,
+            scheme,
+            appearance,
+            loginNudgedAt,
+          }}
         >
-          {(write) => (
-            // デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。
-            <ActionsMediator actions={write().actions}>
+          <Show
+            when={write}
+            fallback={
               <Mediates handle={handle}>
-                <MediaMediator
-                  writer={trackReplaces(write().writer, "画像のアップロード先")}
-                  blossomList={write().blossomServers}
-                  nip96List={write().nip96Servers}
-                >
-                  <SearchRelayMediator
-                    writer={trackReplaces(write().writer, "検索するリレー")}
-                    relayList={write().searchRelays}
+                <GuestMediator>{body()}</GuestMediator>
+              </Mediates>
+            }
+          >
+            {(write) => (
+              // デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。
+              <ActionsMediator actions={write().actions}>
+                <Mediates handle={handle}>
+                  <MediaMediator
+                    writer={trackReplaces(
+                      write().writer,
+                      "画像のアップロード先",
+                    )}
+                    blossomList={write().blossomServers}
+                    nip96List={write().nip96Servers}
                   >
-                    <BlockedRelayMediator
-                      writer={trackReplaces(write().writer, "繋がないリレー")}
-                      signer={props.session.signer}
-                      viewer={viewer}
-                      list={write().blockedRelays}
+                    <SearchRelayMediator
+                      writer={trackReplaces(write().writer, "検索するリレー")}
+                      relayList={write().searchRelays}
                     >
-                      <CustomEmojisMediator
-                        writer={trackReplaces(write().writer, "自分の絵文字")}
-                        list={write().emojiList}
-                        fetchLatest={write().fetchLatest}
+                      <BlockedRelayMediator
+                        writer={trackReplaces(write().writer, "繋がないリレー")}
+                        signer={props.session.signer}
+                        viewer={viewer}
+                        list={write().blockedRelays}
                       >
-                        <UploaderProvider value={uploader}>
-                          <ProfileMediator
-                            writer={trackReplaces(
-                              write().writer,
-                              "プロフィール",
-                            )}
-                            pubkey={viewer}
-                            profile={write().profile}
-                          >
-                            <RelayMediator
+                        <CustomEmojisMediator
+                          writer={trackReplaces(write().writer, "自分の絵文字")}
+                          list={write().emojiList}
+                          fetchLatest={write().fetchLatest}
+                        >
+                          <UploaderProvider value={uploader}>
+                            <ProfileMediator
                               writer={trackReplaces(
                                 write().writer,
-                                "リレーの設定",
+                                "プロフィール",
                               )}
-                              relayList={write().relayList}
-                              settled={write().relayListSettled}
-                              statusOf={(url) =>
-                                props.readLayer.manager.pool.statusOf(url)
-                              }
-                              readPlan={readPlan}
-                              previewRelayCount={(redundancy) =>
-                                props.readLayer.manager.previewRelayCount(
-                                  redundancy,
-                                )
-                              }
-                              routingSettled={settled}
-                              followees={followees}
+                              pubkey={viewer}
+                              profile={write().profile}
                             >
-                              <MuteMediator
+                              <RelayMediator
                                 writer={trackReplaces(
                                   write().writer,
-                                  "ミュート",
+                                  "リレーの設定",
                                 )}
-                                signer={props.session.signer}
-                                viewer={viewer}
-                                muteList={write().muteList}
-                                settled={write().muteListSettled}
+                                relayList={write().relayList}
+                                settled={write().relayListSettled}
+                                statusOf={(url) =>
+                                  props.readLayer.manager.pool.statusOf(url)
+                                }
+                                readPlan={readPlan}
+                                previewRelayCount={(redundancy) =>
+                                  props.readLayer.manager.previewRelayCount(
+                                    redundancy,
+                                  )
+                                }
+                                routingSettled={settled}
+                                followees={followees}
                               >
-                                <FollowSetMediator
-                                  writer={write().writer}
+                                <MuteMediator
+                                  writer={trackReplaces(
+                                    write().writer,
+                                    "ミュート",
+                                  )}
                                   signer={props.session.signer}
                                   viewer={viewer}
-                                  manager={props.readLayer.manager}
+                                  muteList={write().muteList}
+                                  settled={write().muteListSettled}
                                 >
-                                  <ZapMediator
+                                  <FollowSetMediator
+                                    writer={write().writer}
                                     signer={props.session.signer}
                                     viewer={viewer}
-                                    store={props.readLayer.store}
-                                    pool={props.readLayer.manager.pool}
                                     manager={props.readLayer.manager}
-                                    routing={props.readLayer.routing}
-                                    indexers={
-                                      props.bootstrapIndexers ??
-                                      BOOTSTRAP_INDEXERS
-                                    }
                                   >
-                                    <ChannelFormMediator
-                                      actions={write().actions}
-                                      account={() => {
-                                        const state = relayList();
-                                        return state.phase === "ready"
-                                          ? state.entries
-                                          : [];
-                                      }}
+                                    <ZapMediator
+                                      signer={props.session.signer}
+                                      viewer={viewer}
+                                      store={props.readLayer.store}
+                                      pool={props.readLayer.manager.pool}
+                                      manager={props.readLayer.manager}
+                                      routing={props.readLayer.routing}
+                                      indexers={
+                                        props.bootstrapIndexers ??
+                                        BOOTSTRAP_INDEXERS
+                                      }
                                     >
-                                      <StatusFormMediator
+                                      <ChannelFormMediator
                                         actions={write().actions}
+                                        account={() => {
+                                          const state = relayList();
+                                          return state.phase === "ready"
+                                            ? state.entries
+                                            : [];
+                                        }}
                                       >
-                                        {body()}
-                                      </StatusFormMediator>
-                                    </ChannelFormMediator>
-                                  </ZapMediator>
-                                </FollowSetMediator>
-                              </MuteMediator>
-                            </RelayMediator>
-                          </ProfileMediator>
-                        </UploaderProvider>
-                      </CustomEmojisMediator>
-                    </BlockedRelayMediator>
-                  </SearchRelayMediator>
-                </MediaMediator>
-              </Mediates>
-            </ActionsMediator>
-          )}
-        </Show>
+                                        <StatusFormMediator
+                                          actions={write().actions}
+                                        >
+                                          {body()}
+                                        </StatusFormMediator>
+                                      </ChannelFormMediator>
+                                    </ZapMediator>
+                                  </FollowSetMediator>
+                                </MuteMediator>
+                              </RelayMediator>
+                            </ProfileMediator>
+                          </UploaderProvider>
+                        </CustomEmojisMediator>
+                      </BlockedRelayMediator>
+                    </SearchRelayMediator>
+                  </MediaMediator>
+                </Mediates>
+              </ActionsMediator>
+            )}
+          </Show>
+        </WelcomeProvider>
       </LoginGateProvider>
     </EventActionsProvider>
   );
