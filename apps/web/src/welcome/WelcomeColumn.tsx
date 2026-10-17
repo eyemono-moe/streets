@@ -27,6 +27,8 @@ export type WelcomeContextValue = {
   login: WelcomeLogin | undefined;
   scheme: () => ColorScheme;
   appearance: () => DeckAppearance;
+  /** ログインを促した時刻（ミリ秒）。まだ促していなければ undefined。 */
+  loginNudgedAt: () => number | undefined;
 };
 
 const WelcomeContext = createContext<WelcomeContextValue>();
@@ -44,6 +46,7 @@ type WelcomeColumnViewProps = {
   scheme: ColorScheme;
   appearance: DeckAppearance;
   keyboard: boolean;
+  loginNudgedAt?: number;
   initialStep?: LoginStep;
   initialRemoteOpen?: boolean;
   initialDevice?: DeviceKind;
@@ -90,6 +93,7 @@ export const WelcomeColumnView: Component<WelcomeColumnViewProps> = (props) => {
             initialRemoteOpen={props.initialRemoteOpen}
             initialDevice={props.initialDevice}
             initialBunkerUri={props.initialBunkerUri}
+            nudgedAt={props.loginNudgedAt}
           >
             {features()}
           </LoginPanel>
@@ -113,6 +117,7 @@ const WelcomeColumn: Component = () => {
           scheme={welcome().scheme()}
           appearance={welcome().appearance()}
           keyboard={isMultiColumn() && finePointer}
+          loginNudgedAt={welcome().loginNudgedAt()}
         />
       )}
     </Show>

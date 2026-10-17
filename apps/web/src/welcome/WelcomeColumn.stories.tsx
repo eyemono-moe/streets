@@ -1,5 +1,5 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import AboutDialog from "../about/AboutDialog";
 import {
@@ -21,6 +21,8 @@ type Props = Omit<
     login: LoginState;
     /** ログインしている人の見た目にする（始め方の選択肢を出さない）。 */
     signedIn?: boolean;
+    /** ログインを促され続ける（数秒ごとに揺れる）。 */
+    nudging?: boolean;
     /** カラムの幅。狭い画面では画面いっぱいになる。 */
     width: string;
   };
@@ -33,6 +35,12 @@ const meta = {
     const [scheme, setScheme] = createSignal<ColorScheme>(savedColorScheme());
     const [appearance, setAppearance] =
       createSignal<DeckAppearance>(DEFAULT_APPEARANCE);
+    const [nudgedAt, setNudgedAt] = createSignal<number>();
+    onMount(() => {
+      if (!props.nudging) return;
+      const timer = setInterval(() => setNudgedAt(Date.now()), 2500);
+      onCleanup(() => clearInterval(timer));
+    });
     return (
       <Mediates
         handle={(event) => {
@@ -64,6 +72,7 @@ const meta = {
             {...props}
             scheme={scheme()}
             appearance={appearance()}
+            loginNudgedAt={nudgedAt()}
             login={
               props.signedIn
                 ? undefined
@@ -106,6 +115,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 最初の画面: Story = {};
+
+/** ログインの要る操作やメニューから促されると、始め方の欄に枠を付けて揺らす。 */
+export const ログインを促された: Story = { args: { nudging: true } };
+
+/** 途中の段で促されたときは、その段を揺らす。 */
+export const 途中の段でログインを促された: Story = {
+  args: { nudging: true, initialStep: "existing" },
+};
 
 /** ログインしている人にも同じ紹介を見せ、始め方の選択肢だけを出さない。 */
 export const ログインしている: Story = { args: { signedIn: true } };

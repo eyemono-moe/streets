@@ -724,6 +724,8 @@ const DeckScreen: Component<{
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
   onCleanup(() => applyColors(DEFAULT_APPEARANCE));
 
+  // ログインを促した時刻。紹介のカラムが、始め方の段を揺らして目立たせる。
+  const [loginNudgedAt, setLoginNudgedAt] = createSignal<number>();
   // ログインしていない人に、紹介とログインのカラムを見せる。外していたら先頭に戻す。
   const showLogin = (what?: string) => {
     if (what) notifyInfo(`ログインすると、${what}ができます`);
@@ -738,7 +740,10 @@ const DeckScreen: Component<{
       );
     }
     const target = id;
-    requestAnimationFrame(() => focusColumn(target));
+    requestAnimationFrame(() => {
+      focusColumn(target);
+      setLoginNudgedAt(Date.now());
+    });
   };
   // 紹介のカラムからのログイン。ログインしたら App がこの画面ごと作り直す。
   const welcomeLogin: WelcomeLogin = {
@@ -1526,6 +1531,7 @@ const DeckScreen: Component<{
             login: account === undefined ? welcomeLogin : undefined,
             scheme,
             appearance,
+            loginNudgedAt,
           }}
         >
           <Show
