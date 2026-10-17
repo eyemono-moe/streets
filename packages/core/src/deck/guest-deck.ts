@@ -37,8 +37,8 @@ export const welcomeColumn = (): ColumnDef => ({
 
 /**
  * ログインしていない人に最初に見せるデッキ。紹介とログインのカラムに続けて、
- * ログインすると見られる通知を見本で 1 本置き、その後ろにログインせずに読める
- * カラムを種類を変えて並べ、組み合わせられることを見せる。
+ * ログインせずに読めるカラムを種類を変えて並べ、組み合わせられることを見せる。
+ * 最後に、ログインすると見られる通知を見本で 1 本置く。
  */
 export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
   const relayColumn = buildRelayColumn(relays);
@@ -50,10 +50,11 @@ export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
         name: FIRST_DECK_NAME,
         columns: [
           welcomeColumn(),
-          buildColumn("notifications", "")!,
           ...(relayColumn ? [relayColumn] : []),
           buildHashtagColumn(GUEST_HASHTAG)!,
           { ...buildUserColumn(STREETS_PUBKEY), id: crypto.randomUUID() },
+          // 見本はログインするまで読めないので、読めるカラムより後ろに置く。
+          buildColumn("notifications", "")!,
         ],
       },
     ],

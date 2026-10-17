@@ -7,15 +7,15 @@ describe("guestDeckSet", () => {
   const set = guestDeckSet(["wss://a.example/"]);
   const columns = set.decks[0]?.columns ?? [];
 
-  it("紹介とログイン、見本の通知に続けて、ログインせずに読めるカラムを並べる", () => {
+  it("紹介とログインに続けて、ログインせずに読めるカラム、最後に見本の通知を並べる", () => {
     expect(columns.map((column) => column.source.kind)).toEqual([
       "welcome",
-      "notifications",
       "literal",
       "search",
       "user",
+      "notifications",
     ]);
-    expect(columns[4]?.source).toEqual({
+    expect(columns[3]?.source).toEqual({
       kind: "user",
       pubkey: STREETS_PUBKEY,
     });
@@ -33,14 +33,14 @@ describe("guestDeckSet", () => {
   });
 
   it("ハッシュタグは検索のカラムで開く", () => {
-    expect(columns[3]?.source).toEqual({ kind: "search", query: "#foodstr" });
+    expect(columns[2]?.source).toEqual({ kind: "search", query: "#foodstr" });
   });
 
   it("リレーが 0 本ならリレーのカラムを置かない", () => {
     const kinds = guestDeckSet([]).decks[0]?.columns.map(
       (column) => column.source.kind,
     );
-    expect(kinds).toEqual(["welcome", "notifications", "search", "user"]);
+    expect(kinds).toEqual(["welcome", "search", "user", "notifications"]);
   });
 
   it("保存して読み戻せる", () => {

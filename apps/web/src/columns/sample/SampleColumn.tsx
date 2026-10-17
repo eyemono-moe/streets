@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
+  type NotificationRow,
   actionRowsByTarget,
   notificationRows,
 } from "@streets/core/view/notification-rows";
@@ -9,7 +10,6 @@ import Event from "../../note/Event";
 import { ReadLayerProvider } from "../../read-layer";
 import { useDispatch } from "../../ui-events";
 import Button from "../../ui/Button";
-import { ActionFeedView } from "../blocks/ActionFeed";
 import { NotificationRowView } from "../blocks/NotificationList";
 import {
   sampleActivity,
@@ -77,36 +77,39 @@ export const TimelineSample: Component<SampleGuide> = (props) => {
   );
 };
 
+const NotificationRows: Component<{ rows: readonly NotificationRow[] }> = (
+  props,
+) => (
+  <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
+    <For each={props.rows}>
+      {(row) => (
+        <NotificationRowView
+          row={row}
+          size="normal"
+          expandMedia
+          foldsMuted={false}
+        />
+      )}
+    </For>
+  </div>
+);
+
 export const NotificationsSample: Component<SampleGuide> = (props) => {
   const scene = sampleNotifications();
   return (
     <SampleFrame {...props} events={scene.events}>
-      <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
-        <For each={notificationRows(scene.items, true)}>
-          {(row) => (
-            <NotificationRowView
-              row={row}
-              size="normal"
-              expandMedia
-              foldsMuted={false}
-            />
-          )}
-        </For>
-      </div>
+      <NotificationRows rows={notificationRows(scene.items, true)} />
     </SampleFrame>
   );
 };
 
 export const ActivitySample: Component<SampleGuide> = (props) => {
   const scene = sampleActivity();
+  // ActionFeedView は行を VirtualList で描き、カラムのスクロールに合わせて行を作る。
+  // 見本はスクロールさせないので、測る前の行が描かれないまま空に見える。行は全部描く。
   return (
     <SampleFrame {...props} events={scene.events}>
-      <ActionFeedView
-        rows={actionRowsByTarget(scene.items, true)}
-        settled
-        size="normal"
-        expandMedia
-      />
+      <NotificationRows rows={actionRowsByTarget(scene.items, true)} />
     </SampleFrame>
   );
 };

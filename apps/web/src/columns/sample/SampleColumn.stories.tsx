@@ -31,7 +31,7 @@ const SAMPLES = {
   },
   lists: {
     Sample: FollowSetsSample,
-    heading: "人をまとめたリストを作れます",
+    heading: "ユーザーリストを作れます",
     body: body("あなたが作ったリスト"),
   },
 } satisfies Record<string, SampleGuide & { Sample: Component<SampleGuide> }>;

@@ -49,22 +49,14 @@ const repost = (author: SampleAuthor, target: NostrEvent, minutes: number) => {
 export const sampleTimeline = (): SampleScene<NostrEvent[]> => {
   const { mio, ren, kai, sora, nanami, haru } = people();
   const notes = [
+    note(mio, "StreetsでNostrを始めてみました。よろしくお願いします！", 3),
     note(
-      mio,
-      "カラムを並べて、ホームと通知と #coffee を一度に眺めるのが最近の朝の習慣。",
-      3,
+      sora,
+      "ホームと通知と #coffee をカラムで並べて、朝はこれを眺めるのが習慣になった。",
+      12,
     ),
-    note(sora, "ベランダのバジルが元気すぎる。今日はパスタにしよう。", 12),
-    note(
-      kai,
-      "この前教えてもらったタイマーアプリ、作曲のときにも使えて便利だった。",
-      25,
-    ),
-    note(
-      nanami,
-      "写真のトリミング、4px と 8px で迷ったら並べて遠くから見る。",
-      41,
-    ),
+    note(kai, "Nostrのアカウント、別のアプリでもそのまま使えるのが便利。", 25),
+    note(nanami, "テーマの色をライムにしてみた。気分が変わっていい。", 41),
     note(ren, "駅前のパン屋、火曜だけ出るシナモンロールがある。", 58),
     note(haru, "雨の日は積んでいた本を崩す日。", 75),
   ];
@@ -77,29 +69,23 @@ export const sampleTimeline = (): SampleScene<NostrEvent[]> => {
 /** 自分宛の通知。新しい順。 */
 export const sampleNotifications = (): SampleScene<NostrEvent[]> => {
   const { you, mio, ren, kai, sora, nanami, haru } = people();
-  const morning = note(
+  const hello = note(
     you,
-    "カラムを並べて、ホームと通知と #coffee を一度に眺めるのが最近の朝の習慣。",
+    "StreetsでNostrを始めてみました。よろしくお願いします！",
     90,
   );
-  const timer = note(
-    you,
-    "作業用のタイマー、25 分より 40 分のほうが合っている気がする。",
-    300,
-  );
   const items = [
-    like(ren, morning, 2),
-    reply(kai, timer, "40 分派です。作曲のときにも使えて便利だった。", 9),
-    repost(sora, morning, 16),
-    like(nanami, timer, 30),
-    like(haru, timer, 31),
-    like(mio, timer, 33),
+    like(ren, hello, 2),
+    reply(kai, hello, "ようこそ！ わからないことがあったら気軽に聞いてね。", 9),
+    repost(sora, hello, 16),
+    like(nanami, hello, 30),
+    like(haru, hello, 31),
+    reply(mio, hello, "はじめまして！ 私も最近始めたところです。", 45),
   ];
   return {
     events: [
       ...profiles([you, mio, ren, kai, sora, nanami, haru]),
-      morning,
-      timer,
+      hello,
       ...items,
     ],
     items,
@@ -109,28 +95,28 @@ export const sampleNotifications = (): SampleScene<NostrEvent[]> => {
 /** フォローしている人のリアクション・リポスト。新しい順。 */
 export const sampleActivity = (): SampleScene<NostrEvent[]> => {
   const { mio, ren, kai, sora, nanami, haru } = people();
-  const bread = note(
+  const hello = note(
     ren,
-    "駅前のパン屋、火曜だけ出るシナモンロールがある。",
+    "StreetsでNostrを始めてみました。よろしくお願いします！",
     120,
   );
-  const photo = note(
+  const coffee = note(
     nanami,
-    "写真のトリミング、4px と 8px で迷ったら並べて遠くから見る。",
+    "ホームと通知と #coffee をカラムで並べて、朝はこれを眺めるのが習慣になった。",
     180,
   );
   const items = [
-    like(mio, bread, 4),
-    like(kai, bread, 6),
-    repost(sora, photo, 14),
-    like(haru, photo, 22),
-    like(mio, photo, 35),
+    like(mio, hello, 4),
+    like(kai, hello, 6),
+    repost(sora, coffee, 14),
+    like(haru, coffee, 22),
+    like(mio, coffee, 35),
   ];
   return {
     events: [
       ...profiles([mio, ren, kai, sora, nanami, haru]),
-      bread,
-      photo,
+      hello,
+      coffee,
       ...items,
     ],
     items,

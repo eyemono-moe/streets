@@ -663,7 +663,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     }),
     Sample: () => (
       <FollowSetsSample
-        heading="人をまとめたリストを作れます"
+        heading="ユーザーリストを作れます"
         body="いま見えているのは見本です。ログインすると、あなたが作ったリストに変わります。"
       />
     ),
