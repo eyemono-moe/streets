@@ -1,5 +1,5 @@
 import { addressOfNaddr, formatEventAddress } from "../nostr/address";
-import { type EventRef, relayOf } from "../nostr/event-refs";
+import { type EventRef, idRefOfPointer, relayOf } from "../nostr/event-refs";
 import { decodeNip19 } from "../nostr/nip19";
 
 /**
@@ -12,13 +12,7 @@ export const articleEmbedOf = (paragraph: string): EventRef | undefined => {
   if (!/^(note|nevent|naddr)1[0-9a-z]+$/.test(text)) return undefined;
   const ref = decodeNip19(text);
   if (!ref) return undefined;
-  if (ref.kind === "note") return { form: "id", id: ref.id };
-  if (ref.kind === "nevent") {
-    const relay = relayOf(ref.relays[0]);
-    return relay
-      ? { form: "id", id: ref.id, relay }
-      : { form: "id", id: ref.id };
-  }
+  if (ref.kind === "note" || ref.kind === "nevent") return idRefOfPointer(ref);
   if (ref.kind === "naddr") {
     const address = addressOfNaddr(ref);
     if (!address) return undefined;

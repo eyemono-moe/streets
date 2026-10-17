@@ -37,6 +37,7 @@ const ReplyContext: Component<{
     form: "id",
     id: props.id,
     relay: props.relay,
+    pubkey: props.pubkey,
   }));
   const parent = () => {
     const current = lookup();

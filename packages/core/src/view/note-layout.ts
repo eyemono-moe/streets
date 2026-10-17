@@ -9,6 +9,7 @@ import {
 import type { NostrEvent } from "../nostr/event";
 import {
   type EventRef,
+  idRefOfPointer,
   relayOf,
   tagOnlyQuoteTargets,
 } from "../nostr/event-refs";
@@ -182,14 +183,8 @@ export const layoutNote = (
       const ref = token.ref;
       if (!quotedIds.has(ref.id)) {
         quotedIds.add(ref.id);
-        const relay =
-          ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined;
-        place({
-          type: "quote",
-          quote: relay
-            ? { form: "id", id: ref.id, relay }
-            : { form: "id", id: ref.id },
-        });
+        const quote = idRefOfPointer(ref);
+        if (quote) place({ type: "quote", quote });
       }
       continue;
     }

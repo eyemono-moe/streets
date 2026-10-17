@@ -39,6 +39,24 @@ const idRef = (
   return ref;
 };
 
+/**
+ * 本文の `note` / `nevent` が指す先。`nevent` が運ぶリレーと作者も持ち回る
+ * （読む側はリレーで見つからなければ作者の書き込みリレーへ聞き直す）。
+ */
+export const idRefOfPointer = (
+  ref:
+    | { kind: "note"; id: string }
+    | {
+        kind: "nevent";
+        id: string;
+        relays: readonly string[];
+        author?: string;
+      },
+): IdRef | undefined =>
+  ref.kind === "note"
+    ? idRef(ref.id)
+    : idRef(ref.id, ref.relays[0], ref.author);
+
 /** NIP-22 のコメント。kind:1 以外への返信と、一部のクライアントでは kind:1 への返信にも使われる。 */
 export const COMMENT_KIND = 1111;
 
@@ -294,11 +312,19 @@ export const tagOnlyQuoteTargets = (event: NostrEvent): EventRef[] => {
 /**
  * リポスト対象の `e` タグ。例外を投げない —— NIP-18 は kind:6 に `e` タグを
  * 要求するが守らないイベントも実在し、1 件の不正なイベントでカラム全体を壊さない。
+ *
+ * NIP-18 は印を定めないので、`e` タグは NIP-01 の `["e", id, relay, pubkey]` で
+ * 読む。NIP-10 の印付きの形（`["e", id, relay, "", pubkey]`）で書くクライアントも
+ * あるので 5 番目も見て、どちらにも無ければ NIP-18 が求める `p` タグから補う。
  */
 export const repostTarget = (event: NostrEvent): IdRef | undefined => {
   for (const tag of event.tags) {
     if (tag[0] !== "e") continue;
-    const ref = idRef(tag[1] ?? "", tag[2], tag[4]);
+    const author =
+      pubkeyOf(tag[3]) ??
+      pubkeyOf(tag[4]) ??
+      event.tags.find((p) => p[0] === "p" && pubkeyOf(p[1]))?.[1];
+    const ref = idRef(tag[1] ?? "", tag[2], author);
     if (ref) return ref;
   }
   return undefined;

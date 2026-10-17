@@ -5,6 +5,7 @@ import {
   embeddedRepostEvent,
   commentRefs,
   eventRelayHints,
+  idRefOfPointer,
   isReply,
   quoteTargets,
   replyTarget,
@@ -300,10 +301,60 @@ describe("repostTarget", () => {
     });
   });
 
+  it("NIP-01 の形で 4 番目に置かれた作者を読む", () => {
+    expect(
+      repostTarget(noteWith([["e", ID_B, "wss://b/", PK]], { kind: 6 })),
+    ).toEqual({ form: "id", id: ID_B, relay: "wss://b/", pubkey: PK });
+  });
+
+  it("NIP-10 の印の位置を空けて 5 番目に置かれた作者も読む", () => {
+    expect(
+      repostTarget(noteWith([["e", ID_B, "wss://b/", "", PK]], { kind: 6 }))
+        ?.pubkey,
+    ).toBe(PK);
+  });
+
+  it("e タグに作者が無ければ p タグから補う", () => {
+    expect(
+      repostTarget(
+        noteWith(
+          [
+            ["p", "not-a-pubkey"],
+            ["e", ID_B, "wss://b/"],
+            ["p", PK],
+          ],
+          {
+            kind: 6,
+          },
+        ),
+      )?.pubkey,
+    ).toBe(PK);
+  });
+
   it("e タグが無ければ undefined (例外を投げない)", () => {
     // 捕まえる変異: throw する —— 1 件の不正なイベントでカラム全体を壊してはいけない
     expect(() => repostTarget(noteWith([], { kind: 6 }))).not.toThrow();
     expect(repostTarget(noteWith([], { kind: 6 }))).toBeUndefined();
+  });
+});
+
+describe("idRefOfPointer", () => {
+  it("nevent の先頭のリレーと作者を持ち回る", () => {
+    expect(
+      idRefOfPointer({
+        kind: "nevent",
+        id: ID_A,
+        relays: ["wss://a/", "wss://b/"],
+        author: PK,
+      }),
+    ).toEqual({ form: "id", id: ID_A, relay: "wss://a/", pubkey: PK });
+  });
+
+  it("note は id だけ", () => {
+    expect(idRefOfPointer({ kind: "note", id: ID_A })).toEqual({
+      form: "id",
+      id: ID_A,
+    });
   });
 });
 

@@ -49,6 +49,22 @@ describe("buildReply", () => {
     ]);
   });
 
+  it("親が印の無い e タグで書かれていても、先頭の e を根として引き継ぐ", () => {
+    const parent = evt({
+      id: "2".repeat(64),
+      pubkey: "9".repeat(64),
+      tags: [
+        ["e", "1".repeat(64), "wss://r.example"],
+        ["e", "3".repeat(64)],
+      ],
+    });
+    const draft = buildReply(parent, "hi", { relayHint: "wss://a.example" });
+    expect(draft.tags.filter((t) => t[0] === "e")).toEqual([
+      ["e", "1".repeat(64), "wss://r.example", "root"],
+      ["e", "2".repeat(64), "wss://a.example", "reply", "9".repeat(64)],
+    ]);
+  });
+
   it("p は親の著者を先頭に、親の p を出現順で続ける", () => {
     // 捕まえる変異: 親の p を引き継がない。会話の参加者に通知が行かなくなる。
     const parent = evt({

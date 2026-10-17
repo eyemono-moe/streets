@@ -22,22 +22,25 @@ describe("buildRepost", () => {
     expect(JSON.parse(draft?.content ?? "")).toEqual(target);
   });
 
-  it("e タグはリレー URL を 3 番目に持つ", () => {
-    // 捕まえる変異: ["e", id] の 2 要素にする —— NIP-18 はリレー URL を 3 番目に置くと定めており、無いと受け手が対象を引く先を失う
+  it("e タグは NIP-01 の形で、リレー URL を 3 番目、作者を 4 番目に持つ", () => {
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildRepost(target, { relayHint: "wss://a.example" });
     expect(draft?.tags.filter((t) => t[0] === "e")).toEqual([
-      ["e", "1".repeat(64), "wss://a.example", "", "9".repeat(64)],
+      ["e", "1".repeat(64), "wss://a.example", "9".repeat(64)],
     ]);
   });
 
-  it("relayHint が無ければ位置要素を空文字で埋める", () => {
-    // 捕まえる変異: 既定値を空文字以外にする —— 省略すると要素がずれて pubkey がリレー URL の位置に来て、読む側がそこへ接続しようとする
+  it("relayHint が無くても作者を 4 番目からずらさない", () => {
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildRepost(target);
     expect(draft?.tags.filter((t) => t[0] === "e")).toEqual([
-      ["e", "1".repeat(64), "", "", "9".repeat(64)],
+      ["e", "1".repeat(64), "", "9".repeat(64)],
     ]);
+  });
+
+  it("NIP-70 で保護された投稿は埋め込まない", () => {
+    const draft = buildRepost(evt({ tags: [["-"]], content: "hi" }));
+    expect(draft?.content).toBe("");
   });
 
   it("元の著者に p タグを立てる", () => {

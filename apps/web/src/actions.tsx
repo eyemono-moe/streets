@@ -50,7 +50,7 @@ import {
 } from "@streets/core/nostr/pinned-notes";
 import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import type { ReadLayer } from "@streets/core/read/read-layer";
-import { relaysSeenOn } from "@streets/core/read/seen-relays";
+import { relayHintFor, relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   BLOCKED_RELAY_LIST_KIND,
@@ -259,7 +259,7 @@ export const createWriteStack = (options: {
   });
 
   const seenRelays = (id: string) => relaysSeenOn(store, id);
-  const relayHintFor = (id: string) => seenRelays(id)[0];
+  const hintFor = (event: NostrEvent) => relayHintFor(store, routing, event);
 
   /** 自分の置換可能イベントを追う。届くたびに画面へ反映し、押す前から状態を出す。 */
   const mine = (kind: number) => {
@@ -327,7 +327,7 @@ export const createWriteStack = (options: {
           withMedia(
             withReferences(
               buildReplyTo(event, content, {
-                relayHint: relayHintFor(event.id),
+                relayHint: hintFor(event),
               }),
               references(emoji),
             ),
@@ -342,7 +342,7 @@ export const createWriteStack = (options: {
         withContentWarning(
           withMedia(
             withReferences(
-              buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
+              buildQuote(event, content, { relayHint: hintFor(event) }),
               references(emoji),
             ),
             media ?? [],
@@ -371,7 +371,7 @@ export const createWriteStack = (options: {
       await tracked("ステータス").publish(buildUserStatus(input));
     },
     async repost(event) {
-      const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
+      const draft = buildRepost(event, { relayHint: hintFor(event) });
       if (!draft) throw new Error("この投稿はリポストできません");
       await quick("リポスト").publish(draft);
     },
@@ -386,7 +386,7 @@ export const createWriteStack = (options: {
     },
     async react(event, input) {
       await quick("リアクション").publish(
-        buildReaction(event, input, { relayHint: relayHintFor(event.id) }),
+        buildReaction(event, input, { relayHint: hintFor(event) }),
         undefined,
         // チャンネルの発言は、書き手ではなくチャンネルのリレーで読まれる。
         // 自分の write リレーだけに送ると、チャンネルにいる人にリアクションが見えない。

@@ -1,4 +1,5 @@
 import type { RelayUrl } from "../../relay/relay-connection";
+import { addressOfEvent, formatEventAddress } from "../address";
 import type { NostrEvent } from "../event";
 import type { EventDraft } from "./draft";
 
@@ -17,8 +18,11 @@ export const buildReaction = (
   options?: { relayHint?: RelayUrl },
 ): EventDraft => {
   const hint = options?.relayHint ?? "";
+  const address = addressOfEvent(target);
   const tags: string[][] = [
     ["e", target.id, hint, target.pubkey],
+    // NIP-25: 住所を持つ先には `a` も添える。版が変わっても同じものへの反応として数えられる。
+    ...(address ? [["a", formatEventAddress(address), hint]] : []),
     ["p", target.pubkey, hint],
     ["k", String(target.kind)],
   ];

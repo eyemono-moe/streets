@@ -3,7 +3,7 @@ import { addressOfEvent, formatEventAddress } from "../address";
 import { parseContent } from "../content";
 import type { NostrEvent } from "../event";
 import { encodeEventPointer, pointsTo } from "../event-pointer";
-import { COMMENT_KIND } from "../event-refs";
+import { COMMENT_KIND, threadRoot } from "../event-refs";
 import type { EventDraft } from "./draft";
 
 /**
@@ -29,9 +29,22 @@ export const buildNote = (content: string): EventDraft => ({
   content,
 });
 
-/** 親が持つ `root` マーカー付きの `e` タグ。無ければ親自身が根。 */
-const rootTagOf = (parent: NostrEvent): string[] | undefined =>
-  parent.tags.find((tag) => tag[0] === "e" && tag[3] === "root");
+/**
+ * 親のスレッドの根を指す `root` の `e` タグ。無ければ親自身が根。親のタグを
+ * 写さずに読み直すのは、親が古い位置の書き方（印の無い `e` タグ）で書かれて
+ * いても根を引き継ぐため。写すと親を根にしてしまい、スレッドが割れる。
+ */
+const rootTagOf = (parent: NostrEvent): string[] | undefined => {
+  const root = threadRoot(parent);
+  if (!root) return undefined;
+  return [
+    "e",
+    root.id,
+    root.relay ?? "",
+    "root",
+    ...(root.pubkey ? [root.pubkey] : []),
+  ];
+};
 
 /**
  * NIP-10 の返信。マーカー付き `e` タグ `["e", id, relay-url, marker, pubkey]`

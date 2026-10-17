@@ -94,7 +94,7 @@
   {
     "nip": "18",
     "status": "一部",
-    "summary": "リポストの表示と通常の投稿のリポスト、引用（本文で引用したイベントにも q タグを付け、設定で引用先の作者に p タグを付ける）",
+    "summary": "リポストの表示と通常の投稿のリポスト、引用（本文で引用したイベントにも q タグを付け、設定で引用先の作者に p タグを付ける）。リポスト元は、タグのリレーと作者の書き込みリレーへ取りに行く",
     "kinds": [6, 16],
     "tags": ["e", "p", "k", "q"],
     "paths": [
@@ -102,6 +102,7 @@
       "packages/core/src/nostr/build/note.ts",
       "packages/core/src/nostr/build/references.ts",
       "packages/core/src/view/repost-target.ts",
+      "packages/core/src/read/event-requests.ts",
       "apps/web/src/note/Event.tsx"
     ],
     "gap": "kind:16 の投稿操作はない"
@@ -175,7 +176,7 @@
     "status": "対応",
     "summary": "リアクションの読み書き。フォロー中の人のリアクションを流すカラム（みんなのアクティビティ）",
     "kinds": [7],
-    "tags": ["e", "p", "k"],
+    "tags": ["e", "a", "p", "k"],
     "paths": [
       "packages/core/src/nostr/reaction.ts",
       "packages/core/src/nostr/build/reaction.ts",
@@ -393,6 +394,15 @@
       "apps/web/src/columns/blocks/MediaGrid.tsx"
     ],
     "gap": "表示だけで、画像の投稿は作れない。リポスト（kind:16）もまだできない"
+  },
+  {
+    "nip": "70",
+    "status": "一部",
+    "summary": "保護された投稿をリポストするときは、元の投稿を埋め込まない",
+    "kinds": [],
+    "tags": ["-"],
+    "paths": ["packages/core/src/nostr/build/repost.ts"],
+    "gap": "自分の投稿を保護する操作はない"
   },
   {
     "nip": "71",

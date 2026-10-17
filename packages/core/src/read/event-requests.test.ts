@@ -33,18 +33,34 @@ const noteEvent = (seed: number, content = `note ${seed}`): NostrEvent => {
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
 };
 
-/**
- * コアレッサは SubscriptionManager の他のメンバを一切使わないので、スタブは
- * fetchOnce の呼ばれ方だけを観測できれば足りる。
- */
+/** コアレッサが使う SubscriptionManager のメンバだけを持つスタブ。 */
+const managerWith = (
+  fetchOnce: SubscriptionManager["fetchOnce"],
+  overrides: {
+    mode?: "outbox" | "direct";
+    relaysFor?: (pubkey: string) => RelayUrl[] | undefined;
+    blocked?: (url: RelayUrl) => boolean;
+  } = {},
+) =>
+  ({
+    fetchOnce,
+    readRouting: { mode: overrides.mode ?? "outbox" },
+    pool: { isBlocked: overrides.blocked ?? (() => false) },
+    relaysForAuthor: (pubkey: string, count: number) =>
+      overrides.relaysFor?.(pubkey)?.slice(0, count),
+  }) as unknown as SubscriptionManager;
+
 const stubManager = () => {
   const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(
     () => new Promise<void>(() => {}), // 既定では解決しない (解決を要するテストでは上書きする)
   );
-  return { fetchOnce } as unknown as SubscriptionManager & {
+  return managerWith(fetchOnce) as SubscriptionManager & {
     fetchOnce: typeof fetchOnce;
   };
 };
+
+/** まとめ取りの中の await (1 回目 → 聞き直し) を片付ける。 */
+const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe("createEventRequests", () => {
   it("窓の中の複数の request を 1 回の fetchOnce にまとめる", () => {
@@ -214,7 +230,7 @@ describe("createEventRequests", () => {
           resolveFetch = resolve;
         }),
     );
-    const manager = { fetchOnce } as unknown as SubscriptionManager;
+    const manager = managerWith(fetchOnce);
     const requests = createEventRequests({
       store,
       manager,
@@ -227,8 +243,7 @@ describe("createEventRequests", () => {
     expect(requests.isUnresolved(id)).toBe(false); // まだ解決していない
 
     resolveFetch();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
 
     expect(requests.isUnresolved(id)).toBe(true); // 解決したが store に無い
   });
@@ -245,7 +260,7 @@ describe("createEventRequests", () => {
           resolveFetch = resolve;
         }),
     );
-    const manager = { fetchOnce } as unknown as SubscriptionManager;
+    const manager = managerWith(fetchOnce);
     const requests = createEventRequests({
       store,
       manager,
@@ -256,8 +271,7 @@ describe("createEventRequests", () => {
     requests.request(event.id);
     clock.advance(200);
     resolveFetch();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
     expect(requests.isUnresolved(event.id)).toBe(true);
 
     // 別経路 (カラムの購読など) で store に届いたことを模す。
@@ -286,7 +300,7 @@ describe("createEventRequests", () => {
         resolveSecond = resolve;
       });
     });
-    const manager = { fetchOnce } as unknown as SubscriptionManager;
+    const manager = managerWith(fetchOnce);
     const requests = createEventRequests({
       store,
       manager,
@@ -299,8 +313,7 @@ describe("createEventRequests", () => {
     requests.request(id);
     clock.advance(200);
     resolveFirst();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
     expect(requests.isUnresolved(id)).toBe(true);
 
     // 2 本目: 同じ id をもう一度要求する (カラム項目の再マウントを模す)。
@@ -313,8 +326,7 @@ describe("createEventRequests", () => {
     // 2 本目が解決し、store は依然空 —— 再び true に戻る。
     clock.advance(200);
     resolveSecond();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
     expect(requests.isUnresolved(id)).toBe(true);
   });
 
@@ -375,7 +387,7 @@ describe("createEventRequests", () => {
           resolveFetch = resolve;
         }),
     );
-    const manager = { fetchOnce } as unknown as SubscriptionManager;
+    const manager = managerWith(fetchOnce);
     const requests = createEventRequests({
       store,
       manager,
@@ -390,9 +402,181 @@ describe("createEventRequests", () => {
     expect(listener).not.toHaveBeenCalled(); // fetchOnce 自体はまだ解決していない
 
     resolveFetch();
-    await Promise.resolve();
-    await Promise.resolve();
+    await settle();
 
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createEventRequests のヒントと作者", () => {
+  const HINT = "wss://hint.example/" as RelayUrl;
+  const OUTBOX = "wss://outbox.example/" as RelayUrl;
+  const INDEXER = "wss://indexer.example/" as RelayUrl;
+
+  type Call = { filters: RelayFilter[]; relays?: RelayUrl[] };
+  /** 呼ばれ方を記録し、`answer` が返したイベントを store へ入れて即座に解決する。 */
+  const recording = (
+    store: EventStore,
+    answer: (call: Call) => NostrEvent | undefined = () => undefined,
+  ) => {
+    const calls: Call[] = [];
+    const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(
+      async (filters, options) => {
+        const call = { filters, relays: options?.relays };
+        calls.push(call);
+        const event = answer(call);
+        if (event)
+          store.put(event, (call.relays?.[0] ?? "wss://default/") as RelayUrl);
+      },
+    );
+    return { calls, fetchOnce };
+  };
+
+  const setup = (
+    answer?: (call: Call) => NostrEvent | undefined,
+    overrides: Parameters<typeof managerWith>[1] = {},
+  ) => {
+    const clock = createFakeClock();
+    const store = new EventStore();
+    const { calls, fetchOnce } = recording(store, answer);
+    const requests = createEventRequests({
+      store,
+      manager: managerWith(fetchOnce, overrides),
+      scheduler: clock,
+      indexers: [INDEXER],
+    });
+    const run = async () => {
+      clock.advance(200);
+      await settle();
+    };
+    return { calls, requests, run, store };
+  };
+
+  it("ヒントのリレーへも、既定のリレーと同時に聞く", async () => {
+    const id = idFor(1);
+    const { calls, requests, run } = setup();
+    requests.request(id, { relay: HINT });
+    await run();
+    expect(calls.slice(0, 2)).toEqual([
+      { filters: [{ ids: [id] }], relays: undefined },
+      { filters: [{ ids: [id] }], relays: [HINT] },
+    ]);
+  });
+
+  it("ヒントの URL は正規化し、止めたリレーやローカルネットワークのものには聞かない", async () => {
+    const { calls, requests, run } = setup(undefined, {
+      blocked: (url) => url === "wss://blocked.example/",
+    });
+    requests.request(idFor(1), { relay: "wss://Hint.example" as RelayUrl });
+    requests.request(idFor(2), { relay: "wss://blocked.example" as RelayUrl });
+    requests.request(idFor(3), {
+      relay: "https://not-a-relay.example" as RelayUrl,
+    });
+    await run();
+    expect(calls.flatMap((call) => call.relays ?? [])).toEqual([HINT]);
+  });
+
+  it("1 回目で見つからなければ、作者の書き込みリレーへ聞き直す", async () => {
+    const event = noteEvent(1);
+    const { calls, requests, run, store } = setup(
+      (call) => (call.relays?.[0] === OUTBOX ? event : undefined),
+      { relaysFor: () => [OUTBOX] },
+    );
+    requests.request(event.id, { relay: HINT, author: event.pubkey });
+    await run();
+    expect(calls.at(-1)).toEqual({
+      filters: [{ ids: [event.id] }],
+      relays: [OUTBOX],
+    });
+    expect(store.get(event.id)).toBeDefined();
+    expect(requests.isUnresolved(event.id)).toBe(false);
+  });
+
+  it("ヒントで見つかれば、作者の書き込みリレーへは聞かない", async () => {
+    const event = noteEvent(1);
+    const { calls, requests, run } = setup(
+      (call) => (call.relays?.[0] === HINT ? event : undefined),
+      { relaysFor: () => [OUTBOX] },
+    );
+    requests.request(event.id, { relay: HINT, author: event.pubkey });
+    await run();
+    expect(calls.some((call) => call.relays?.includes(OUTBOX))).toBe(false);
+  });
+
+  it("聞き直しでは、ヒントとして聞いたリレーへ重ねて聞かない", async () => {
+    const event = noteEvent(1);
+    const { calls, requests, run } = setup(undefined, {
+      relaysFor: () => [HINT, OUTBOX],
+    });
+    requests.request(event.id, { relay: HINT, author: event.pubkey });
+    await run();
+    expect(calls.filter((call) => call.relays?.includes(HINT))).toHaveLength(1);
+    expect(calls.at(-1)?.relays).toEqual([OUTBOX]);
+  });
+
+  it("作者の書き込みリレーが分からなければ、インデクサから kind:10002 を取ってから聞き直す", async () => {
+    const event = noteEvent(1);
+    let known = false;
+    const { calls, requests, run } = setup(
+      (call) => {
+        if (call.relays?.[0] === INDEXER) known = true;
+        return undefined;
+      },
+      { relaysFor: () => (known ? [OUTBOX] : undefined) },
+    );
+    requests.request(event.id, { author: event.pubkey });
+    await run();
+    expect(calls.slice(1)).toEqual([
+      {
+        filters: [{ kinds: [10002], authors: [event.pubkey] }],
+        relays: [INDEXER],
+      },
+      { filters: [{ ids: [event.id] }], relays: [OUTBOX] },
+    ]);
+  });
+
+  it("作者の kind:10002 を一度取ったら、次の要求ではインデクサへ聞かない", async () => {
+    const { calls, requests, run } = setup();
+    const author = noteEvent(1).pubkey;
+    requests.request(idFor(1), { author });
+    await run();
+    requests.request(idFor(2), { author });
+    await run();
+    expect(calls.filter((call) => call.relays?.[0] === INDEXER)).toHaveLength(
+      1,
+    );
+  });
+
+  it("direct では既定のリレーにだけ聞く", async () => {
+    const { calls, requests, run } = setup(undefined, {
+      mode: "direct",
+      relaysFor: () => [OUTBOX],
+    });
+    requests.request(idFor(1), { relay: HINT, author: noteEvent(1).pubkey });
+    await run();
+    expect(calls).toEqual([
+      { filters: [{ ids: [idFor(1)] }], relays: undefined },
+    ]);
+  });
+
+  it("ヒントのリレーは、多く指されたものから 4 本までにする", async () => {
+    const { calls, requests, run } = setup();
+    const hint = (n: number) => `wss://h${n}.example/` as RelayUrl;
+    requests.request(idFor(1), { relay: hint(1) });
+    requests.request(idFor(2), { relay: hint(1) });
+    for (let n = 2; n <= 6; n++)
+      requests.request(idFor(n + 10), { relay: hint(n) });
+    await run();
+    const hinted = calls.flatMap((call) => call.relays ?? []);
+    expect(hinted).toHaveLength(4);
+    expect(hinted[0]).toBe(hint(1));
+  });
+
+  it("窓の中で同じ id が別のヒントで要求されたら、両方のリレーへ聞く", async () => {
+    const { calls, requests, run } = setup();
+    requests.request(idFor(1), { relay: HINT });
+    requests.request(idFor(1), { relay: OUTBOX });
+    await run();
+    expect(calls.flatMap((call) => call.relays ?? [])).toEqual([HINT, OUTBOX]);
   });
 });
