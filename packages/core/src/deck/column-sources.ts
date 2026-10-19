@@ -1,4 +1,5 @@
 import { FOLLOW_SET_KIND } from "../lists/follow-set";
+import { NAPPLET_NAMED_KIND } from "../napplet/manifest";
 import {
   CHANNEL_CREATE_KIND,
   CHANNEL_HIDE_MESSAGE_KIND,
@@ -219,6 +220,19 @@ export const articleSource = (
 ): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey], "#d": [identifier] }],
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
+});
+
+/** napplet の名前付きマニフェスト。分かっているリレーは Outbox の行き先に足す。 */
+export const nappletManifestSource = (
+  pubkey: string,
+  identifier: string,
+  relays?: readonly string[],
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    { kinds: [NAPPLET_NAMED_KIND], authors: [pubkey], "#d": [identifier] },
+  ],
   ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 

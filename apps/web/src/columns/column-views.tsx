@@ -67,6 +67,7 @@ import {
   FollowSetTimeline,
 } from "./blocks/FollowSets";
 import MediaGrid from "./blocks/MediaGrid";
+import Napplet from "./blocks/Napplet";
 import NotificationList from "./blocks/NotificationList";
 import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
@@ -700,6 +701,21 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       <FollowSetInfo
         pubkey={props.source.pubkey}
         identifier={props.source.identifier}
+      />
+    ),
+  },
+  napplet: {
+    meta: () => ({
+      icon: "i-material-symbols:widgets-outline-rounded",
+      subtitle: "napplet",
+    }),
+    scrollsInternally: true,
+    Content: (props) => (
+      <Napplet
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={props.source.relays}
+        inputs={props.inputs}
       />
     ),
   },

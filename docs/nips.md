@@ -33,6 +33,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) | 一部 | 検索対応リレーへ検索を送る | — | — | [`query.ts`](../packages/core/src/search/query.ts)<br>[`search-relay-list.ts`](../packages/core/src/settings/search-relay-list.ts) | 検索演算子をすべて扱うわけではない。除く指定（-語・-#タグ・-from:・-to:・-is:bot）はリレーへ送らず手元でふるうので、除いた分だけ並ぶ件数が減る |
 | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) | 一部 | ミュート・ブックマーク・ピン留め・フォローセットなどのリスト。流れてきたリレーセット・ブックマークセット・まとめ・好きな話題・スターターパックを表示し、リレーセットのリレーを自分のリレーに足せる | 10000, 10001, 10003, 10005, 10006, 10007, 10030, 30000, 30002, 30003, 30004, 30005, 30006, 30015, 39089, 39092 | `d`, `e`, `p`, `a`, `t`, `relay` | [`private-tags.ts`](../packages/core/src/nostr/private-tags.ts)<br>[`mute-list.ts`](../packages/core/src/moderation/mute-list.ts)<br>[`pinned-notes.ts`](../packages/core/src/nostr/pinned-notes.ts)<br>[`blocked-relay-list.ts`](../packages/core/src/settings/blocked-relay-list.ts)<br>[`follow-set.ts`](../packages/core/src/lists/follow-set.ts)<br>[`FollowSetSummary.tsx`](../apps/web/src/lists/FollowSetSummary.tsx)<br>[`list-set.ts`](../packages/core/src/lists/list-set.ts)<br>[`ListSetCard.tsx`](../apps/web/src/lists/ListSetCard.tsx) | NIP-51 のリストをすべて扱うわけではない。ピン留めは並べ替えられない。流れてきたリスト（リレーセット・ブックマークセットなど）は表示だけで、Streets では作れない。公開の中身だけを数える |
 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) | 一部 | 投稿・プロフィールへの Zap の送信と受領の表示 | 9734, 9735 | `e`, `a`, `p`, `k`, `relays`, `amount`, `lnurl`, `bolt11`, `description` | [`zap-request.ts`](../packages/core/src/zap/zap-request.ts)<br>[`zap-receipt.ts`](../packages/core/src/zap/zap-receipt.ts) | Zap のすべてのオプションや受領形式には対応していない |
+| [NIP-5D](https://github.com/nostr-protocol/nips/blob/master/5D.md) | 一部 | napplet（Nostr で配る小さなアプリ）をカラムで動かす | 5129, 15129, 35129 | `d`, `x`, `R`, `O`, `server`, `title` | [`manifest.ts`](../packages/core/src/napplet/manifest.ts)<br>[`session.ts`](../packages/core/src/napplet/session.ts)<br>[`prelude.ts`](../packages/core/src/napplet/prelude.ts)<br>[`Napplet.tsx`](../apps/web/src/columns/blocks/Napplet.tsx) | NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。渡す機能は shell・theme・identity・storage・relay の読み取りだけで、書き込み・intent・inc・config・resource は渡さない |
 | [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) | 対応 | 人ごとの読み書きリレーの選択 | 10002 | `r` | [`relay-list.ts`](../packages/core/src/read/relay-list.ts)<br>[`relay-selector.ts`](../packages/core/src/read/relay-selector.ts)<br>[`relay-list.ts`](../packages/core/src/nostr/build/relay-list.ts) | 他人の一覧にある localhost やプライベート IP のリレーには、読みも書きも繋がない |
 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) | 一部 | リレーの計測情報から候補を選ぶ | 30166 | `d` | [`relay-recommendation.ts`](../packages/core/src/settings/relay-recommendation.ts)<br>[`RelayRecommendations.tsx`](../apps/web/src/settings/RelayRecommendations.tsx) | 計測イベントの発行はしない |
 | [NIP-68](https://github.com/nostr-protocol/nips/blob/master/68.md) | 一部 | 画像の投稿を、添付画像つきの投稿と同じ形で表示。ユーザーのメディアのタブにも並べる | 20 | `title`, `imeta` | [`media-post.ts`](../packages/core/src/nostr/media-post.ts)<br>[`note-layout.ts`](../packages/core/src/view/note-layout.ts)<br>[`media-grid.ts`](../packages/core/src/view/media-grid.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx)<br>[`MediaGrid.tsx`](../apps/web/src/columns/blocks/MediaGrid.tsx) | 表示だけで、画像の投稿は作れない。リポスト（kind:16）もまだできない |
@@ -70,6 +71,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 1018 | 内部利用 | 投票への回答 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) |
 | 1068 | 表示対応 | 投票 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) |
 | 1111 | 表示対応 | コメント | [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) |
+| 5129 | 内部利用 | napplet（版を固定したもの） | [NIP-5D](https://github.com/nostr-protocol/nips/blob/master/5D.md) |
 | 9734 | 内部利用 | Zap の依頼 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
 | 9735 | 内部利用 | Zap の受領 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
 | 10000 | 内部利用 | ミュートリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
@@ -82,6 +84,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 10030 | 内部利用 | 絵文字リスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 10063 | 内部利用 | Blossom サーバーのリスト | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
 | 10096 | 内部利用 | NIP-96 のアップロード先のリスト | [NIP-96](https://github.com/nostr-protocol/nips/blob/master/96.md) |
+| 15129 | 内部利用 | napplet（作者ごとに 1 つ） | [NIP-5D](https://github.com/nostr-protocol/nips/blob/master/5D.md) |
 | 22242 | 内部利用 | リレーの認証 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) |
 | 24133 | 内部利用 | リモート署名の通信 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) |
 | 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
@@ -99,5 +102,6 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 30166 | 内部利用 | リレーの計測情報 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) |
 | 30315 | 内部利用 | ユーザーのステータス | [NIP-38](https://github.com/nostr-protocol/nips/blob/master/38.md) |
 | 31990 | 内部利用 | アプリの説明 | [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) |
+| 35129 | 内部利用 | napplet（名前付き） | [NIP-5D](https://github.com/nostr-protocol/nips/blob/master/5D.md) |
 | 39089 | 表示対応 | スターターパック | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 39092 | 表示対応 | メディアのスターターパック | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |

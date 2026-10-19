@@ -1,6 +1,7 @@
 import { columnTitle } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { followSetName } from "@streets/core/lists/follow-set";
+import { parseNappletManifest } from "@streets/core/napplet/manifest";
 import {
   CHANNEL_CREATE_KIND,
   parseChannelMetadata,
@@ -31,9 +32,14 @@ export const useColumnTitle = (
     const current = title();
     return "channel" in current ? current.channel : undefined;
   });
+  const nappletTitle = useNappletTitle(() => {
+    const current = title();
+    return "napplet" in current ? current.napplet : undefined;
+  });
   const lists = useFollowSets();
   return () => {
     const current = title();
+    if ("napplet" in current) return nappletTitle() ?? current.fallback;
     if ("followSet" in current) {
       // 自分のリストは、名前を変えたら開いているカラムの題名もその場で変わる。
       // ほかの人のリストは、開いたときの名前で呼ぶ。
@@ -67,6 +73,23 @@ const useChannelName = (
       current.event.kind === CHANNEL_CREATE_KIND
       ? parseChannelMetadata(current.event.content)?.name
       : undefined;
+  };
+};
+
+/** napplet のマニフェスト（住所で指す）の `title`。 */
+const useNappletTitle = (
+  address: Accessor<string | undefined>,
+): Accessor<string | undefined> => {
+  if (!useOptionalReadLayer()) return () => undefined;
+  const lookup = useEvent(() => ({
+    form: "address",
+    address: address() ?? "",
+  }));
+  return () => {
+    const current = lookup();
+    if (current.phase !== "found") return undefined;
+    const parsed = parseNappletManifest(current.event);
+    return parsed.ok ? parsed.manifest.title : undefined;
   };
 };
 

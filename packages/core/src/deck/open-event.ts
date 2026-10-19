@@ -1,5 +1,6 @@
 import { FOLLOW_SET_KIND } from "../lists/follow-set";
 import { RELAY_SET_KIND, readListSet } from "../lists/list-set";
+import { NAPPLET_NAMED_KIND } from "../napplet/manifest";
 import {
   type EventAddress,
   addressOfEvent,
@@ -15,6 +16,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import {
   buildArticleColumn,
   buildFollowSetColumn,
+  buildNappletColumn,
   buildRelayColumn,
   buildThreadColumn,
 } from "./column-presets";
@@ -33,6 +35,8 @@ const ADDRESS_OPENERS: Partial<
 > = {
   [LONG_FORM_KIND]: (address, relays) =>
     buildArticleColumn(address.pubkey, address.identifier, relays),
+  [NAPPLET_NAMED_KIND]: (address, relays) =>
+    buildNappletColumn(address.pubkey, address.identifier, relays),
   // リストはメンバーの投稿を読むためのもの。名前は届いたら題名に出る。
   [FOLLOW_SET_KIND]: (address) =>
     buildFollowSetColumn(address.pubkey, address.identifier, "リスト"),

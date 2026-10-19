@@ -1,0 +1,244 @@
+/*
+ * napplet の中で `window.napplet` を作るスクリプト。ランチャーが srcdoc の先頭に差し込む。
+ *
+ * > Shells MUST inject `window.napplet` before any napplet script runs.
+ * > The namespace MUST contain only the NAP domain objects the shell exposes to that napplet.
+ *
+ * 呼び方の形は、napplet を作る側が使う `@napplet/shim`（napplet/web、2026-10）に合わせる。
+ * 仕様の文章と食い違うところ（`relay.subscribe` がコールバックを引数で受けるなど）は、
+ * 実際に配られている napplet が SDK の形で呼ぶので、SDK に従う。
+ */
+
+type Message = { type: string; [key: string]: unknown };
+type Handler = (message: Message) => void;
+
+/**
+ * 文字列にして iframe の中で動かすので、外の変数・import・ヘルパーに一切触れない。
+ * 触れると、ビルドで名前が変わった先が iframe の中に無く、napplet が起動しない。
+ */
+function installNapplet(domains: readonly string[]): void {
+  const parent = window.parent;
+  const post = (message: Message) => parent.postMessage(message, "*");
+  let counter = 0;
+  const newId = () => `${Date.now().toString(36)}-${(counter += 1)}`;
+  type Pending = {
+    resolve: (value: unknown) => void;
+    reject: (reason: Error) => void;
+    pick: (message: Message) => unknown;
+    timer: ReturnType<typeof setTimeout>;
+  };
+  const pending = new Map<string, Pending>();
+  const pushes = new Map<string, Set<Handler>>();
+  const subscriptions = new Map<string, Handler>();
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== parent) return;
+    const message = event.data as Message | null;
+    if (typeof message !== "object" || message === null) return;
+    if (typeof message.type !== "string") return;
+    if (typeof message.subId === "string") {
+      subscriptions.get(message.subId)?.(message);
+      return;
+    }
+    if (typeof message.id === "string" && message.type.endsWith(".result")) {
+      const waiting = pending.get(message.id);
+      if (!waiting) return;
+      pending.delete(message.id);
+      clearTimeout(waiting.timer);
+      if (typeof message.error === "string") {
+        waiting.reject(new Error(message.error));
+      } else {
+        waiting.resolve(waiting.pick(message));
+      }
+      return;
+    }
+    for (const handler of pushes.get(message.type) ?? []) handler(message);
+  });
+
+  const request = (
+    type: string,
+    payload: Record<string, unknown>,
+    pick: (message: Message) => unknown,
+  ): Promise<never> =>
+    new Promise((resolve, reject) => {
+      const id = newId();
+      const timer = setTimeout(() => {
+        if (pending.delete(id)) reject(new Error(`${type} timed out`));
+      }, 30_000);
+      pending.set(id, {
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        pick,
+        timer,
+      });
+      post({ ...payload, type, id });
+    });
+  const onPush = (type: string, handler: Handler) => {
+    const handlers = pushes.get(type) ?? new Set<Handler>();
+    handlers.add(handler);
+    pushes.set(type, handlers);
+    return { close: () => handlers.delete(handler) };
+  };
+
+  const napplet: Record<string, unknown> = {};
+  const exposed = new Set(domains);
+
+  if (exposed.has("shell")) {
+    type Environment = {
+      capabilities: { domains: string[] };
+      services: string[];
+    };
+    let environment: Environment | undefined;
+    const waiting = new Set<(environment: Environment) => void>();
+    onPush("shell.init", (message) => {
+      if (environment) return;
+      const capabilities = message.capabilities as
+        | { domains?: unknown }
+        | undefined;
+      environment = {
+        capabilities: {
+          domains: Array.isArray(capabilities?.domains)
+            ? (capabilities.domains as string[])
+            : [],
+        },
+        services: Array.isArray(message.services)
+          ? (message.services as string[])
+          : [],
+      };
+      const ready = environment;
+      for (const callback of waiting) callback(ready);
+      waiting.clear();
+    });
+    napplet.shell = {
+      supports: (domain: string) =>
+        Object.prototype.hasOwnProperty.call(napplet, domain) &&
+        typeof napplet[domain] === "object",
+      get services() {
+        return environment?.services ?? [];
+      },
+      ready: () =>
+        environment
+          ? Promise.resolve(environment)
+          : new Promise((resolve) => waiting.add(resolve)),
+      onReady: (handler: (environment: Environment) => void) => {
+        if (environment) handler(environment);
+        else waiting.add(handler);
+        return { close: () => waiting.delete(handler) };
+      },
+    };
+  }
+
+  if (exposed.has("theme")) {
+    napplet.theme = {
+      get: () => request("theme.get", {}, (message) => message.theme),
+      onChanged: (handler: (theme: unknown) => void) =>
+        onPush("theme.changed", (message) => handler(message.theme)),
+    };
+  }
+
+  if (exposed.has("identity")) {
+    const query = (action: string, field: string, payload = {}) =>
+      request(`identity.${action}`, payload, (message) => message[field]);
+    napplet.identity = {
+      getPublicKey: () => query("getPublicKey", "pubkey"),
+      onChanged: (handler: (pubkey: string) => void) =>
+        onPush("identity.changed", (message) =>
+          handler(message.pubkey as string),
+        ),
+      getRelays: () => query("getRelays", "relays"),
+      getProfile: () =>
+        request(
+          "identity.getProfile",
+          {},
+          (message) => message.profile ?? null,
+        ),
+      getFollows: () => query("getFollows", "pubkeys"),
+      getList: (listType: string) => query("getList", "entries", { listType }),
+      getZaps: () => query("getZaps", "zaps"),
+      getMutes: () => query("getMutes", "pubkeys"),
+      getBlocked: () => query("getBlocked", "pubkeys"),
+      getBadges: () => query("getBadges", "badges"),
+    };
+  }
+
+  if (exposed.has("storage")) {
+    const scoped = (scope: "shared" | "instance") => {
+      const payload = scope === "instance" ? { scope } : {};
+      return {
+        getItem: (key: string) =>
+          request(
+            "storage.get",
+            { ...payload, key },
+            (message) => message.value ?? null,
+          ),
+        setItem: (key: string, value: string) =>
+          request("storage.set", { ...payload, key, value }, () => undefined),
+        removeItem: (key: string) =>
+          request("storage.remove", { ...payload, key }, () => undefined),
+        keys: () =>
+          request("storage.keys", payload, (message) => message.keys ?? []),
+      };
+    };
+    napplet.storage = { ...scoped("shared"), instance: scoped("instance") };
+  }
+
+  if (exposed.has("relay")) {
+    const asList = (filters: unknown) =>
+      Array.isArray(filters) ? filters : [filters];
+    napplet.relay = {
+      subscribe: (
+        filters: unknown,
+        onEvent: (result: unknown) => void,
+        onEose?: () => void,
+        options?: { relay?: string },
+      ) => {
+        const subId = newId();
+        subscriptions.set(subId, (message) => {
+          if (message.type === "relay.event") onEvent(message.result);
+          else if (message.type === "relay.eose") onEose?.();
+          else if (message.type === "relay.closed") subscriptions.delete(subId);
+        });
+        post({
+          type: "relay.subscribe",
+          id: newId(),
+          subId,
+          filters: asList(filters),
+          ...(options?.relay ? { relay: options.relay } : {}),
+        });
+        return {
+          close: () => {
+            if (!subscriptions.delete(subId)) return;
+            post({ type: "relay.close", id: newId(), subId });
+          },
+        };
+      },
+      query: (filters: unknown) =>
+        request("relay.query", { filters: asList(filters) }, (message) =>
+          Array.isArray(message.events) ? message.events : [],
+        ),
+      publish: (event: unknown) =>
+        request("relay.publish", { event }, (message) => message.event),
+      publishEncrypted: (
+        event: unknown,
+        recipient: string,
+        encryption: "nip44" | "nip04" = "nip44",
+      ) =>
+        request(
+          "relay.publishEncrypted",
+          { event, recipient, encryption },
+          (message) => message.event,
+        ),
+    };
+  }
+
+  Object.defineProperty(window, "napplet", {
+    value: Object.freeze(napplet),
+    writable: false,
+    configurable: false,
+  });
+  if (exposed.has("shell")) post({ type: "shell.ready" });
+}
+
+/** napplet の中で動かす 1 本のスクリプト。`domains` に挙げた機能だけを生やす。 */
+export const nappletPrelude = (domains: readonly string[]): string =>
+  `(${installNapplet.toString()})(${JSON.stringify(domains)});`;
