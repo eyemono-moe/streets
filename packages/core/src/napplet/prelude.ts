@@ -598,6 +598,111 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("keys")) {
+    // NAP-KEYS の Smart Forwarding。iframe の中で押したキーは Streets に届かないので、
+    // 入力欄の外で押したものを送り、Streets のショートカットが効くようにする。
+    const RESERVED = new Set(["Tab", "Shift+Tab", "Escape"]);
+    const MODIFIERS = new Set(["Control", "Alt", "Shift", "Meta"]);
+    const comboOf = (event: {
+      key: string;
+      altKey: boolean;
+      ctrlKey: boolean;
+      shiftKey: boolean;
+      metaKey: boolean;
+    }) =>
+      [
+        event.altKey ? "Alt" : "",
+        event.ctrlKey ? "Ctrl" : "",
+        event.shiftKey ? "Shift" : "",
+        event.metaKey ? "Meta" : "",
+        event.key.length === 1 ? event.key.toUpperCase() : event.key,
+      ]
+        .filter(Boolean)
+        .join("+");
+    const normalize = (combo: string) => {
+      const parts = combo.split("+");
+      const key = parts.pop() ?? "";
+      return comboOf({
+        key,
+        altKey: parts.includes("Alt"),
+        ctrlKey: parts.includes("Ctrl"),
+        shiftKey: parts.includes("Shift"),
+        metaKey: parts.includes("Meta"),
+      });
+    };
+    const bound = new Map<string, string>();
+    const actionHandlers = new Map<string, Set<() => void>>();
+    const fire = (actionId: string) => {
+      for (const handler of actionHandlers.get(actionId) ?? []) handler();
+    };
+    onPush("keys.bindings", (message) => {
+      bound.clear();
+      if (!Array.isArray(message.bindings)) return;
+      for (const binding of message.bindings as {
+        actionId?: unknown;
+        key?: unknown;
+      }[]) {
+        if (typeof binding.actionId !== "string") continue;
+        if (typeof binding.key !== "string") continue;
+        bound.set(normalize(binding.key), binding.actionId);
+      }
+    });
+    onPush("keys.action", (message) => {
+      if (typeof message.actionId === "string") fire(message.actionId);
+    });
+    const typing = (target: EventTarget | null) => {
+      const element = target as HTMLElement | null;
+      if (!element || typeof element.closest !== "function") return false;
+      return (
+        element.isContentEditable ||
+        element.closest("input, textarea, select, [contenteditable]") !== null
+      );
+    };
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (typing(event.target)) return;
+        if (MODIFIERS.has(event.key) || event.isComposing) return;
+        const combo = comboOf(event);
+        const actionId = bound.get(combo);
+        if (actionId && !RESERVED.has(combo)) {
+          event.preventDefault();
+          fire(actionId);
+          return;
+        }
+        post({
+          type: "keys.forward",
+          key: event.key,
+          code: event.code,
+          ctrl: event.ctrlKey,
+          alt: event.altKey,
+          shift: event.shiftKey,
+          meta: event.metaKey,
+        });
+      },
+      true,
+    );
+    napplet.keys = {
+      registerAction: (action: unknown) =>
+        request("keys.registerAction", { action }, (message) => ({
+          actionId: message.actionId,
+          ...(typeof message.binding === "string"
+            ? { binding: message.binding }
+            : {}),
+        })),
+      unregisterAction: (actionId: string) =>
+        post({ type: "keys.unregisterAction", actionId }),
+      forward: (fields: Record<string, unknown>) =>
+        post({ ...fields, type: "keys.forward" }),
+      onAction: (actionId: string, handler: () => void) => {
+        const handlers = actionHandlers.get(actionId) ?? new Set();
+        handlers.add(handler);
+        actionHandlers.set(actionId, handlers);
+        return { close: () => handlers.delete(handler) };
+      },
+    };
+  }
+
   if (exposed.has("link")) {
     // 断られたときも reject せず `{ status: "denied" }` で返す（@napplet/shim と同じ）。
     napplet.link = {

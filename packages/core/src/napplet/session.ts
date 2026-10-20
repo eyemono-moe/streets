@@ -116,6 +116,17 @@ export type NappletHost = {
     target: LinkTarget,
     label: string | undefined,
   ) => Promise<{ status: "opened" | "denied"; error?: string }>;
+  /**
+   * NAP-KEYS。アップレットの中で押されたキーを、Streets の中で押したものとして扱う。
+   */
+  forwardKey: (key: {
+    key: string;
+    code: string;
+    ctrl: boolean;
+    alt: boolean;
+    shift: boolean;
+    meta: boolean;
+  }) => void;
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -134,6 +145,8 @@ export const NAPPLET_MAX_SUBSCRIPTIONS = 20;
 export const NAPPLET_QUERY_TIMEOUT_MS = 15_000;
 /** napplet が足せるリレーのヒントの数。明示した行き先は接続の予算を超えても開くので絞る。 */
 export const NAPPLET_MAX_RELAY_HINTS = 4;
+/** 1 つのアップレットが登録できる操作の数。偽りの名前で並べ立てさせない。 */
+const MAX_KEY_ACTIONS = 50;
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 
@@ -348,6 +361,54 @@ export const createNappletSession = (
         return;
       case "inc.channel.list":
         reply(request, { channels: [] });
+        return;
+    }
+  };
+
+  // Streets はアップレットの操作にキーを割り当てない（NAP-KEYS では、割り当てずに置いて
+  // よい）。登録は受け付け、割り当ての一覧はいつも空で返す。
+  const actions = new Set<string>();
+  const handleKeys = (request: Message) => {
+    switch (request.type) {
+      case "keys.forward": {
+        const { key, code, ctrl, alt, shift, meta } = request;
+        if (
+          typeof key !== "string" ||
+          typeof code !== "string" ||
+          typeof ctrl !== "boolean" ||
+          typeof alt !== "boolean" ||
+          typeof shift !== "boolean" ||
+          typeof meta !== "boolean"
+        ) {
+          return;
+        }
+        host.forwardKey({ key, code, ctrl, alt, shift, meta });
+        return;
+      }
+      case "keys.registerAction": {
+        const action = isRecord(request.action) ? request.action : {};
+        if (typeof action.id !== "string" || typeof action.label !== "string") {
+          reply(request, { error: "invalid action" });
+          return;
+        }
+        if (actions.has(action.id)) {
+          reply(request, { actionId: action.id, error: "duplicate action ID" });
+          return;
+        }
+        if (actions.size >= MAX_KEY_ACTIONS) {
+          reply(request, { actionId: action.id, error: "too many actions" });
+          return;
+        }
+        actions.add(action.id);
+        reply(request, { actionId: action.id });
+        send({ type: "keys.bindings", bindings: [] });
+        return;
+      }
+      case "keys.unregisterAction":
+        if (typeof request.actionId === "string") {
+          actions.delete(request.actionId);
+          send({ type: "keys.bindings", bindings: [] });
+        }
         return;
     }
   };
@@ -873,7 +934,8 @@ export const createNappletSession = (
         /^(relay|outbox)\.(subscribe|close)$/.test(message.type) ||
         /^inc\.(emit|unsubscribe|channel\.(emit|broadcast|close))$/.test(
           message.type,
-        );
+        ) ||
+        /^keys\.(forward|unregisterAction)$/.test(message.type);
       if (!withoutId && typeof message.id !== "string") return;
       switch (domain) {
         case "theme":
@@ -894,6 +956,8 @@ export const createNappletSession = (
           return handleInc(message);
         case "link":
           return handleLink(message);
+        case "keys":
+          return handleKeys(message);
       }
     },
     themeChanged: () => {

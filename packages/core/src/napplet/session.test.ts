@@ -45,6 +45,7 @@ const setup = (
   const emitted: { topic: string; payload: unknown }[] = [];
   const published: Parameters<NappletHost["publish"]>[0][] = [];
   const links: Parameters<NappletHost["openLink"]>[] = [];
+  const keys: Parameters<NappletHost["forwardKey"]>[0][] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -68,6 +69,7 @@ const setup = (
           .map((key) => key.slice(scope.length + 1)),
     },
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
+    forwardKey: (key) => void keys.push(key),
     openLink: async (target, label) => {
       links.push([target, label]);
       return { status: "opened" };
@@ -128,6 +130,7 @@ const setup = (
     emitted,
     published,
     links,
+    keys,
   };
 };
 
@@ -805,5 +808,48 @@ describe("NAP-LINK", () => {
       status: "denied",
       error: "unsupported-scheme",
     });
+  });
+});
+
+describe("NAP-KEYS", () => {
+  // NAP-KEYS の「Forward an unbound keystroke」の例。
+  // > The shell MUST accept `keys.forward` messages and process the forwarded keystroke
+  it("送られたキーを Streets に渡し、答えは返さない", () => {
+    const { session, sent, keys } = setup(["shell", "keys"]);
+    const key = {
+      key: "j",
+      code: "KeyJ",
+      ctrl: false,
+      alt: false,
+      shift: false,
+      meta: false,
+    };
+    session.receive({ type: "keys.forward", ...key });
+    session.receive({ type: "keys.forward", key: "j" });
+    expect(keys).toEqual([key]);
+    expect(sent).toEqual([]);
+  });
+
+  // > The shell MAY ... leave the action unbound until the user configures it.
+  // > The shell MUST push `keys.bindings` whenever the binding set for a napplet changes
+  it("操作の登録は受け付けて割り当てず、同じ id の 2 度目は断る", () => {
+    const { session, sent } = setup(["shell", "keys"]);
+    const action = { id: "editor.save", label: "Save", defaultKey: "Ctrl+S" };
+    session.receive({ type: "keys.registerAction", id: "r1", action });
+    session.receive({ type: "keys.registerAction", id: "r2", action });
+    expect(sent).toEqual([
+      {
+        type: "keys.registerAction.result",
+        id: "r1",
+        actionId: "editor.save",
+      },
+      { type: "keys.bindings", bindings: [] },
+      {
+        type: "keys.registerAction.result",
+        id: "r2",
+        actionId: "editor.save",
+        error: "duplicate action ID",
+      },
+    ]);
   });
 });

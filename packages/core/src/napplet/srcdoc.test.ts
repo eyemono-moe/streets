@@ -361,4 +361,52 @@ describe("nappletPrelude", () => {
     expect(viaIntent).toHaveLength(1);
     expect(viaInc).toEqual([]);
   });
+
+  // NAP-KEYS の Smart Forwarding:
+  // > 1. If the event target is a text input ..., do not forward.
+  // > 2. If the key is a bare modifier ..., do not forward.
+  // > 6. If the combo does not match: Send `keys.forward` to the shell.
+  it("入力欄の外で押したキーだけを Streets へ送る", () => {
+    const napplet = fakeNappletWindow();
+    const keydown: ((event: unknown) => void)[] = [];
+    const win = napplet.win as unknown as {
+      addEventListener: (
+        type: string,
+        listener: (event: unknown) => void,
+      ) => void;
+    };
+    const original = win.addEventListener;
+    win.addEventListener = (type, listener) => {
+      if (type === "keydown") keydown.push(listener);
+      else original(type, listener);
+    };
+    // oxlint-disable-next-line no-implied-eval -- 本番でも文字列として iframe に入れるものを、そのまま動かして確かめる
+    new Function("window", nappletPrelude(["keys"]))(napplet.win);
+    const press = (key: string, target: unknown = { closest: () => null }) =>
+      keydown[0]?.({
+        key,
+        code: `Key${key.toUpperCase()}`,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        metaKey: false,
+        isComposing: false,
+        target,
+        preventDefault: () => {},
+      });
+    press("j");
+    press("Shift");
+    press("k", { closest: () => ({}) });
+    expect(napplet.sent).toEqual([
+      {
+        type: "keys.forward",
+        key: "j",
+        code: "KeyJ",
+        ctrl: false,
+        alt: false,
+        shift: false,
+        meta: false,
+      },
+    ]);
+  });
 });

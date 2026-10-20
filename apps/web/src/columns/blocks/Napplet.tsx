@@ -459,6 +459,21 @@ const Napplet: Component<{
         themeSource
           ? currentNappletTheme(themeSource)
           : currentNappletTheme(document.body),
+      // 押したものとして、カラムの場所から流す。デッキのショートカット（TanStack Hotkeys）は
+      // 押しっぱなしの連打を離すまで止めるので、離したことも続けて流す。
+      forwardKey: (key) => {
+        const init = {
+          key: key.key,
+          code: key.code,
+          ctrlKey: key.ctrl,
+          altKey: key.alt,
+          shiftKey: key.shift,
+          metaKey: key.meta,
+          bubbles: true,
+        };
+        hostElement?.dispatchEvent(new KeyboardEvent("keydown", init));
+        hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
+      },
       openLink: openLinkFor(
         running.manifest.title ?? running.manifest.identifier ?? "アップレット",
       ),
