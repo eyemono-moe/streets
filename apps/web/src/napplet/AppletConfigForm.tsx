@@ -119,6 +119,8 @@ const TypedField: Component<{
       label={props.label}
       labelHidden
       value={draft() ?? shown(props.value)}
+      // 入れていない間は既定の値が効いているので、それを薄く見せる。
+      placeholder={shown(props.schema.default)}
       onInput={setDraft}
       onBlur={commit}
       multiline={props.schema.type === "array"}

@@ -61,7 +61,9 @@ import {
 } from "../../napplet/applet-intents";
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { useAppletWriter } from "../../napplet/applet-writer";
+import AppletConfigForm from "../../napplet/AppletConfigForm";
 import { useColumnDeliveries } from "../../napplet/column-deliveries";
+import ColumnSheet from "../../napplet/ColumnSheet";
 import { type ActionPrompt, createCommonHost } from "../../napplet/common-host";
 import IntentSheet, {
   streetsHandlerLabel,
@@ -84,6 +86,7 @@ import WriteSheet, { type WriteSheetProps } from "../../napplet/WriteSheet";
 import { useProfile } from "../../note/use-profile";
 import { useMutes } from "../../settings/MuteMediator";
 import { useDispatch } from "../../ui-events";
+import Button from "../../ui/Button";
 import { useColumnScope } from "../column-scope";
 import type { ColumnInputs } from "../column-views";
 import { createNappletManifest } from "./napplet-manifest";
@@ -491,6 +494,7 @@ const Napplet: Component<{
     };
 
   const eventActions = useEventActions();
+  const [configuring, setConfiguring] = createSignal(false);
   const uploader = useUploader();
   const [uploading, setUploading] = createSignal<
     UploadPrompt & {
@@ -622,9 +626,12 @@ const Napplet: Component<{
         register: (schema) =>
           appletConfig.register(self, running.manifest.artifactHash, schema),
         stored: () => appletConfig.read(self)?.values ?? {},
-        // 節（section）までは送らない。カラムの設定を開くだけ。
+        // 節（section）までは送らない。デッキのカラムなら、カラムの設定を開く。
+        // 重ねた段にはカラムの設定の列が無いので、アップレットの中にシートで出す。
         openSettings: () =>
-          dispatch({ type: "deck/toggle-settings", id: scope.column().id }),
+          scope.inDeck
+            ? dispatch({ type: "deck/toggle-settings", id: scope.column().id })
+            : setConfiguring(true),
       },
       lists: createListsHost({
         writer,
@@ -696,6 +703,27 @@ const Napplet: Component<{
       }
       overlay={
         <>
+          <Show when={configuring() && appletConfig.read(self)}>
+            {(saved) => (
+              <ColumnSheet
+                label="アップレットの設定"
+                source={
+                  manifest()?.title ?? manifest()?.identifier ?? "アップレット"
+                }
+                title="アップレットの設定"
+                onCancel={() => setConfiguring(false)}
+              >
+                <AppletConfigForm
+                  schema={saved().schema}
+                  values={saved().values}
+                  onChange={(key, value) => appletConfig.set(self, key, value)}
+                />
+                <div class="flex justify-end">
+                  <Button onClick={() => setConfiguring(false)}>閉じる</Button>
+                </div>
+              </ColumnSheet>
+            )}
+          </Show>
           <Show when={uploading()}>
             {(current) => (
               <UploadSheet
