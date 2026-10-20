@@ -33,6 +33,7 @@ import {
   parseIntentRequest,
 } from "./intent";
 import { type LinkTarget, parseLinkUrl } from "./link";
+import { type ListRequest, parseListRequest, supportedLists } from "./lists";
 import { type PublishOperation, parsePublishTemplate } from "./publish";
 import {
   NAPPLET_RESOURCE_MAX_BYTES,
@@ -175,6 +176,18 @@ export type NappletHost = {
       request: UploadRequest,
     ) => Promise<UploadResult | { error: string }>;
     status: (uploadId: string) => UploadResult | undefined;
+  };
+  /**
+   * NAP-LISTS。確かめてから、いまの版を読んで項目を足す・外し、署名して送る。
+   */
+  lists: {
+    mutate: (
+      request: ListRequest,
+      operation: "add" | "remove",
+    ) => Promise<
+      | { ok: true; eventId: string; changed: number; skipped: number }
+      | { ok: false; error: string }
+    >;
   };
   /** NAP-CATALOG。いまのアップレットの一覧。 */
   catalog: () => CatalogSnapshot;
@@ -652,6 +665,44 @@ export const createNappletSession = (
         return;
       }
     }
+  };
+
+  const handleLists = (request: Message) => {
+    if (request.type === "lists.supported") {
+      reply(request, { lists: supportedLists() });
+      return;
+    }
+    if (request.type !== "lists.add" && request.type !== "lists.remove") return;
+    const operation = request.type === "lists.add" ? "add" : "remove";
+    if (host.publicKey() === "") {
+      reply(request, { ok: false, error: "not-signed-in" });
+      return;
+    }
+    const parsed = parseListRequest(
+      request.list,
+      request.items,
+      request.options,
+      operation,
+    );
+    if (!parsed.ok) {
+      reply(request, parsed);
+      return;
+    }
+    host.lists.mutate(parsed.request, operation).then(
+      (result) =>
+        reply(
+          request,
+          result.ok
+            ? {
+                ok: true,
+                eventId: result.eventId,
+                [operation === "add" ? "added" : "removed"]: result.changed,
+                skipped: result.skipped,
+              }
+            : result,
+        ),
+      () => reply(request, { ok: false, error: "publish-failed" }),
+    );
   };
 
   const handleUpload = (request: Message) => {
@@ -1318,6 +1369,8 @@ export const createNappletSession = (
           return handleNotify(message);
         case "upload":
           return handleUpload(message);
+        case "lists":
+          return handleLists(message);
         case "catalog":
           if (message.type === "catalog.get") {
             reply(message, { snapshot: host.catalog() });

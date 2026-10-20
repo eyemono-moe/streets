@@ -348,6 +348,8 @@ const DeckScreen: Component<{
   const appletWriter: AppletWriter | undefined = write && {
     publish: (draft, relays, label) =>
       trackWrites(write.writer, label).publish(draft, undefined, { relays }),
+    replace: (kind, identifier, mutate, label) =>
+      trackWrites(write.writer, label).replace(kind, identifier, mutate),
     encrypt: (recipient, plaintext) => {
       const nip44 = props.session.signer.nip44;
       if (!nip44) throw new Error("このログインの方法では暗号化できません");

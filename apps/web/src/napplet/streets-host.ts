@@ -34,6 +34,7 @@ export const STREETS_NAPPLET_DOMAINS = [
   "catalog",
   "notify",
   "upload",
+  "lists",
 ] as const;
 
 /** NAP-STORAGE が勧める、napplet 1 つあたりの保存の枠（UTF-8 のバイト数）。 */
@@ -190,6 +191,7 @@ export type StreetsHostInputs = {
   catalog: NappletHost["catalog"];
   notify: NappletHost["notify"];
   upload: NappletHost["upload"];
+  lists: NappletHost["lists"];
 };
 
 export const createStreetsNappletHost = (
@@ -212,6 +214,7 @@ export const createStreetsNappletHost = (
   catalog: inputs.catalog,
   notify: inputs.notify,
   upload: inputs.upload,
+  lists: inputs.lists,
   subscribe: subscribeThroughReadLayer(inputs.readLayer),
   fetchResource: (url, servers, signal) =>
     fetchNappletResource(url, {

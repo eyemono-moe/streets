@@ -57,6 +57,7 @@ import { useAppletWriter } from "../../napplet/applet-writer";
 import { type ActionPrompt, createCommonHost } from "../../napplet/common-host";
 import IntentSheet, { type IntentSheetProps } from "../../napplet/IntentSheet";
 import LinkSheet, { type LinkSheetProps } from "../../napplet/LinkSheet";
+import { createListsHost } from "../../napplet/lists-host";
 import NappletFrame from "../../napplet/NappletFrame";
 import NappletView, { type NappletPhase } from "../../napplet/NappletView";
 import { createNotifyHost } from "../../napplet/notify-host";
@@ -556,6 +557,11 @@ const Napplet: Component<{
         hostElement?.dispatchEvent(new KeyboardEvent("keydown", init));
         hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
       },
+      lists: createListsHost({
+        writer,
+        confirm,
+        label: `${sourceTitle} の書き込み`,
+      }),
       notify: notices.host,
       upload: uploads,
       catalog: () =>

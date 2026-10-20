@@ -703,6 +703,32 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("lists")) {
+    // 結果は `ok` と `error` の欄で返し、reject しない。
+    const result = (message: Message) => {
+      const { type: _type, id: _id, ...rest } = message;
+      return rest;
+    };
+    napplet.lists = {
+      supported: () =>
+        request("lists.supported", {}, (message) => message.lists),
+      add: (list: unknown, items: unknown, options?: unknown) =>
+        request(
+          "lists.add",
+          { list, items, ...(options === undefined ? {} : { options }) },
+          result,
+          false,
+        ),
+      remove: (list: unknown, items: unknown, options?: unknown) =>
+        request(
+          "lists.remove",
+          { list, items, ...(options === undefined ? {} : { options }) },
+          result,
+          false,
+        ),
+    };
+  }
+
   if (exposed.has("upload")) {
     napplet.upload = {
       info: () => request("upload.info", {}, (message) => message.info),

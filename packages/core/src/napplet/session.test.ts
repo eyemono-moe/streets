@@ -50,6 +50,7 @@ const setup = (
   const actions: unknown[][] = [];
   const notices: Parameters<NappletHost["notify"]["send"]>[0][] = [];
   const uploads: Parameters<NappletHost["upload"]["upload"]>[0][] = [];
+  const mutations: Parameters<NappletHost["lists"]["mutate"]>[] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -75,6 +76,12 @@ const setup = (
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     forwardKey: (key) => void keys.push(key),
     catalog: () => ({ napplets: [], handlers: [] }),
+    lists: {
+      mutate: async (request, operation) => {
+        mutations.push([request, operation]);
+        return { ok: true, eventId: "e".repeat(64), changed: 1, skipped: 0 };
+      },
+    },
     upload: {
       info: () => ({ rails: [{ rail: "blossom", enabled: true }] }),
       upload: async (request) => {
@@ -177,6 +184,7 @@ const setup = (
     actions,
     notices,
     uploads,
+    mutations,
   };
 };
 
@@ -1127,6 +1135,45 @@ describe("NAP-UPLOAD", () => {
       type: "upload.upload.result",
       id: "u4",
       error: "invalid upload",
+    });
+  });
+});
+
+describe("NAP-LISTS", () => {
+  it("確かめたリストと項目を渡し、足した数を返す", async () => {
+    const { session, sent, mutations } = setup(["shell", "lists"]);
+    session.receive({
+      type: "lists.add",
+      id: "l1",
+      list: { type: "mute-list" },
+      items: [{ itemType: "hashtag", value: "spam" }],
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(mutations[0]?.[0].tags).toEqual([["t", "spam"]]);
+    expect(sent[0]).toEqual({
+      type: "lists.add.result",
+      id: "l1",
+      ok: true,
+      eventId: "e".repeat(64),
+      added: 1,
+      skipped: 0,
+    });
+  });
+
+  it("扱わないリストは、扱うリストを添えて断る", () => {
+    const { session, sent, mutations } = setup(["shell", "lists"]);
+    session.receive({
+      type: "lists.remove",
+      id: "l2",
+      list: { kind: 10050 },
+      items: [{ itemType: "relay", value: "wss://r.example/" }],
+    });
+    expect(mutations).toEqual([]);
+    expect(sent[0]).toMatchObject({
+      type: "lists.remove.result",
+      id: "l2",
+      ok: false,
+      error: "unsupported-list",
     });
   });
 });

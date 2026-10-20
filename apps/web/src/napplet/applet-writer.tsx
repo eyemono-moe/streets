@@ -1,6 +1,6 @@
 import type { EventDraft } from "@streets/core/nostr/build/draft";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import type { WriteResult } from "@streets/core/write/writer";
+import type { Replacement, WriteResult } from "@streets/core/write/writer";
 import { createContext, useContext } from "solid-js";
 
 /**
@@ -11,6 +11,13 @@ export type AppletWriter = {
   publish: (
     draft: EventDraft,
     relays: readonly RelayUrl[],
+    label: string,
+  ) => Promise<WriteResult>;
+  /** 置換可能なイベントを、いまの版から作り直して書く。 */
+  replace: (
+    kind: number,
+    identifier: string | undefined,
+    mutate: Replacement,
     label: string,
   ) => Promise<WriteResult>;
   /** NIP-44 で暗号化する。署名器が持たなければ undefined。 */
