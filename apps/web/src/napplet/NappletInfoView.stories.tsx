@@ -80,8 +80,8 @@ export const ふつう: Story = {};
 
 export const インストール済み: Story = { args: { installed: true } };
 
-/** 「今後は確認しない」で通している書き込みがある。⊖ で毎回確かめる形に戻す。 */
-export const 確かめずに書き込める: Story = {
+/** 「今後は確認しない」で通している書き込みや、許した通知がある。⊖ で取り消す。 */
+export const 許可していることがある: Story = {
   args: {
     installed: true,
     grants: [

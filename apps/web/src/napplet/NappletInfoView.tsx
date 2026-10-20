@@ -100,7 +100,7 @@ const NappletInfoView: Component<{
   installed?: boolean;
   onInstall?: (addToDeck: boolean) => void;
   onUninstall?: () => void;
-  /** 確かめずに通している書き込み。 */
+  /** 許可していること（確かめずに通す書き込み・通知）。 */
   grants?: readonly { key: string; label: string }[];
   onRevoke?: (key: string) => void;
   /** インストール済みのものを開く・デッキに足す。 */
@@ -221,7 +221,7 @@ const NappletInfoView: Component<{
               </Show>
             </div>
             <Show when={(props.grants?.length ?? 0) > 0}>
-              <Section title="確かめずに書き込めるもの">
+              <Section title="許可していること">
                 <ul class="flex flex-col gap-1">
                   <For each={props.grants}>
                     {(grant) => (
@@ -231,7 +231,7 @@ const NappletInfoView: Component<{
                         </span>
                         <IconButton
                           icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                          label={`「${grant.label}」を毎回確かめるように戻す`}
+                          label={`「${grant.label}」の許可を取り消す`}
                           onClick={() => props.onRevoke?.(grant.key)}
                         />
                       </li>

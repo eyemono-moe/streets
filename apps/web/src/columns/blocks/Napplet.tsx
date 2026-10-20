@@ -23,6 +23,7 @@ import {
   type NappletManifest,
 } from "@streets/core/napplet/manifest";
 import {
+  NOTIFY_GRANT,
   grantKey,
   overwritesState,
   rememberable,
@@ -56,6 +57,7 @@ import IntentSheet, { type IntentSheetProps } from "../../napplet/IntentSheet";
 import LinkSheet, { type LinkSheetProps } from "../../napplet/LinkSheet";
 import NappletFrame from "../../napplet/NappletFrame";
 import NappletView, { type NappletPhase } from "../../napplet/NappletView";
+import { createNotifyHost } from "../../napplet/notify-host";
 import {
   STREETS_NAPPLET_DOMAINS,
   createStreetsNappletHost,
@@ -453,6 +455,33 @@ const Napplet: Component<{
   });
 
   const frame = (running: { manifest: NappletManifest; html: string }) => {
+    const sourceTitle =
+      running.manifest.title ?? running.manifest.identifier ?? "アップレット";
+    const notices = createNotifyHost({
+      source: () => sourceTitle,
+      granted: () =>
+        hasGrant(library() ?? emptyAppletLibrary(), self, NOTIFY_GRANT),
+      grant: () =>
+        dispatch({
+          type: "applets/set-grant",
+          applet: self,
+          key: NOTIFY_GRANT,
+          on: true,
+        }),
+      ask: () =>
+        confirm({
+          title: "このアップレットに通知を出させますか？",
+          body: () => (
+            <p class="c-secondary text-caption">
+              許すと、アップレットが Streets
+              の通知（画面の端の知らせ）を出せるようになります。情報のカラムからいつでも取り消せます。
+            </p>
+          ),
+          confirmLabel: "許可する",
+        }),
+      report: (event) => session()?.notifyEvent(event),
+    });
+    onCleanup(notices.dispose);
     let themeSource: Element | undefined;
     const host = createStreetsNappletHost({
       manifest: running.manifest,
@@ -501,6 +530,7 @@ const Napplet: Component<{
         hostElement?.dispatchEvent(new KeyboardEvent("keydown", init));
         hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
       },
+      notify: notices.host,
       catalog: () =>
         catalogSnapshot(
           intents?.installed() ?? [],

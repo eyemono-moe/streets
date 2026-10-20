@@ -73,6 +73,11 @@ const storyHost = (): NappletHost => {
     openLink: async () => ({ status: "denied", error: "user-denied" }),
     forwardKey: () => {},
     catalog: () => ({ napplets: [], handlers: [] }),
+    notify: {
+      send: async () => ({ error: "permission denied" }),
+      dismiss: () => {},
+      requestPermission: async () => false,
+    },
     common: {
       setFollow: async () => ({ ok: false, error: "user-denied" }),
       react: async () => ({ ok: false, error: "user-denied" }),

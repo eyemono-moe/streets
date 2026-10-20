@@ -703,6 +703,51 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("notify")) {
+    let controls: unknown;
+    const controlsHandlers = new Set<(controls: unknown) => void>();
+    onPush("notify.controls", (message) => {
+      controls = message.controls;
+      for (const handler of controlsHandlers) handler(controls);
+    });
+    napplet.notify = {
+      send: (notification: Record<string, unknown>) =>
+        request("notify.send", { ...notification }, (message) => ({
+          notificationId: message.notificationId,
+        })),
+      dismiss: (notificationId: string) =>
+        post({ type: "notify.dismiss", notificationId }),
+      badge: (count: number) => post({ type: "notify.badge", count }),
+      registerChannel: (channel: Record<string, unknown>) =>
+        post({ ...channel, type: "notify.channel.register" }),
+      requestPermission: (channel?: string) =>
+        request(
+          "notify.permission.request",
+          channel === undefined ? {} : { channel },
+          (message) => ({ granted: message.granted === true }),
+        ),
+      onAction: (
+        handler: (notificationId: unknown, actionId: unknown) => void,
+      ) =>
+        onPush("notify.action", (message) =>
+          handler(message.notificationId, message.actionId),
+        ),
+      onClicked: (handler: (notificationId: unknown) => void) =>
+        onPush("notify.clicked", (message) => handler(message.notificationId)),
+      onDismissed: (
+        handler: (notificationId: unknown, reason: unknown) => void,
+      ) =>
+        onPush("notify.dismissed", (message) =>
+          handler(message.notificationId, message.reason),
+        ),
+      onControls: (handler: (controls: unknown) => void) => {
+        controlsHandlers.add(handler);
+        if (controls !== undefined) handler(controls);
+        return { close: () => controlsHandlers.delete(handler) };
+      },
+    };
+  }
+
   if (exposed.has("catalog")) {
     napplet.catalog = {
       get: () => request("catalog.get", {}, (message) => message.snapshot),

@@ -156,6 +156,16 @@ export type NappletHost = {
       text: string,
     ) => Promise<CommonActionResult>;
   };
+  /**
+   * NAP-NOTIFY。Streets のトーストで知らせる。出してよいかはアップレットごとに確かめる。
+   */
+  notify: {
+    send: (
+      notification: NotifyPayload,
+    ) => Promise<{ notificationId: string } | { error: string }>;
+    dismiss: (notificationId: string) => void;
+    requestPermission: () => Promise<boolean>;
+  };
   /** NAP-CATALOG。いまのアップレットの一覧。 */
   catalog: () => CatalogSnapshot;
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
@@ -280,6 +290,26 @@ const timeoutOf = (options: unknown): number => {
     : NAPPLET_QUERY_TIMEOUT_MS;
 };
 
+export type NotifyPriority = "low" | "normal" | "high" | "urgent";
+
+export type NotifyPayload = {
+  title: string;
+  body?: string;
+  actions: { id: string; label: string }[];
+  priority: NotifyPriority;
+};
+
+const NOTIFY_PRIORITIES: readonly string[] = [
+  "low",
+  "normal",
+  "high",
+  "urgent",
+];
+// > Notifications may include up to 3 action buttons
+const MAX_NOTIFY_ACTIONS = 3;
+const MAX_NOTIFY_TITLE = 200;
+const MAX_NOTIFY_BODY = 1000;
+
 export type CommonActionResult =
   | { ok: true; eventId?: string; event?: NostrEvent }
   | { ok: false; error: string };
@@ -305,6 +335,17 @@ export type NappletSession = {
   deliver: (delivery: IntentDelivery) => void;
   /** 受け手の一覧や既定が変わった。 */
   intentChanged: (availability: IntentAvailability) => void;
+  /** 出した知らせが押された・閉じられた。 */
+  notifyEvent: (
+    event:
+      | { type: "notify.clicked"; notificationId: string }
+      | { type: "notify.action"; notificationId: string; actionId: string }
+      | {
+          type: "notify.dismissed";
+          notificationId: string;
+          reason: "user" | "timeout" | "replaced";
+        },
+  ) => void;
   /** ほかのアップレットが話題で送った。その話題を購読していれば渡す。 */
   incEvent: (event: {
     topic: string;
@@ -367,6 +408,11 @@ export const createNappletSession = (
       capabilities: { domains: [...host.domains] },
       services: [],
     });
+    // > The shell MAY send `notify.controls` to inform the napplet which notification
+    // > features the shell supports.
+    if (exposed.has("notify")) {
+      send({ type: "notify.controls", controls: ["toasts", "actions"] });
+    }
     for (const delivery of waitingDeliveries.splice(0)) {
       send({ type: "intent.deliver", delivery });
     }
@@ -566,6 +612,68 @@ export const createNappletSession = (
         answerAction(() => host.common.report(target, reason, text));
         return;
       }
+    }
+  };
+
+  const handleNotify = (request: Message) => {
+    switch (request.type) {
+      case "notify.send": {
+        const { title, body, actions, priority } = request;
+        if (typeof title !== "string" || title.trim() === "") {
+          reply(request, { error: "invalid notification" });
+          return;
+        }
+        const list = Array.isArray(actions) ? actions : [];
+        const valid = list
+          .filter(
+            (action): action is { id: string; label: string } =>
+              isRecord(action) &&
+              typeof action.id === "string" &&
+              typeof action.label === "string",
+          )
+          .slice(0, MAX_NOTIFY_ACTIONS)
+          .map((action) => ({ id: action.id, label: action.label }));
+        host.notify
+          .send({
+            title: title.slice(0, MAX_NOTIFY_TITLE),
+            ...(typeof body === "string"
+              ? { body: body.slice(0, MAX_NOTIFY_BODY) }
+              : {}),
+            actions: valid,
+            priority:
+              typeof priority === "string" &&
+              NOTIFY_PRIORITIES.includes(priority)
+                ? (priority as NotifyPriority)
+                : "normal",
+          })
+          .then(
+            (result) => reply(request, result),
+            () => reply(request, { error: "permission denied" }),
+          );
+        return;
+      }
+      // > Messages referencing an unknown `notificationId` ... MUST be silently ignored
+      case "notify.dismiss":
+        if (typeof request.notificationId === "string") {
+          host.notify.dismiss(request.notificationId);
+        }
+        return;
+      case "notify.permission.request":
+        host.notify.requestPermission().then(
+          (granted) =>
+            send({ type: "notify.permission.result", id: request.id, granted }),
+          () =>
+            send({
+              type: "notify.permission.result",
+              id: request.id,
+              granted: false,
+            }),
+        );
+        return;
+      // バッジとチャンネルは渡さない（notify.controls にも挙げない）。受け取って捨てる。
+      case "notify.badge":
+      case "notify.channel.register":
+        return;
     }
   };
 
@@ -1091,7 +1199,8 @@ export const createNappletSession = (
         /^inc\.(emit|unsubscribe|channel\.(emit|broadcast|close))$/.test(
           message.type,
         ) ||
-        /^keys\.(forward|unregisterAction)$/.test(message.type);
+        /^keys\.(forward|unregisterAction)$/.test(message.type) ||
+        /^notify\.(dismiss|badge|channel\.register)$/.test(message.type);
       if (!withoutId && typeof message.id !== "string") return;
       switch (domain) {
         case "theme":
@@ -1116,6 +1225,8 @@ export const createNappletSession = (
           return handleKeys(message);
         case "common":
           return handleCommon(message);
+        case "notify":
+          return handleNotify(message);
         case "catalog":
           if (message.type === "catalog.get") {
             reply(message, { snapshot: host.catalog() });
@@ -1139,6 +1250,9 @@ export const createNappletSession = (
     },
     intentChanged: (availability) => {
       if (exposed.has("intent")) send({ type: "intent.changed", availability });
+    },
+    notifyEvent: (event) => {
+      if (exposed.has("notify")) send(event);
     },
     incEvent: (event) => {
       if (exposed.has("inc") && topics.has(event.topic)) {

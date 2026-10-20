@@ -48,6 +48,7 @@ const setup = (
   const links: Parameters<NappletHost["openLink"]>[] = [];
   const keys: Parameters<NappletHost["forwardKey"]>[0][] = [];
   const actions: unknown[][] = [];
+  const notices: Parameters<NappletHost["notify"]["send"]>[0][] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -73,6 +74,14 @@ const setup = (
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     forwardKey: (key) => void keys.push(key),
     catalog: () => ({ napplets: [], handlers: [] }),
+    notify: {
+      send: async (notification) => {
+        notices.push(notification);
+        return { notificationId: "shell-42" };
+      },
+      dismiss: () => {},
+      requestPermission: async () => true,
+    },
     common: {
       setFollow: async (pubkeys, on) => {
         actions.push(["follow", pubkeys, on]);
@@ -149,6 +158,7 @@ const setup = (
     links,
     keys,
     actions,
+    notices,
   };
 };
 
@@ -979,5 +989,75 @@ describe("NAP-CATALOG", () => {
         snapshot: { napplets: [], handlers: [] },
       },
     ]);
+  });
+});
+
+describe("NAP-NOTIFY", () => {
+  // NAP-NOTIFY の「Send a notification」の例。
+  it("知らせを Streets に渡し、割り当てた id を返す", async () => {
+    const { session, sent, notices } = setup(["shell", "notify"]);
+    session.receive({
+      type: "notify.send",
+      id: "n1",
+      title: "New message",
+      body: "Alice: hey!",
+      priority: "normal",
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(notices).toEqual([
+      {
+        title: "New message",
+        body: "Alice: hey!",
+        actions: [],
+        priority: "normal",
+      },
+    ]);
+    expect(sent[0]).toEqual({
+      type: "notify.send.result",
+      id: "n1",
+      notificationId: "shell-42",
+    });
+  });
+
+  // > Notifications may include up to 3 action buttons
+  it("ボタンは 3 つまでにし、題の無い知らせは断る", async () => {
+    const { session, sent, notices } = setup(["shell", "notify"]);
+    const action = (id: string) => ({ id, label: id });
+    session.receive({
+      type: "notify.send",
+      id: "n2",
+      title: "Incoming call",
+      priority: "urgent",
+      actions: ["a", "b", "c", "d"].map(action),
+    });
+    session.receive({ type: "notify.send", id: "n3", title: "" });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(notices[0]?.actions.map((item) => item.id)).toEqual(["a", "b", "c"]);
+    expect(sent).toContainEqual({
+      type: "notify.send.result",
+      id: "n3",
+      error: "invalid notification",
+    });
+  });
+
+  // NAP-NOTIFY の「Request permission」と「Shell sends control list」の例。
+  it("許可を同じ id で返し、渡す機能の一覧を起動のときに知らせる", async () => {
+    const { session, sent } = setup(["shell", "notify"]);
+    session.receive({ type: "shell.ready" });
+    session.receive({
+      type: "notify.permission.request",
+      id: "p1",
+      channel: "messages",
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(3));
+    expect(sent).toContainEqual({
+      type: "notify.controls",
+      controls: ["toasts", "actions"],
+    });
+    expect(sent).toContainEqual({
+      type: "notify.permission.result",
+      id: "p1",
+      granted: true,
+    });
   });
 });

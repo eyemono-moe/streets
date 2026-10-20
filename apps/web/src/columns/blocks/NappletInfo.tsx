@@ -1,6 +1,6 @@
 import { buildNappletColumn } from "@streets/core/deck/column-presets";
 import { grantsOf, isInstalled } from "@streets/core/napplet/library";
-import { parseGrantKey } from "@streets/core/napplet/publish";
+import { NOTIFY_GRANT, parseGrantKey } from "@streets/core/napplet/publish";
 import { kindLabel } from "@streets/core/nostr/kind-support";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import { type Component } from "solid-js";
@@ -85,6 +85,7 @@ const NappletInfo: Component<{
         const current = library();
         if (!current) return [];
         return grantsOf(current, applet()).flatMap((key) => {
+          if (key === NOTIFY_GRANT) return [{ key, label: "通知を出す" }];
           const grant = parseGrantKey(key);
           if (!grant) return [];
           const label = kindLabel(grant.kind);

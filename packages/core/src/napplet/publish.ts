@@ -102,6 +102,9 @@ export const parsePublishTemplate = (
   };
 };
 
+/** 知らせ（NAP-NOTIFY）を出してよいと許したことを覚える鍵。 */
+export const NOTIFY_GRANT = "notify";
+
 /** 「今後は確認しない」を覚える鍵。アップレットごと・書き方と kind ごと。 */
 export const grantKey = (operation: PublishOperation, kind: number): string =>
   `${operation}:${kind}`;
