@@ -6,6 +6,7 @@ import type {
 import {
   buildChannelInfoColumn,
   buildFollowSetInfoColumn,
+  buildNappletInfoColumn,
 } from "@streets/core/deck/column-presets";
 import {
   bookmarksSource,
@@ -68,6 +69,7 @@ import {
 } from "./blocks/FollowSets";
 import MediaGrid from "./blocks/MediaGrid";
 import Napplet from "./blocks/Napplet";
+import NappletInfo from "./blocks/NappletInfo";
 import NotificationList from "./blocks/NotificationList";
 import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
@@ -172,6 +174,31 @@ const ChannelInfoButton: Component<{
         dispatch({
           type: "stack/open",
           column: buildChannelInfoColumn(props.id, props.relays),
+        })
+      }
+    />
+  );
+};
+
+/** 見出しの ⓘ。napplet の情報をカラムの中に重ねる。 */
+const NappletInfoButton: Component<{
+  pubkey: string;
+  identifier: string;
+  relays: readonly RelayUrl[];
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <IconButton
+      icon="i-material-symbols:info-outline-rounded"
+      label="napplet の情報"
+      onClick={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildNappletInfoColumn(
+            props.pubkey,
+            props.identifier,
+            props.relays,
+          ),
         })
       }
     />
@@ -709,6 +736,13 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:widgets-outline-rounded",
       subtitle: "napplet",
     }),
+    HeaderActions: (props) => (
+      <NappletInfoButton
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={(props.source.relays ?? []) as RelayUrl[]}
+      />
+    ),
     scrollsInternally: true,
     Content: (props) => (
       <Napplet
@@ -716,6 +750,19 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         identifier={props.source.identifier}
         relays={props.source.relays}
         inputs={props.inputs}
+      />
+    ),
+  },
+  "napplet-info": {
+    meta: () => ({
+      icon: "i-material-symbols:info-outline-rounded",
+      subtitle: "napplet の情報",
+    }),
+    Content: (props) => (
+      <NappletInfo
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={props.source.relays}
       />
     ),
   },

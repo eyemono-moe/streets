@@ -67,6 +67,7 @@ const storyHost = (): NappletHost => {
       remove: (scope, key) => void stored.delete(`${scope}/${key}`),
       keys: () => [...stored.keys()],
     },
+    writeRelays: () => undefined,
     subscribe: (_, sink) => {
       for (const note of notes) sink.event(note);
       sink.eose();
@@ -133,9 +134,9 @@ export const 見つからない: Story = {
   args: { state: { phase: "manifest-missing" } },
 };
 
-/** 2026-10 より前の形で公開されたもの。公開されている napplet にまだ多い。 */
-export const 古い形式: Story = {
-  args: { state: { phase: "manifest-invalid", error: "legacy-format" } },
+/** 2026-10 より前の形で、index.html 以外のファイルも持つもの。 */
+export const 古い形式で複数のファイル: Story = {
+  args: { state: { phase: "manifest-invalid", error: "legacy-multi-file" } },
 };
 
 export const マニフェストが壊れている: Story = {

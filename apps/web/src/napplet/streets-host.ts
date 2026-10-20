@@ -21,12 +21,16 @@ export const STREETS_NAPPLET_DOMAINS = [
   "identity",
   "storage",
   "relay",
+  "outbox",
 ] as const;
 
 /** NAP-STORAGE が勧める、napplet 1 つあたりの保存の枠（UTF-8 のバイト数）。 */
 export const NAPPLET_STORAGE_QUOTA = 512 * 1024;
 
 const STORAGE_PREFIX = "streets.napplet.v1";
+
+/** `outbox.resolveRelays` で 1 人につき返す書き込み先の数。読むときに選ぶ本数に揃える。 */
+const NAPPLET_RESOLVED_RELAYS = 2;
 
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -91,6 +95,7 @@ export const subscribeThroughReadLayer =
       event: (event: NostrEvent, relay?: string) => void;
       eose: () => void;
     },
+    hints: readonly string[] = [],
   ): (() => void) => {
     const answered = new Set<RelayUrl>();
     const seen = new Set<string>();
@@ -103,30 +108,35 @@ export const subscribeThroughReadLayer =
         sink.eose();
       }
     };
-    const handle = readLayer.manager.subscribe(filters, undefined, {
-      onEvent: (id, relay) => {
-        if (seen.has(id)) return;
-        const event = readLayer.store.get(id);
-        if (!event) return;
-        seen.add(id);
-        sink.event(event, relay);
+    const handle = readLayer.manager.subscribe(
+      filters,
+      undefined,
+      {
+        onEvent: (id, relay) => {
+          if (seen.has(id)) return;
+          const event = readLayer.store.get(id);
+          if (!event) return;
+          seen.add(id);
+          sink.event(event, relay);
+        },
+        onRelayComplete: (relay) => {
+          answered.add(relay);
+          settle();
+        },
+        onRelayUnreachable: (relay) => {
+          answered.add(relay);
+          settle();
+        },
+        onPlanChanged: (plan) => {
+          planned = plan.relays;
+          settle();
+        },
+        onRelayRestarted: (relay) => {
+          if (!ended) answered.delete(relay);
+        },
       },
-      onRelayComplete: (relay) => {
-        answered.add(relay);
-        settle();
-      },
-      onRelayUnreachable: (relay) => {
-        answered.add(relay);
-        settle();
-      },
-      onPlanChanged: (plan) => {
-        planned = plan.relays;
-        settle();
-      },
-      onRelayRestarted: (relay) => {
-        if (!ended) answered.delete(relay);
-      },
-    });
+      hints as RelayUrl[],
+    );
     // 張り直しはまとめて後で走るので、最初の計画はたいてい空で、本当の読み先は
     // onPlanChanged で届く。空の計画を「全部答えた」とみなすと、何も届く前に EOSE になる。
     if (planned === undefined && handle.initialPlan.relays.length > 0) {
@@ -173,4 +183,6 @@ export const createStreetsNappletHost = (
   theme: inputs.theme,
   storage: createNappletStorage(inputs.manifest, inputs.instance),
   subscribe: subscribeThroughReadLayer(inputs.readLayer),
+  writeRelays: (pubkey) =>
+    inputs.readLayer.manager.relaysForAuthor(pubkey, NAPPLET_RESOLVED_RELAYS),
 });

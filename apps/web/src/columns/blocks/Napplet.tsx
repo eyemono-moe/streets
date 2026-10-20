@@ -1,9 +1,5 @@
-import { nappletManifestSource } from "@streets/core/deck/column-sources";
 import { fetchNappletArtifact } from "@streets/core/napplet/artifact";
-import {
-  type NappletManifest,
-  parseNappletManifest,
-} from "@streets/core/napplet/manifest";
+import type { NappletManifest } from "@streets/core/napplet/manifest";
 import { prepareNappletSrcdoc } from "@streets/core/napplet/srcdoc";
 import { type Component, Show, createMemo, createResource } from "solid-js";
 import NappletFrame from "../../napplet/NappletFrame";
@@ -15,8 +11,9 @@ import {
 import { currentNappletTheme } from "../../napplet/theme-colors";
 import { useProfile } from "../../note/use-profile";
 import { useMutes } from "../../settings/MuteMediator";
-import { createBlockSection, useColumnScope } from "../column-scope";
+import { useColumnScope } from "../column-scope";
 import type { ColumnInputs } from "../column-views";
+import { createNappletManifest } from "./napplet-manifest";
 
 const SUPPORTED: ReadonlySet<string> = new Set(STREETS_NAPPLET_DOMAINS);
 
@@ -28,28 +25,11 @@ const Napplet: Component<{
   inputs: ColumnInputs;
 }> = (props) => {
   const scope = useColumnScope();
-  const section = createBlockSection({
-    source: () =>
-      nappletManifestSource(props.pubkey, props.identifier, props.relays),
-    name: "manifest",
-    // 開いた napplet そのものは、作者をミュートしていても出す。
-    ignoresMutes: true,
+  const { lookup, manifest } = createNappletManifest({
+    pubkey: () => props.pubkey,
+    identifier: () => props.identifier,
+    relays: () => props.relays,
   });
-  const parsed = createMemo(() => {
-    const latest = [...section.items()].sort(
-      (a, b) => b.created_at - a.created_at,
-    )[0];
-    return latest ? parseNappletManifest(latest) : undefined;
-  });
-  // 同じ版のマニフェストが別のリレーから届いても、本体を取り直さない。
-  const manifest = createMemo(
-    () => {
-      const current = parsed();
-      return current?.ok ? current.manifest : undefined;
-    },
-    undefined,
-    { equals: (a, b) => a?.eventId === b?.eventId },
-  );
   const [artifact] = createResource(manifest, (current) =>
     fetchNappletArtifact(
       current.artifactHash,
@@ -59,13 +39,12 @@ const Napplet: Component<{
   );
 
   const state = (): NappletPhase => {
-    const current = parsed();
-    if (current === undefined) {
-      return section.status().phase === "settled"
-        ? { phase: "manifest-missing" }
-        : { phase: "manifest-loading" };
+    const current = lookup();
+    if (current.phase === "loading") return { phase: "manifest-loading" };
+    if (current.phase === "missing") return { phase: "manifest-missing" };
+    if (current.phase === "invalid") {
+      return { phase: "manifest-invalid", error: current.error };
     }
-    if (!current.ok) return { phase: "manifest-invalid", error: current.error };
     const result = artifact();
     if (artifact.loading || result === undefined) {
       return { phase: "artifact-loading" };

@@ -18,6 +18,13 @@ type TestNapplet = {
   };
   identity: { getPublicKey(): Promise<string> };
   theme: { onChanged(handler: (theme: unknown) => void): unknown };
+  outbox: {
+    query(filters: unknown): Promise<unknown>;
+    subscribe(filters: unknown): {
+      on(kind: string, callback: (value: unknown) => void): void;
+      close(): void;
+    };
+  };
 };
 
 /** iframe の中の window の代わり。親へ送ったものを `sent` に溜め、親からの返事を `deliver` で渡す。 */
@@ -179,6 +186,31 @@ describe("nappletPrelude", () => {
       type: "relay.close",
       subId: request.subId,
     });
+  });
+
+  // @napplet/shim の outbox は、結果の error を reject せず欄として返す。
+  it("outbox.query は error があっても reject せず、結果の欄として返す", async () => {
+    const { win, sent, deliver } = run(["outbox"]);
+    const result = win.napplet.outbox.query({ kinds: [1] });
+    deliver({
+      type: "outbox.query.result",
+      id: sent[0]?.id,
+      events: [],
+      error: "boom",
+    });
+    await expect(result).resolves.toEqual({ events: [], error: "boom" });
+  });
+
+  it("outbox.subscribe は on('event') に結果を渡し、close で outbox.close を送る", () => {
+    const { win, sent, deliver } = run(["outbox"]);
+    const results: unknown[] = [];
+    const subscription = win.napplet.outbox.subscribe({ kinds: [1] });
+    subscription.on("event", (result) => results.push(result));
+    const subId = (sent[0] as { subId: string }).subId;
+    deliver({ type: "outbox.event", subId, result: { event: { id: "1" } } });
+    subscription.close();
+    expect(results).toEqual([{ event: { id: "1" } }]);
+    expect(sent[1]).toMatchObject({ type: "outbox.close", subId });
   });
 
   it("テーマが変わったら onChanged に渡す", () => {

@@ -12,10 +12,10 @@ export type NappletPhase =
     }
   | { phase: "ready" };
 
-const MANIFEST_ERRORS: Record<NappletManifestError, string> = {
+export const MANIFEST_ERRORS: Record<NappletManifestError, string> = {
   "not-napplet": "napplet ではないイベントです。",
-  "legacy-format":
-    "この napplet は古い形式で公開されているため開けません。作者が新しい形式で公開し直すと開けるようになります。",
+  "legacy-multi-file":
+    "この napplet は古い形式で、複数のファイルに分かれているため開けません。",
   "missing-hash": "napplet の本体を指す情報（x タグ）がありません。",
   "multiple-hashes":
     "napplet の本体を指す情報（x タグ）が複数あり、どれを動かすか決められません。",

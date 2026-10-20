@@ -26,15 +26,18 @@ type Fetch = (
 export const MAX_ARTIFACT_BYTES = 16 * 1024 * 1024;
 
 /**
- * 並べた順にサーバーへ聞き、最初に照合が通ったものを返す。どれかが偽物を返しても、
- * 次のサーバーで正しいものが取れれば使う。
+ * ハッシュで指した blob を、並べた順にサーバーへ聞いて取り、sha256 を照合して返す。
+ * どれかが偽物を返しても、次のサーバーで正しいものが取れれば使う。
  */
-export const fetchNappletArtifact = async (
+export const fetchVerifiedBlob = async (
   hash: string,
   servers: readonly string[],
   fetch: Fetch,
   signal?: AbortSignal,
-): Promise<NappletArtifactResult> => {
+): Promise<
+  | { ok: true; bytes: Uint8Array; server: string }
+  | { ok: false; error: "unavailable" | "hash-mismatch" | "no-server" }
+> => {
   if (servers.length === 0) return { ok: false, error: "no-server" };
   let mismatched = false;
   for (const server of servers) {
@@ -55,7 +58,23 @@ export const fetchNappletArtifact = async (
       mismatched = true;
       continue;
     }
-    return { ok: true, html: new TextDecoder().decode(bytes), server };
+    return { ok: true, bytes, server };
   }
   return { ok: false, error: mismatched ? "hash-mismatch" : "unavailable" };
+};
+
+export const fetchNappletArtifact = async (
+  hash: string,
+  servers: readonly string[],
+  fetch: Fetch,
+  signal?: AbortSignal,
+): Promise<NappletArtifactResult> => {
+  const result = await fetchVerifiedBlob(hash, servers, fetch, signal);
+  return result.ok
+    ? {
+        ok: true,
+        html: new TextDecoder().decode(result.bytes),
+        server: result.server,
+      }
+    : result;
 };

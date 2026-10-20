@@ -39,7 +39,10 @@ export const useColumnTitle = (
   const lists = useFollowSets();
   return () => {
     const current = title();
-    if ("napplet" in current) return nappletTitle() ?? current.fallback;
+    if ("napplet" in current) {
+      const name = nappletTitle();
+      return name === undefined ? current.fallback : `${name}${current.suffix}`;
+    }
     if ("followSet" in current) {
       // 自分のリストは、名前を変えたら開いているカラムの題名もその場で変わる。
       // ほかの人のリストは、開いたときの名前で呼ぶ。

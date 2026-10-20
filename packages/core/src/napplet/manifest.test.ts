@@ -58,6 +58,13 @@ describe("parseNappletManifest", () => {
         requires: ["relay"],
         optional: ["theme"],
         source: "https://github.com/example/my-napplet",
+        createdAt: 1_760_000_000,
+        archetypes: ["feed"],
+        icon: {
+          hash: "ae7a3bd1a3fa9d824d0e64a6f57fe6cb4dd80c423786b6a2ecb94d587c94c75a",
+          mime: "image/png",
+        },
+        legacy: false,
       },
     });
   });
@@ -110,21 +117,59 @@ describe("parseNappletManifest", () => {
     });
   });
 
-  // 2026-10-04 に NIP-5D のイベントの形が変わり、`path` タグとまとめたハッシュをやめた。
-  it("path タグを持つ古い形のマニフェストを、古い形として断る", () => {
+  // napplet/migrate の docs/migration.md の対応表のとおりに、古い形を読む。
+  it("古い形のマニフェストは path の /index.html を本体として読む", () => {
+    const result = parseNappletManifest(
+      event({
+        content: "",
+        tags: [
+          ["d", "minesweeper"],
+          ["path", "/index.html", HASH],
+          ["x", "5".repeat(64), "aggregate"],
+          ["server", "https://cdn.hzrd149.com"],
+          ["title", "Minesweeper"],
+          ["description", "A Windows XP-style Minesweeper game."],
+          ["requires", "identity"],
+          ["requires", "outbox"],
+        ],
+      }),
+    );
+    expect(result.ok && result.manifest).toMatchObject({
+      artifactHash: HASH,
+      description: "A Windows XP-style Minesweeper game.",
+      requires: ["identity", "outbox"],
+      optional: [],
+      legacy: true,
+    });
+  });
+
+  // > | `x <aggregate-hash> aggregate` | Removed; never reused as the artifact hash |
+  it("古い形のまとめたハッシュを本体のハッシュとして使わない", () => {
     expect(
       parseNappletManifest(
         event({
-          content: "",
           tags: [
-            ["d", "minesweeper"],
-            ["path", "/index.html", "5".repeat(64)],
+            ["d", "n"],
             ["x", HASH, "aggregate"],
-            ["description", "A game"],
           ],
         }),
       ),
-    ).toEqual({ ok: false, error: "legacy-format" });
+    ).toEqual({ ok: false, error: "missing-hash" });
+  });
+
+  // > multi-file manifests block migration.
+  it("index.html 以外のファイルも持つ古い形は断る", () => {
+    expect(
+      parseNappletManifest(
+        event({
+          tags: [
+            ["d", "n"],
+            ["path", "/index.html", HASH],
+            ["path", "/app.js", "6".repeat(64)],
+          ],
+        }),
+      ),
+    ).toEqual({ ok: false, error: "legacy-multi-file" });
   });
 
   it("napplet の kind でないイベントは読まない", () => {

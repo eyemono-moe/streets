@@ -19,6 +19,8 @@ export type NappletManifest = {
   eventId: string;
   kind: number;
   pubkey: string;
+  /** 秒。版の新しさを見せるのに使う。 */
+  createdAt: number;
   /** 名前付き（35129）だけが持つ。 */
   identifier?: string;
   /** `index.html` の sha256。napplet の身元は、この中身で決まる。 */
@@ -29,13 +31,21 @@ export type NappletManifest = {
   /** 無いと全部は動かないと napplet が申告している機能。権限ではない。 */
   requires: string[];
   optional: string[];
+  /** 何をする napplet か（`z` タグ。`feed`・`profile` など）。自己申告。 */
+  archetypes: string[];
+  icon?: { hash: string; mime: string };
   source?: string;
+  /**
+   * 2026-10 より前の形で公開されたもの。本体のハッシュは `path` タグから取り、
+   * `requires` は必須と任意を分けていないので、すべて必須として扱う。
+   */
+  legacy: boolean;
 };
 
 export type NappletManifestError =
   | "not-napplet"
-  /** 2026-10 より前の形（`path` タグ・まとめたハッシュ）。いまの NIP-5D では開けない。 */
-  | "legacy-format"
+  /** 古い形で、`index.html` 以外のファイルも持つもの。1 枚の srcdoc では動かせない。 */
+  | "legacy-multi-file"
   | "missing-hash"
   | "multiple-hashes"
   | "invalid-hash"
@@ -48,6 +58,7 @@ const NAPPLET_KINDS: readonly number[] = [
   NAPPLET_ROOT_KIND,
   NAPPLET_NAMED_KIND,
 ];
+const ICON_TYPES: readonly string[] = ["image/png", "image/jpeg", "image/webp"];
 
 const values = (event: NostrEvent, name: string): string[] =>
   event.tags.flatMap((tag) =>
@@ -63,6 +74,36 @@ const httpsOrigin = (raw: string): string | undefined => {
   }
 };
 
+const unique = (items: readonly string[]) => [
+  ...new Set(items.map((item) => item.trim()).filter(Boolean)),
+];
+
+/**
+ * 2026-10-04 より前の形（NIP-5A に倣った `path` タグ・まとめたハッシュ・`description` タグ）。
+ * 対応は napplet/migrate の docs/migration.md の表に従う:
+ *
+ * > | `description` tag | Required nonempty plain-text event `content` |
+ * > | `path /index.html <hash>` | Exactly one `x <artifact-hash>` tag |
+ * > | `x <aggregate-hash> aggregate` | Removed; never reused as the artifact hash |
+ * > | `requires <domain>` | Your choice of `R <domain>` or `O <domain>` |
+ * > multi-file manifests block migration.
+ */
+const isLegacy = (event: NostrEvent): boolean =>
+  event.tags.some(
+    (tag) => tag[0] === "path" || (tag[0] === "x" && tag[2] === "aggregate"),
+  );
+
+const legacyArtifact = (
+  event: NostrEvent,
+): { hash: string } | { error: NappletManifestError } => {
+  const paths = event.tags.filter((tag) => tag[0] === "path");
+  const index = paths.filter((tag) => tag[1] === "/index.html");
+  if (paths.length > index.length) return { error: "legacy-multi-file" };
+  if (index.length === 0) return { error: "missing-hash" };
+  if (index.length > 1) return { error: "multiple-hashes" };
+  return { hash: index[0]?.[2] ?? "" };
+};
+
 export const parseNappletManifest = (
   event: NostrEvent,
 ):
@@ -70,39 +111,42 @@ export const parseNappletManifest = (
   | { ok: false; error: NappletManifestError } => {
   if (!NAPPLET_KINDS.includes(event.kind))
     return { ok: false, error: "not-napplet" };
-  // > Manifests in the old shape (`path` tags) don't load.（nostrapps の NAPPLET.md）
-  // 古い形は `x` に「まとめたハッシュ」を書くので、そのまま本体として照合すると必ず食い違う。
-  if (
-    event.tags.some(
-      (tag) => tag[0] === "path" || (tag[0] === "x" && tag[2] === "aggregate"),
-    )
-  ) {
-    return { ok: false, error: "legacy-format" };
+  const legacy = isLegacy(event);
+  let artifactHash: string;
+  if (legacy) {
+    const artifact = legacyArtifact(event);
+    if ("error" in artifact) return { ok: false, error: artifact.error };
+    artifactHash = artifact.hash;
+  } else {
+    const hashes = values(event, "x");
+    if (hashes.length === 0) return { ok: false, error: "missing-hash" };
+    if (hashes.length > 1) return { ok: false, error: "multiple-hashes" };
+    artifactHash = hashes[0] as string;
   }
-  const hashes = values(event, "x");
-  if (hashes.length === 0) return { ok: false, error: "missing-hash" };
-  if (hashes.length > 1) return { ok: false, error: "multiple-hashes" };
-  const artifactHash = hashes[0] as string;
   if (!HEX_64.test(artifactHash)) return { ok: false, error: "invalid-hash" };
-  const description = event.content.trim();
+  const description = (
+    event.content.trim() ||
+    (legacy ? (values(event, "description")[0] ?? "") : "")
+  ).trim();
   if (description === "") return { ok: false, error: "missing-description" };
   const identifier = values(event, "d")[0];
   if (event.kind === NAPPLET_NAMED_KIND && identifier === undefined) {
     return { ok: false, error: "missing-identifier" };
   }
-  const domains = (name: string) => [
-    ...new Set(
-      values(event, name)
-        .map((value) => value.trim())
-        .filter(Boolean),
-    ),
-  ];
+  const iconTag = event.tags.find((tag) => tag[0] === "icon");
+  const icon =
+    iconTag &&
+    HEX_64.test(iconTag[1] ?? "") &&
+    ICON_TYPES.includes(iconTag[2] ?? "")
+      ? { hash: iconTag[1] as string, mime: iconTag[2] as string }
+      : undefined;
   return {
     ok: true,
     manifest: {
       eventId: event.id,
       kind: event.kind,
       pubkey: event.pubkey,
+      createdAt: event.created_at,
       ...(event.kind === NAPPLET_NAMED_KIND ? { identifier } : {}),
       artifactHash,
       description,
@@ -114,9 +158,12 @@ export const parseNappletManifest = (
           values(event, "server").flatMap((raw) => httpsOrigin(raw) ?? []),
         ),
       ],
-      requires: domains("R"),
-      optional: domains("O"),
+      requires: unique(legacy ? values(event, "requires") : values(event, "R")),
+      optional: legacy ? [] : unique(values(event, "O")),
+      archetypes: unique(values(event, "z")),
+      ...(icon ? { icon } : {}),
       source: values(event, "source")[0],
+      legacy,
     },
   };
 };

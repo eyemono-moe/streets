@@ -22,12 +22,20 @@ const note = (id: string): NostrEvent => ({
 });
 
 const setup = (
-  domains: string[] = ["shell", "theme", "identity", "storage", "relay"],
+  domains: string[] = [
+    "shell",
+    "theme",
+    "identity",
+    "storage",
+    "relay",
+    "outbox",
+  ],
 ) => {
   const sent: Record<string, unknown>[] = [];
   const opened: {
     filters: RelayFilter[];
     sink: NappletSubscriptionSink;
+    hints?: readonly string[];
     closed: boolean;
   }[] = [];
   const stored = new Map<string, string>();
@@ -53,8 +61,10 @@ const setup = (
           .filter((key) => key.startsWith(`${scope}/`))
           .map((key) => key.slice(scope.length + 1)),
     },
-    subscribe: (filters, sink) => {
-      const entry = { filters, sink, closed: false };
+    writeRelays: (pubkey) =>
+      pubkey === "b".repeat(64) ? ["wss://author.example/"] : undefined,
+    subscribe: (filters, sink, hints) => {
+      const entry = { filters, sink, hints, closed: false };
       opened.push(entry);
       return () => {
         entry.closed = true;
@@ -313,6 +323,113 @@ describe("createNappletSession", () => {
   });
 });
 
+describe("NAP-OUTBOX", () => {
+  // NAP-OUTBOX: > `outbox.getEvent` is a request; `outbox.event` remains the subscription push message.
+  it("購読のイベントを outbox.event で渡し、EOSE は知らせない", () => {
+    const { session, sent, opened } = setup();
+    session.receive({
+      type: "outbox.subscribe",
+      id: "o1",
+      subId: "s",
+      filters: { authors: ["b".repeat(64)], kinds: [1] },
+      options: { relays: ["wss://hint.example/", "https://not-a-relay"] },
+    });
+    expect(opened[0]?.hints).toEqual(["wss://hint.example/"]);
+    opened[0]?.sink.event(note("1"), "wss://author.example/");
+    opened[0]?.sink.eose();
+    session.receive({ type: "outbox.close", id: "o2", subId: "s" });
+    expect(sent).toEqual([
+      {
+        type: "outbox.event",
+        subId: "s",
+        result: {
+          event: note("1"),
+          sidecar: { relayHints: ["wss://author.example/"] },
+        },
+      },
+    ]);
+    expect(opened[0]?.closed).toBe(true);
+  });
+
+  // NAP-OUTBOX: > `filters` are NIP-01 filters, either one filter or an array of filters.
+  it("query は 1 つのフィルタも受け、時間が来たら incomplete を付けて返す", () => {
+    vi.useFakeTimers();
+    try {
+      const { session, sent, opened } = setup();
+      session.receive({
+        type: "outbox.query",
+        id: "q",
+        filters: { authors: ["b".repeat(64)], kinds: [1] },
+        options: { timeoutMs: 3000 },
+      });
+      opened[0]?.sink.event(note("1"));
+      vi.advanceTimersByTime(3000);
+      expect(sent).toEqual([
+        {
+          type: "outbox.query.result",
+          id: "q",
+          events: [{ event: note("1") }],
+          incomplete: true,
+        },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("getEvent は著者が分かればその人の書き込み先から引き、見つかったものを result で返す", () => {
+    const { session, sent, opened } = setup();
+    session.receive({
+      type: "outbox.getEvent",
+      id: "e",
+      eventId: "1".repeat(64),
+      options: { author: "b".repeat(64) },
+    });
+    expect(opened[0]?.filters).toEqual([
+      { ids: ["1".repeat(64)], authors: ["b".repeat(64)], limit: 1 },
+    ]);
+    opened[0]?.sink.event(note("1".repeat(64)));
+    opened[0]?.sink.eose();
+    expect(sent).toEqual([
+      {
+        type: "outbox.getEvent.result",
+        id: "e",
+        result: { event: note("1".repeat(64)) },
+      },
+    ]);
+  });
+
+  it("resolveRelays は著者の書き込み先を返し、分からない著者を挙げる", () => {
+    const { session, sent } = setup();
+    session.receive({
+      type: "outbox.resolveRelays",
+      id: "r",
+      target: { authors: ["b".repeat(64), "c".repeat(64)], direction: "read" },
+    });
+    expect(sent).toEqual([
+      {
+        type: "outbox.resolveRelays.result",
+        id: "r",
+        plan: {
+          relays: ["wss://author.example/"],
+          source: "nip65",
+          missingAuthors: ["c".repeat(64)],
+        },
+      },
+    ]);
+  });
+
+  it("書き込みはまだ受けず、ok: false で返す", () => {
+    const { session, sent } = setup();
+    session.receive({ type: "outbox.publish", id: "p", event: { kind: 1 } });
+    expect(sent[0]).toMatchObject({
+      type: "outbox.publish.result",
+      id: "p",
+      ok: false,
+    });
+  });
+});
+
 describe("sanitizeNappletFilters", () => {
   it("知らないキーを落とし、limit を上限で切る", () => {
     expect(
@@ -325,7 +442,14 @@ describe("sanitizeNappletFilters", () => {
   it("形の合わない値があれば受けない", () => {
     expect(sanitizeNappletFilters([{ kinds: ["1"] }])).toBeUndefined();
     expect(sanitizeNappletFilters([])).toBeUndefined();
-    expect(sanitizeNappletFilters({ kinds: [1] })).toBeUndefined();
+    expect(sanitizeNappletFilters([{ kinds: [1] }, "x"])).toBeUndefined();
+  });
+
+  // NAP-OUTBOX: > either one filter or an array of filters.
+  it("1 つのフィルタを、1 つだけの並びとして受ける", () => {
+    expect(sanitizeNappletFilters({ kinds: [1] })).toEqual([
+      { kinds: [1], limit: NAPPLET_MAX_LIMIT },
+    ]);
   });
 });
 

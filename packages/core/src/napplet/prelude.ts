@@ -25,6 +25,8 @@ function installNapplet(domains: readonly string[]): void {
     resolve: (value: unknown) => void;
     reject: (reason: Error) => void;
     pick: (message: Message) => unknown;
+    /** NAP-OUTBOX の結果は `error` を欄として返し、reject しない（@napplet/shim と同じ）。 */
+    rejectOnError: boolean;
     timer: ReturnType<typeof setTimeout>;
   };
   const pending = new Map<string, Pending>();
@@ -45,7 +47,7 @@ function installNapplet(domains: readonly string[]): void {
       if (!waiting) return;
       pending.delete(message.id);
       clearTimeout(waiting.timer);
-      if (typeof message.error === "string") {
+      if (waiting.rejectOnError && typeof message.error === "string") {
         waiting.reject(new Error(message.error));
       } else {
         waiting.resolve(waiting.pick(message));
@@ -59,6 +61,7 @@ function installNapplet(domains: readonly string[]): void {
     type: string,
     payload: Record<string, unknown>,
     pick: (message: Message) => unknown,
+    rejectOnError = true,
   ): Promise<never> =>
     new Promise((resolve, reject) => {
       const id = newId();
@@ -69,6 +72,7 @@ function installNapplet(domains: readonly string[]): void {
         resolve: resolve as (value: unknown) => void,
         reject,
         pick,
+        rejectOnError,
         timer,
       });
       post({ ...payload, type, id });
@@ -228,6 +232,85 @@ function installNapplet(domains: readonly string[]): void {
           { event, recipient, encryption },
           (message) => message.event,
         ),
+    };
+  }
+
+  if (exposed.has("outbox")) {
+    const withOptions = (options: unknown) =>
+      options === undefined ? {} : { options };
+    const fields =
+      (...names: string[]) =>
+      (message: Message) =>
+        Object.fromEntries(
+          names.flatMap((name) =>
+            message[name] === undefined ? [] : [[name, message[name]]],
+          ),
+        );
+    napplet.outbox = {
+      getEvent: (eventId: string, options?: unknown) =>
+        request(
+          "outbox.getEvent",
+          { eventId, ...withOptions(options) },
+          fields("result", "incomplete", "error"),
+          false,
+        ),
+      query: (filters: unknown, options?: unknown) =>
+        request(
+          "outbox.query",
+          { filters, ...withOptions(options) },
+          (message) => ({
+            ...fields("incomplete", "error")(message),
+            events: Array.isArray(message.events) ? message.events : [],
+          }),
+          false,
+        ),
+      subscribe: (filters: unknown, options?: unknown) => {
+        const subId = newId();
+        const onEvent = new Set<(result: unknown) => void>();
+        const onClosed = new Set<(reason?: string) => void>();
+        subscriptions.set(subId, (message) => {
+          if (message.type === "outbox.event") {
+            for (const callback of onEvent) callback(message.result);
+          } else if (message.type === "outbox.closed") {
+            subscriptions.delete(subId);
+            for (const callback of onClosed) {
+              callback(message.reason as string | undefined);
+            }
+          }
+        });
+        post({
+          type: "outbox.subscribe",
+          id: newId(),
+          subId,
+          filters,
+          ...withOptions(options),
+        });
+        return {
+          on: (
+            kind: "event" | "closed",
+            callback: (value?: unknown) => void,
+          ) => {
+            if (kind === "event") onEvent.add(callback);
+            else if (kind === "closed") onClosed.add(callback);
+          },
+          close: () => {
+            if (!subscriptions.delete(subId)) return;
+            post({ type: "outbox.close", id: newId(), subId });
+          },
+        };
+      },
+      publish: (event: unknown, options?: unknown) =>
+        request(
+          "outbox.publish",
+          { event, ...withOptions(options) },
+          (message) => ({
+            ...fields("event", "eventId", "relays", "error")(message),
+            ok: message.ok === true,
+          }),
+          false,
+        ),
+      resolveRelays: (target: unknown) =>
+        request("outbox.resolveRelays", { target }, (message) => message.plan),
     };
   }
 

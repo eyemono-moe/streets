@@ -98,6 +98,21 @@ export const buildNappletColumn = (
   },
 });
 
+export const buildNappletInfoColumn = (
+  pubkey: string,
+  identifier: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `napplet-info:${pubkey}:${identifier}`,
+  title: "napplet の情報",
+  source: {
+    kind: "napplet-info",
+    pubkey,
+    identifier,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
 export const buildArticleColumn = (
   pubkey: string,
   identifier: string,

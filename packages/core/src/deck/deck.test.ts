@@ -827,6 +827,11 @@ describe("カラムの種類ごとの保存", () => {
       identifier: "post",
       relays: ["wss://relay.example/"],
     },
+    "napplet-info": {
+      kind: "napplet-info",
+      pubkey: "a".repeat(64),
+      identifier: "feed",
+    },
     napplet: {
       kind: "napplet",
       pubkey: "a".repeat(64),
