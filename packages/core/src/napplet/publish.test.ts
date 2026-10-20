@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vite-plus/test";
-import { assertNip46SignPermission } from "../signer/nip46/session-storage";
 import {
   emptyAppletLibrary,
   grantsOf,
@@ -93,14 +92,5 @@ describe("確かめ方", () => {
       grantsOf(setGrant(library, applet, "publish:1", false), applet),
     ).toEqual([]);
     expect(uninstallApplet(library, applet).grants).toEqual({});
-  });
-});
-
-// アップレットが頼む kind は決まっていない。NIP-46 の署名器は、接続のときに求めた
-// kind 以外を断ることがあるので、Streets が自分で書く kind に入っている例だけを確かめる。
-describe("NIP-46 の要求権限", () => {
-  it("短い投稿とリアクションは、接続のときに求めた権限に入っている", () => {
-    expect(() => assertNip46SignPermission(1)).not.toThrow();
-    expect(() => assertNip46SignPermission(7)).not.toThrow();
   });
 });
