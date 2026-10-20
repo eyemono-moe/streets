@@ -23,7 +23,9 @@ import {
 } from "@streets/core/napplet/library";
 import {
   INTENT_CONVENTION,
+  NAPPLET_NAMED_KIND,
   type NappletManifest,
+  parseNappletManifest,
 } from "@streets/core/napplet/manifest";
 import {
   NOTIFY_GRANT,
@@ -32,9 +34,10 @@ import {
   overwritesState,
   rememberable,
 } from "@streets/core/napplet/publish";
-import type {
-  NappletHost,
-  NappletSession,
+import {
+  NAPPLET_MAX_RELAY_HINTS,
+  type NappletHost,
+  type NappletSession,
 } from "@streets/core/napplet/session";
 import { prepareNappletSrcdoc } from "@streets/core/napplet/srcdoc";
 import { kindLabel } from "@streets/core/nostr/kind-support";
@@ -72,6 +75,7 @@ import { createNotifyHost } from "../../napplet/notify-host";
 import {
   STREETS_NAPPLET_DOMAINS,
   createStreetsNappletHost,
+  subscribeThroughReadLayer,
 } from "../../napplet/streets-host";
 import { currentNappletTheme } from "../../napplet/theme-colors";
 import { createUploadHost } from "../../napplet/upload-host";
@@ -270,6 +274,34 @@ const Napplet: Component<{
         resolution.type === "open"
           ? [resolution.handler]
           : resolution.candidates;
+      // 勧められたアップレットの名前は、マニフェストが届いたら出す（それまでは d の値）。
+      const suggestion =
+        resolution.type === "choose" ? resolution.suggested : undefined;
+      const stopLookup = suggestion
+        ? subscribeThroughReadLayer(scope.readLayer)(
+            [
+              {
+                kinds: [NAPPLET_NAMED_KIND],
+                authors: [suggestion.applet.pubkey],
+                "#d": [suggestion.applet.identifier],
+              },
+            ],
+            {
+              event: (event) => {
+                const parsed = parseNappletManifest(event);
+                const title = parsed.ok ? parsed.manifest.title : undefined;
+                if (!title) return;
+                setAsking((current) =>
+                  current?.suggested
+                    ? { ...current, suggested: { title } }
+                    : current,
+                );
+              },
+              eose: () => {},
+            },
+            suggestion.relays.slice(0, NAPPLET_MAX_RELAY_HINTS),
+          )
+        : undefined;
       const picked = await new Promise<
         Parameters<NonNullable<ReturnType<typeof asking>>["answer"]>[0]
       >((answer) =>
@@ -292,6 +324,7 @@ const Napplet: Component<{
         }),
       );
       setAsking(undefined);
+      stopLookup?.();
       if (!picked) return { ok: false, error: "user cancelled" };
       if (picked.type === "install") {
         if (resolution.type !== "choose" || !resolution.suggested) {
