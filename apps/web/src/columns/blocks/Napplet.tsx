@@ -1,4 +1,5 @@
 import { streetsIntentColumn } from "@streets/core/deck/intent-columns";
+import { tempColumnFor } from "@streets/core/deck/temp-column";
 import { fetchNappletArtifact } from "@streets/core/napplet/artifact";
 import {
   type IntentHandler,
@@ -44,6 +45,7 @@ import {
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { useAppletWriter } from "../../napplet/applet-writer";
 import IntentSheet, { type IntentSheetProps } from "../../napplet/IntentSheet";
+import LinkSheet, { type LinkSheetProps } from "../../napplet/LinkSheet";
 import NappletFrame from "../../napplet/NappletFrame";
 import NappletView, { type NappletPhase } from "../../napplet/NappletView";
 import {
@@ -193,7 +195,10 @@ const Napplet: Component<{
     return { ...accepted, handler: appletHandlerId(applet) };
   };
 
-  let activationWindow: Window | undefined;
+  // 描いている窓（ピクチャーインピクチャーなら、その窓）。ref の時点では要素がまだ
+  // テンプレートの文書にあり defaultView が無いので、使うときに引く。
+  let hostElement: Element | undefined;
+  const hostWindow = () => hostElement?.ownerDocument.defaultView ?? undefined;
   const intentHost = (sourceTitle: string): NappletHost["intent"] => ({
     available: (archetype) =>
       intentAvailability(
@@ -216,7 +221,7 @@ const Napplet: Component<{
       // > The runtime SHOULD rate-limit or require a user gesture according to policy.
       // iframe の中で押すと、外側の窓も user activation を得る。
       const activated =
-        activationWindow?.navigator.userActivation?.isActive ?? false;
+        hostWindow()?.navigator.userActivation?.isActive ?? false;
       if (resolution.type === "open" && activated) {
         return openWith(resolution.handler, request);
       }
@@ -369,6 +374,46 @@ const Napplet: Component<{
       return next;
     };
 
+  const [linking, setLinking] = createSignal<
+    Omit<LinkSheetProps, "onOpen" | "onCancel"> & {
+      answer: (open: boolean) => void;
+    }
+  >();
+  const openLinkFor =
+    (sourceTitle: string): NappletHost["openLink"] =>
+    async (target, label) => {
+      if (target.type === "nostr") {
+        const column = tempColumnFor(target.entity);
+        if (!column) return { status: "denied", error: "invalid-url" };
+        dispatch({
+          type: "stack/open",
+          column: { ...column, id: `link:${target.entity}` },
+        });
+        return { status: "opened" };
+      }
+      const view = hostWindow();
+      if (!view) return { status: "denied", error: "blocked-by-policy" };
+      // NAP-LINK: > Shells SHOULD require a user gesture or prompt unless policy already
+      // > allows the request. 押されて開くもの（ふつうのリンク）は確かめない。
+      if (!view.navigator.userActivation?.isActive) {
+        if (linking()) return { status: "denied", error: "blocked-by-policy" };
+        const open = await new Promise<boolean>((answer) =>
+          setLinking({
+            source: sourceTitle,
+            url: target.url,
+            hostname: target.hostname,
+            ...(label ? { label } : {}),
+            answer,
+          }),
+        );
+        setLinking(undefined);
+        if (!open) return { status: "denied", error: "user-denied" };
+      }
+      // > The shell MUST NOT expose `window.opener` or equivalent authority back to the napplet.
+      view.open(target.url, "_blank", "noopener,noreferrer");
+      return { status: "opened" };
+    };
+
   const viewer = () => (props.inputs.signedIn ? props.inputs.viewer : "");
   const profile = useProfile(() => viewer() || undefined);
   const mutes = useMutes();
@@ -414,6 +459,9 @@ const Napplet: Component<{
         themeSource
           ? currentNappletTheme(themeSource)
           : currentNappletTheme(document.body),
+      openLink: openLinkFor(
+        running.manifest.title ?? running.manifest.identifier ?? "アップレット",
+      ),
       publish: publishFor(
         running.manifest.title ?? running.manifest.identifier ?? "アップレット",
       ),
@@ -430,7 +478,7 @@ const Napplet: Component<{
       <div
         ref={(element) => {
           themeSource = element;
-          activationWindow = element.ownerDocument.defaultView ?? undefined;
+          hostElement = element;
         }}
         class="h-full"
       >
@@ -456,6 +504,15 @@ const Napplet: Component<{
       }
       overlay={
         <>
+          <Show when={linking()}>
+            {(current) => (
+              <LinkSheet
+                {...current()}
+                onOpen={() => current().answer(true)}
+                onCancel={() => current().answer(false)}
+              />
+            )}
+          </Show>
           <Show when={writing()}>
             {(current) => (
               <WriteSheet

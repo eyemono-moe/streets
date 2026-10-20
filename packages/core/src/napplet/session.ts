@@ -21,6 +21,7 @@ import {
   type IntentResult,
   parseIntentRequest,
 } from "./intent";
+import { type LinkTarget, parseLinkUrl } from "./link";
 import { type PublishOperation, parsePublishTemplate } from "./publish";
 import {
   NAPPLET_RESOURCE_MAX_BYTES,
@@ -108,6 +109,13 @@ export type NappletHost = {
     | { ok: true; event: NostrEvent; relays: Record<string, boolean> }
     | { ok: false; error: string }
   >;
+  /**
+   * NAP-LINK。確かめた行き先を開く。開いたか、断ったかを返す。
+   */
+  openLink: (
+    target: LinkTarget,
+    label: string | undefined,
+  ) => Promise<{ status: "opened" | "denied"; error?: string }>;
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -342,6 +350,22 @@ export const createNappletSession = (
         reply(request, { channels: [] });
         return;
     }
+  };
+
+  const handleLink = (request: Message) => {
+    if (request.type !== "link.open") return;
+    // > The shell MUST respond to every request with a result message carrying the same `id`.
+    const parsed = parseLinkUrl(request.url);
+    if (!parsed.ok) {
+      reply(request, { status: "denied", error: parsed.error });
+      return;
+    }
+    const options = isRecord(request.options) ? request.options : {};
+    const label = typeof options.label === "string" ? options.label : undefined;
+    host.openLink(parsed.target, label).then(
+      (result) => reply(request, result),
+      () => reply(request, { status: "denied", error: "blocked-by-policy" }),
+    );
   };
 
   const handleIntent = (request: Message) => {
@@ -868,6 +892,8 @@ export const createNappletSession = (
           return handleIntent(message);
         case "inc":
           return handleInc(message);
+        case "link":
+          return handleLink(message);
       }
     },
     themeChanged: () => {

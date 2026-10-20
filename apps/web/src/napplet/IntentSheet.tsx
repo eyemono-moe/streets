@@ -2,6 +2,7 @@ import { type Component, For, Show, createSignal } from "solid-js";
 import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
 import UiSwitch from "../ui/Switch";
+import ColumnSheet from "./ColumnSheet";
 
 /** 役割（archetype）の呼び名。知らない役割は、そのまま出す。 */
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -48,75 +49,66 @@ const IntentSheet: Component<IntentSheetProps> = (props) => {
   const [always, setAlways] = createSignal(false);
   const label = () => archetypeLabel(props.archetype);
   return (
-    <div class="absolute inset-0 flex flex-col justify-end">
-      <div
-        class="motion-fade absolute inset-0 bg-ui-950/40"
-        aria-hidden="true"
-        onClick={() => props.onCancel()}
-      />
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${props.source} からの依頼`}
-        class="motion-drawer relative flex max-h-[85%] flex-col gap-3 overflow-y-auto rounded-t-3 border-control border-t bg-primary p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.28)]"
-      >
-        <div class="flex flex-col gap-0.5">
-          <p class="c-secondary text-caption">{props.source}</p>
-          <h3 class="c-primary break-anywhere font-700 text-body">
-            {props.mode === "confirm" && props.candidates[0]
-              ? `${props.candidates[0].title} で${label()}を開こうとしています`
-              : `${label()}を開こうとしています。どれで開きますか？`}
-          </h3>
-        </div>
-        <div class="flex flex-col gap-2">
-          <Show when={props.suggested}>
-            {(suggested) => (
-              <ChoiceButton
-                icon="i-material-symbols:download-rounded"
-                title={`${suggested().title} をインストールして開く`}
-                description="頼んだアップレットが勧めています。まだインストールしていません"
-                onClick={() => props.onInstall(always())}
-              />
-            )}
-          </Show>
-          <For each={props.candidates}>
-            {(candidate) => (
-              <ChoiceButton
-                icon={
-                  candidate.streets
-                    ? "i-material-symbols:view-column-outline-rounded"
-                    : "i-material-symbols:widgets-outline-rounded"
-                }
-                title={candidate.title}
-                description={
-                  candidate.streets
-                    ? "Streets のカラムで開く"
-                    : "インストール済みのアップレットで開く"
-                }
-                onClick={() => props.onPick(candidate.id, always())}
-              />
-            )}
-          </For>
-        </div>
-        <Show
-          when={props.mode === "choose"}
-          fallback={
-            <p class="c-secondary text-caption">
-              このカラムが直前に押されていないため、開く前に確かめています。
-            </p>
-          }
-        >
-          <UiSwitch
-            label={`${label()}は、いつもこれで開く`}
-            checked={always()}
-            onChange={setAlways}
-          />
+    <ColumnSheet
+      label={`${props.source} からの依頼`}
+      source={props.source}
+      title={
+        <>
+          {props.mode === "confirm" && props.candidates[0]
+            ? `${props.candidates[0].title} で${label()}を開こうとしています`
+            : `${label()}を開こうとしています。どれで開きますか？`}
+        </>
+      }
+      onCancel={() => props.onCancel()}
+    >
+      <div class="flex flex-col gap-2">
+        <Show when={props.suggested}>
+          {(suggested) => (
+            <ChoiceButton
+              icon="i-material-symbols:download-rounded"
+              title={`${suggested().title} をインストールして開く`}
+              description="頼んだアップレットが勧めています。まだインストールしていません"
+              onClick={() => props.onInstall(always())}
+            />
+          )}
         </Show>
-        <div class="flex justify-end">
-          <Button onClick={() => props.onCancel()}>やめる</Button>
-        </div>
-      </section>
-    </div>
+        <For each={props.candidates}>
+          {(candidate) => (
+            <ChoiceButton
+              icon={
+                candidate.streets
+                  ? "i-material-symbols:view-column-outline-rounded"
+                  : "i-material-symbols:widgets-outline-rounded"
+              }
+              title={candidate.title}
+              description={
+                candidate.streets
+                  ? "Streets のカラムで開く"
+                  : "インストール済みのアップレットで開く"
+              }
+              onClick={() => props.onPick(candidate.id, always())}
+            />
+          )}
+        </For>
+      </div>
+      <Show
+        when={props.mode === "choose"}
+        fallback={
+          <p class="c-secondary text-caption">
+            このカラムが直前に押されていないため、開く前に確かめています。
+          </p>
+        }
+      >
+        <UiSwitch
+          label={`${label()}は、いつもこれで開く`}
+          checked={always()}
+          onChange={setAlways}
+        />
+      </Show>
+      <div class="flex justify-end">
+        <Button onClick={() => props.onCancel()}>やめる</Button>
+      </div>
+    </ColumnSheet>
   );
 };
 

@@ -598,6 +598,19 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("link")) {
+    // 断られたときも reject せず `{ status: "denied" }` で返す（@napplet/shim と同じ）。
+    napplet.link = {
+      open: (url: string, options?: { label?: string }) =>
+        request(
+          "link.open",
+          { url, ...(options ? { options } : {}) },
+          (message) => ({ status: message.status }),
+          false,
+        ),
+    };
+  }
+
   if (exposed.has("inc")) {
     const emit = (topic: string, payload?: unknown) => {
       if (typeof topic !== "string")

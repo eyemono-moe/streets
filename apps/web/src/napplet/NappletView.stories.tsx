@@ -70,6 +70,7 @@ const storyHost = (): NappletHost => {
     writeRelays: () => undefined,
     inc: { emit: () => {} },
     publish: async () => ({ ok: false, error: "user cancelled" }),
+    openLink: async () => ({ status: "denied", error: "user-denied" }),
     intent: {
       invoke: async () => ({ ok: false, error: "no handler" }),
       available: (archetype) => ({

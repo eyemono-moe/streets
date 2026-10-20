@@ -44,6 +44,7 @@ const setup = (
   const invoked: IntentRequest[] = [];
   const emitted: { topic: string; payload: unknown }[] = [];
   const published: Parameters<NappletHost["publish"]>[0][] = [];
+  const links: Parameters<NappletHost["openLink"]>[] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -67,6 +68,10 @@ const setup = (
           .map((key) => key.slice(scope.length + 1)),
     },
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
+    openLink: async (target, label) => {
+      links.push([target, label]);
+      return { status: "opened" };
+    },
     publish: async (request) => {
       published.push(request);
       if (request.draft.content === "refuse") {
@@ -114,7 +119,16 @@ const setup = (
     },
   };
   const session = createNappletSession(host, (message) => sent.push(message));
-  return { session, sent, opened, fetched, invoked, emitted, published };
+  return {
+    session,
+    sent,
+    opened,
+    fetched,
+    invoked,
+    emitted,
+    published,
+    links,
+  };
 };
 
 describe("createNappletSession", () => {
@@ -754,6 +768,42 @@ describe("書き込み", () => {
       ok: true,
       eventId: "e".repeat(64),
       relays: { "wss://relay.example/": true },
+    });
+  });
+});
+
+describe("NAP-LINK", () => {
+  // NAP-LINK の「Open an external page」と「Denied by policy」の例。
+  it("確かめた行き先だけを開き、断ったものは理由を添えて返す", async () => {
+    const { session, sent, links } = setup(["shell", "link"]);
+    session.receive({
+      type: "link.open",
+      id: "l1",
+      url: "https://example.com/post/123",
+      options: { label: "Read post" },
+    });
+    session.receive({ type: "link.open", id: "l2", url: "file:///etc/passwd" });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(links).toEqual([
+      [
+        {
+          type: "web",
+          url: "https://example.com/post/123",
+          hostname: "example.com",
+        },
+        "Read post",
+      ],
+    ]);
+    expect(sent).toContainEqual({
+      type: "link.open.result",
+      id: "l1",
+      status: "opened",
+    });
+    expect(sent).toContainEqual({
+      type: "link.open.result",
+      id: "l2",
+      status: "denied",
+      error: "unsupported-scheme",
     });
   });
 });
