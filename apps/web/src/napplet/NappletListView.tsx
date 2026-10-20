@@ -1,18 +1,10 @@
-import { Menu } from "@ark-ui/solid/menu";
 import type { NappletEntry } from "@streets/core/napplet/directory";
 import type { InstalledApplet } from "@streets/core/napplet/library";
 import type { NappletManifest } from "@streets/core/napplet/manifest";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import Name from "../note/Name";
+import ActionMenu from "../ui/ActionMenu";
 import Button from "../ui/Button";
-import IconButton from "../ui/IconButton";
-import {
-  itemMenuPositioning,
-  menuContentClass,
-  menuIconClass,
-  menuItemClass,
-} from "../ui/menu";
-import { Portal } from "../ui/Portal";
 import SearchInput from "../ui/SearchInput";
 import UiSwitch from "../ui/Switch";
 
@@ -76,45 +68,13 @@ const AppletRow: Component<{
       </span>
     </button>
     <div class="absolute top-2 right-2">
-      <Menu.Root
-        lazyMount
-        unmountOnExit
-        positioning={itemMenuPositioning}
-        onSelect={(details) =>
-          props.actions.find((action) => action.value === details.value)?.run()
+      <ActionMenu
+        label={`${props.title} の操作`}
+        items={props.actions}
+        onSelect={(value) =>
+          props.actions.find((action) => action.value === value)?.run()
         }
-      >
-        <Menu.Trigger
-          asChild={(triggerProps) => (
-            <IconButton
-              {...triggerProps()}
-              icon="i-material-symbols:more-vert"
-              label={`${props.title} の操作`}
-            />
-          )}
-        />
-        <Portal>
-          <Menu.Positioner>
-            <Menu.Content class={`${menuContentClass} w-72`}>
-              <For each={props.actions}>
-                {(action) => (
-                  <Menu.Item
-                    value={action.value}
-                    class={menuItemClass}
-                    classList={{ "c-danger": action.danger }}
-                  >
-                    <span
-                      class={`${action.icon} ${menuIconClass}`}
-                      aria-hidden="true"
-                    />
-                    <span class="truncate">{action.label}</span>
-                  </Menu.Item>
-                )}
-              </For>
-            </Menu.Content>
-          </Menu.Positioner>
-        </Portal>
-      </Menu.Root>
+      />
     </div>
   </li>
 );
