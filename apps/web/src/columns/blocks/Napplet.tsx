@@ -48,6 +48,7 @@ import {
 import { useEventActions } from "../../actions";
 import { useUploader } from "../../media/uploader";
 import ActionSheet from "../../napplet/ActionSheet";
+import { appletConfig } from "../../napplet/applet-config";
 import {
   appletColumnFor,
   useAppletIntents,
@@ -149,6 +150,14 @@ const Napplet: Component<{
   };
   const catalog = () => intents?.catalog() ?? [];
 
+  // カラムの設定で値が変わったら、購読しているアップレットに知らせる。
+  createEffect(
+    on(
+      () => appletConfig.read(self)?.values,
+      () => session()?.configChanged(),
+      { defer: true },
+    ),
+  );
   // 預けられた依頼は、napplet が動いていれば届ける（起動前なら session が待たせる）。
   createEffect(() => {
     intents?.pending();
@@ -556,6 +565,14 @@ const Napplet: Component<{
         };
         hostElement?.dispatchEvent(new KeyboardEvent("keydown", init));
         hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
+      },
+      config: {
+        register: (schema) =>
+          appletConfig.register(self, running.manifest.artifactHash, schema),
+        stored: () => appletConfig.read(self)?.values ?? {},
+        // 節（section）までは送らない。カラムの設定を開くだけ。
+        openSettings: () =>
+          dispatch({ type: "deck/toggle-settings", id: scope.column().id }),
       },
       lists: createListsHost({
         writer,

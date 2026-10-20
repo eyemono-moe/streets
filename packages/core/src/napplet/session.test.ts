@@ -51,6 +51,11 @@ const setup = (
   const notices: Parameters<NappletHost["notify"]["send"]>[0][] = [];
   const uploads: Parameters<NappletHost["upload"]["upload"]>[0][] = [];
   const mutations: Parameters<NappletHost["lists"]["mutate"]>[] = [];
+  const config = {
+    stored: {} as unknown,
+    registered: [] as unknown[],
+    opened: [] as unknown[],
+  };
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -76,6 +81,11 @@ const setup = (
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     forwardKey: (key) => void keys.push(key),
     catalog: () => ({ napplets: [], handlers: [] }),
+    config: {
+      register: (schema) => void config.registered.push(schema),
+      stored: () => config.stored,
+      openSettings: (section) => void config.opened.push(section),
+    },
     lists: {
       mutate: async (request, operation) => {
         mutations.push([request, operation]);
@@ -185,6 +195,7 @@ const setup = (
     notices,
     uploads,
     mutations,
+    config,
   };
 };
 
@@ -1175,5 +1186,78 @@ describe("NAP-LISTS", () => {
       ok: false,
       error: "unsupported-list",
     });
+  });
+});
+
+describe("NAP-CONFIG", () => {
+  const schema = {
+    $schema: "http://json-schema.org/draft-07/schema#",
+    type: "object",
+    properties: {
+      theme: {
+        type: "string",
+        enum: ["light", "dark"],
+        default: "dark",
+        "x-napplet-section": "look",
+      },
+    },
+  };
+
+  // NAP-CONFIG の「Register schema (success)」「Get values」「Subscribe + initial snapshot」の例。
+  it("スキーマを受け付け、既定値を当てた値を get と subscribe で返す", () => {
+    const { session, sent } = setup(["shell", "config"]);
+    session.receive({
+      type: "config.registerSchema",
+      id: "r1",
+      schema,
+      version: 1,
+    });
+    session.receive({ type: "config.get", id: "g1" });
+    session.receive({ type: "config.subscribe" });
+    expect(sent).toEqual([
+      { type: "config.registerSchema.result", id: "r1", ok: true },
+      { type: "config.values", id: "g1", values: { theme: "dark" } },
+      { type: "config.values", values: { theme: "dark" } },
+    ]);
+  });
+
+  // NAP-CONFIG の「Push update after user changes a value」の例。
+  it("Streets で値が変わったら、購読しているアップレットに知らせる", () => {
+    const { session, sent, config } = setup(["shell", "config"]);
+    session.receive({ type: "config.registerSchema", id: "r1", schema });
+    session.receive({ type: "config.subscribe" });
+    config.stored = { theme: "light" };
+    session.configChanged();
+    expect(sent.at(-1)).toEqual({
+      type: "config.values",
+      values: { theme: "light" },
+    });
+    session.receive({ type: "config.unsubscribe" });
+    session.configChanged();
+    expect(sent).toHaveLength(3);
+  });
+
+  // > If subscribe arrives before any schema has been registered ..., shells MUST emit
+  // > `config.schemaError` with `code: "no-schema"`.
+  it("スキーマの登録より前の読み取りには no-schema を返す", () => {
+    const { session, sent } = setup(["shell", "config"]);
+    session.receive({ type: "config.get", id: "g1" });
+    expect(sent).toEqual([
+      {
+        type: "config.schemaError",
+        code: "no-schema",
+        error: "register a schema before reading configuration",
+      },
+    ]);
+  });
+
+  // > shells SHOULD silently ignore the request (opening the settings UI to its default
+  // > entry is acceptable).
+  it("宣言されていない節を開くよう頼まれたら、節を付けずに開く", () => {
+    const { session, config } = setup(["shell", "config"]);
+    session.receive({ type: "config.registerSchema", id: "r1", schema });
+    session.receive({ type: "config.openSettings", section: "look" });
+    session.receive({ type: "config.openSettings", section: "nope" });
+    expect(config.opened).toEqual(["look", undefined]);
   });
 });

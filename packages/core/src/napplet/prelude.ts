@@ -703,6 +703,70 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("config")) {
+    let accepted: unknown = null;
+    const errorHandlers = new Set<(error: unknown) => void>();
+    const valueHandlers = new Set<(values: unknown) => void>();
+    const gets = new Map<string, (values: unknown) => void>();
+    const schemaError = (error: unknown) => {
+      for (const handler of errorHandlers) handler(error);
+    };
+    onPush("config.schemaError", (message) =>
+      schemaError({ code: message.code, message: message.error }),
+    );
+    onPush("config.values", (message) => {
+      if (typeof message.id === "string") {
+        gets.get(message.id)?.(message.values);
+        gets.delete(message.id);
+        return;
+      }
+      for (const handler of valueHandlers) handler(message.values);
+    });
+    napplet.config = {
+      // 断られたときは onSchemaError に渡す（NAP-CONFIG の Error cases）。
+      registerSchema: (schema: unknown, version?: number) =>
+        request(
+          "config.registerSchema",
+          { schema, ...(version === undefined ? {} : { version }) },
+          (message) => message,
+          false,
+        ).then((message: Message) => {
+          if (message.ok === true) accepted = schema;
+          else schemaError({ code: message.code, message: message.error });
+        }),
+      get: () => {
+        const id = newId();
+        return new Promise((resolve) => {
+          gets.set(id, resolve);
+          post({ type: "config.get", id });
+        });
+      },
+      subscribe: (handler: (values: unknown) => void) => {
+        valueHandlers.add(handler);
+        if (valueHandlers.size === 1) post({ type: "config.subscribe" });
+        return {
+          close: () => {
+            if (!valueHandlers.delete(handler) || valueHandlers.size > 0)
+              return;
+            post({ type: "config.unsubscribe" });
+          },
+        };
+      },
+      onSchemaError: (handler: (error: unknown) => void) => {
+        errorHandlers.add(handler);
+        return { close: () => errorHandlers.delete(handler) };
+      },
+      openSettings: (options?: { section?: string }) =>
+        post({
+          type: "config.openSettings",
+          ...(options?.section ? { section: options.section } : {}),
+        }),
+      get schema() {
+        return accepted;
+      },
+    };
+  }
+
   if (exposed.has("lists")) {
     // 結果は `ok` と `error` の欄で返し、reject しない。
     const result = (message: Message) => {

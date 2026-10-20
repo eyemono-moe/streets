@@ -26,6 +26,12 @@ import {
   profileTarget,
 } from "./common";
 import {
+  type ConfigSchema,
+  checkConfigSchema,
+  configSections,
+  resolveConfigValues,
+} from "./config";
+import {
   type IntentAvailability,
   type IntentDelivery,
   type IntentRequest,
@@ -188,6 +194,15 @@ export type NappletHost = {
       | { ok: true; eventId: string; changed: number; skipped: number }
       | { ok: false; error: string }
     >;
+  };
+  /**
+   * NAP-CONFIG。登録されたスキーマを覚え（カラムの設定に描く）、ユーザーが入れた値を
+   * 返す。値を書くのは Streets の設定の画面だけ。
+   */
+  config: {
+    register: (schema: ConfigSchema) => void;
+    stored: () => unknown;
+    openSettings: (section: string | undefined) => void;
   };
   /** NAP-CATALOG。いまのアップレットの一覧。 */
   catalog: () => CatalogSnapshot;
@@ -387,6 +402,8 @@ export type NappletSession = {
   deliver: (delivery: IntentDelivery) => void;
   /** 受け手の一覧や既定が変わった。 */
   intentChanged: (availability: IntentAvailability) => void;
+  /** Streets の設定の画面で、このアップレットの設定が変わった。 */
+  configChanged: () => void;
   /** 出した知らせが押された・閉じられた。 */
   notifyEvent: (
     event:
@@ -662,6 +679,60 @@ export const createNappletSession = (
         const reason = request.reason;
         const text = typeof request.text === "string" ? request.text : "";
         answerAction(() => host.common.report(target, reason, text));
+        return;
+      }
+    }
+  };
+
+  let schema: ConfigSchema | undefined;
+  let configSubscribed = false;
+  const configValues = () =>
+    schema ? resolveConfigValues(schema, host.config.stored()) : undefined;
+  const noSchema = () =>
+    send({
+      type: "config.schemaError",
+      code: "no-schema",
+      error: "register a schema before reading configuration",
+    });
+  const handleConfig = (request: Message) => {
+    switch (request.type) {
+      case "config.registerSchema": {
+        const checked = checkConfigSchema(request.schema);
+        if (!checked.ok) {
+          reply(request, checked);
+          return;
+        }
+        schema = checked.schema;
+        host.config.register(checked.schema);
+        reply(request, { ok: true });
+        if (configSubscribed)
+          send({ type: "config.values", values: configValues() });
+        return;
+      }
+      // > `config.values` is dual-use: with `id` it answers `config.get`
+      case "config.get":
+        if (!schema) return noSchema();
+        send({ type: "config.values", id: request.id, values: configValues() });
+        return;
+      // > `config.subscribe` MUST produce an immediate initial `config.values` push
+      case "config.subscribe":
+        if (!schema) return noSchema();
+        configSubscribed = true;
+        send({ type: "config.values", values: configValues() });
+        return;
+      case "config.unsubscribe":
+        configSubscribed = false;
+        return;
+      // > shells SHOULD silently ignore the request (opening the settings UI to its default
+      // > entry is acceptable).
+      case "config.openSettings": {
+        const section =
+          typeof request.section === "string" &&
+          schema &&
+          configSections(schema).includes(request.section)
+            ? request.section
+            : undefined;
+        host.config.openSettings(section);
         return;
       }
     }
@@ -1340,7 +1411,8 @@ export const createNappletSession = (
           message.type,
         ) ||
         /^keys\.(forward|unregisterAction)$/.test(message.type) ||
-        /^notify\.(dismiss|badge|channel\.register)$/.test(message.type);
+        /^notify\.(dismiss|badge|channel\.register)$/.test(message.type) ||
+        /^config\.(subscribe|unsubscribe|openSettings)$/.test(message.type);
       if (!withoutId && typeof message.id !== "string") return;
       switch (domain) {
         case "theme":
@@ -1371,6 +1443,8 @@ export const createNappletSession = (
           return handleUpload(message);
         case "lists":
           return handleLists(message);
+        case "config":
+          return handleConfig(message);
         case "catalog":
           if (message.type === "catalog.get") {
             reply(message, { snapshot: host.catalog() });
@@ -1394,6 +1468,11 @@ export const createNappletSession = (
     },
     intentChanged: (availability) => {
       if (exposed.has("intent")) send({ type: "intent.changed", availability });
+    },
+    configChanged: () => {
+      if (exposed.has("config") && schema && configSubscribed) {
+        send({ type: "config.values", values: configValues() });
+      }
     },
     notifyEvent: (event) => {
       if (exposed.has("notify")) send(event);

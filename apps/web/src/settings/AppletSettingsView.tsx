@@ -1,9 +1,6 @@
-import { Menu } from "@ark-ui/solid/menu";
 import { type Component, For, Show } from "solid-js";
 import { archetypeLabel } from "../napplet/IntentSheet";
-import Button from "../ui/Button";
-import { menuContentClass, menuIconClass, menuItemClass } from "../ui/menu";
-import { Portal } from "../ui/Portal";
+import SelectMenu from "../ui/SelectMenu";
 import SettingsSection from "./SettingsSection";
 
 /** 既定を置かない。 */
@@ -22,62 +19,26 @@ const RoleField: Component<{
   onChange: (archetype: string, value: string | undefined) => void;
 }> = (props) => {
   const label = () => archetypeLabel(props.role.archetype);
-  const currentTitle = () =>
-    props.role.options.find((option) => option.value === props.role.current)
-      ?.title ?? "決めない";
-  const items = () => [
-    ...props.role.options,
-    { value: ASK, title: "決めない" },
-  ];
   return (
     <div class="flex items-center gap-3">
       <span class="c-primary min-w-0 flex-1 text-body">{label()}</span>
-      <Menu.Root
-        lazyMount
-        unmountOnExit
-        positioning={{ placement: "bottom-end" }}
-        onSelect={(details) =>
+      <SelectMenu
+        label={`${label()}の開く先`}
+        value={props.role.current ?? ASK}
+        options={[
+          ...props.role.options.map((option) => ({
+            value: option.value,
+            label: option.title,
+          })),
+          { value: ASK, label: "決めない" },
+        ]}
+        onChange={(value) =>
           props.onChange(
             props.role.archetype,
-            details.value === ASK ? undefined : details.value,
+            value === ASK ? undefined : value,
           )
         }
-      >
-        <Menu.Trigger
-          asChild={(trigger) => (
-            <Button
-              {...trigger()}
-              variant="secondary"
-              size="sm"
-              trailingIcon="i-material-symbols:expand-more-rounded"
-              aria-label={`${label()}の開く先：${currentTitle()}`}
-            >
-              <span class="block max-w-40 truncate">{currentTitle()}</span>
-            </Button>
-          )}
-        />
-        <Portal>
-          <Menu.Positioner>
-            <Menu.Content class={`${menuContentClass} w-60`}>
-              <For each={items()}>
-                {(item) => (
-                  <Menu.Item value={item.value} class={menuItemClass}>
-                    <span
-                      class={`${menuIconClass} ${
-                        (props.role.current ?? ASK) === item.value
-                          ? "i-material-symbols:check-rounded"
-                          : ""
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span class="truncate">{item.title}</span>
-                  </Menu.Item>
-                )}
-              </For>
-            </Menu.Content>
-          </Menu.Positioner>
-        </Portal>
-      </Menu.Root>
+      />
     </div>
   );
 };

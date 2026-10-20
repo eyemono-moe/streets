@@ -45,6 +45,7 @@ import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import { fallbackRelays } from "../fallback-relay-setting";
 import { useFollowSets } from "../lists/FollowSetMediator";
+import AppletConfigSettings from "../napplet/AppletConfigSettings";
 import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
@@ -753,6 +754,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         inputs={props.inputs}
       />
     ),
+    Settings: (props) => <AppletConfigSettings source={props.source} />,
   },
   "napplet-list": {
     meta: () => ({

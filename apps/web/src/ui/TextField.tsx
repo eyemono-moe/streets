@@ -20,6 +20,8 @@ export const invalidTextInputClass = `${inputBase} h-9 border-danger`;
  */
 const TextField: Component<{
   label: string;
+  /** 名前を見た目には出さない（読み上げには残す）。名前を外側に置く場所で使う。 */
+  labelHidden?: boolean;
   value: string;
   onInput: (value: string) => void;
   placeholder?: string;
@@ -28,7 +30,7 @@ const TextField: Component<{
   error?: string;
   /** 複数行（自己紹介など）。 */
   multiline?: boolean;
-  type?: "text" | "url" | "email";
+  type?: "text" | "url" | "email" | "number" | "password";
   /** 打つ途中で出す候補（スタンプなど）。 */
   completion?: readonly CompletionSource[];
   onBlur?: () => void;
@@ -45,7 +47,11 @@ const TextField: Component<{
   const border = () => (props.error ? "border-danger" : "border-control");
   return (
     <div class="flex min-w-0 flex-col gap-1">
-      <label for={id} class="c-secondary font-600 text-caption">
+      <label
+        for={id}
+        class="c-secondary font-600 text-caption"
+        classList={{ "sr-only": props.labelHidden }}
+      >
         {props.label}
       </label>
       <div class="flex items-center gap-1">
