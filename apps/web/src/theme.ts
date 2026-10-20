@@ -18,11 +18,11 @@ export type { ColorScheme, UiContrast };
  * 50〜950 の段は uno.config.ts がこの 2 色から作る。
  */
 export const PALETTES = {
-  purple: { accent: "#8440BD", ui: "#302170", label: "紫" },
-  cyan: { accent: "#39A1BA", ui: "#0C4853", label: "シアン" },
-  lime: { accent: "#99D83E", ui: "#122202", label: "ライム" },
-  orange: { accent: "#D76D34", ui: "#210502", label: "オレンジ" },
-  pink: { accent: "#B93E9F", ui: "#410F52", label: "ピンク" },
+  purple: { accent: "#8440BD", ui: "#302170" },
+  cyan: { accent: "#39A1BA", ui: "#0C4853" },
+  lime: { accent: "#99D83E", ui: "#122202" },
+  orange: { accent: "#D76D34", ui: "#210502" },
+  pink: { accent: "#B93E9F", ui: "#410F52" },
 } as const;
 
 export type PaletteName = keyof typeof PALETTES;

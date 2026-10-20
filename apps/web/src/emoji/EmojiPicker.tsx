@@ -20,6 +20,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import SearchInput from "../ui/SearchInput";
 import {
   type PickerEmoji,
@@ -246,7 +247,7 @@ const PickerList: Component<{
             <ScrollArea.Content
               class="flex w-max"
               role="tablist"
-              aria-label="絵文字の種類"
+              aria-label={t("emoji.picker.groups")}
             >
               <For each={props.groups}>
                 {(group) => (
@@ -357,7 +358,7 @@ const EmojiPicker: Component<{
     if (recentEmojis().length > 0) {
       all.push({
         id: RECENT_GROUP_ID,
-        title: "よく使う",
+        title: t("emoji.picker.recent"),
         icon: "i-material-symbols:history-rounded",
         emojis: [...recentEmojis()],
       });
@@ -381,7 +382,7 @@ const EmojiPicker: Component<{
     return [
       {
         id: RESULT_GROUP_ID,
-        title: "検索結果",
+        title: t("emoji.picker.results"),
         icon: "i-material-symbols:search-rounded",
         emojis: searchEmojis(all, query()).map((entry) => entry.emoji),
       },
@@ -398,8 +399,8 @@ const EmojiPicker: Component<{
     <div class={`flex flex-col gap-2 bg-primary ${sizes().root}`}>
       <SearchInput
         class="w-full"
-        label="絵文字を探す"
-        placeholder="絵文字を探す（ねこ / cat）"
+        label={t("emoji.picker.search")}
+        placeholder={t("emoji.picker.searchPlaceholder")}
         value={query()}
         onValueChange={setQuery}
         clearable
@@ -408,7 +409,9 @@ const EmojiPicker: Component<{
         when={signature() !== ""}
         fallback={
           <p class="c-secondary p-4 text-center text-caption">
-            {unicode.loading ? "読み込み中…" : "見つかりませんでした"}
+            {unicode.loading
+              ? t("emoji.picker.loading")
+              : t("emoji.picker.notFound")}
           </p>
         }
       >

@@ -75,7 +75,7 @@
       "muteFailed": "Couldn't mute",
       "messageNotLoaded": "The message hasn't loaded",
       "writeFailed": "Couldn't write to the channel",
-      "loginReason": "writing to a channel",
+      "loginReason": "Log in to write to channels",
       "loginToWrite": "Sign in to write"
     },
     "followSet": {

@@ -4,6 +4,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { Component, JSX } from "solid-js";
 import { useSending } from "../actions-mediator";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import { useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
@@ -53,7 +54,7 @@ const ReactionPicker: Component<{
   return (
     <>
       <PickerSurface
-        title="リアクションする"
+        title={t("emoji.picker.react")}
         trigger={props.trigger}
         anchor={props.anchor}
         finalFocusEl={props.anchor}

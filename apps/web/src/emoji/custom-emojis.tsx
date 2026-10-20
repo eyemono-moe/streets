@@ -29,6 +29,7 @@ import {
   createSignal,
   useContext,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import type { PickerGroup } from "./emoji-data";
@@ -108,10 +109,10 @@ export const CustomEmojisMediator: ParentComponent<{
     setSaving(true);
     setPending(next);
     props.writer.replace(EMOJI_LIST_KIND, undefined, mutation).then(
-      () => notifySaved("自分の絵文字を保存しました"),
+      () => notifySaved(t("emoji.write.saved")),
       (cause) => {
         setPending(undefined);
-        notifyError(cause, "自分の絵文字を保存できませんでした");
+        notifyError(cause, t("emoji.write.saveFailed"));
       },
     );
     setSaving(false);
@@ -142,15 +143,14 @@ export const CustomEmojisMediator: ParentComponent<{
             setMade((current) => ({ ...current, [event.shortcode]: url }));
             rememberEmoji({ kind: "custom", shortcode: event.shortcode, url });
           },
-          (cause: unknown) =>
-            notifyError(cause, "カスタム絵文字を作れませんでした"),
+          (cause: unknown) => notifyError(cause, t("emoji.write.makeFailed")),
         );
         return true;
       case "emoji/add-made":
         requestEmoji(event.spec).then(
           (url) => addOne({ shortcode: event.shortcode, url }),
           (cause: unknown) =>
-            notifyError(cause, "自分の絵文字に登録できませんでした"),
+            notifyError(cause, t("emoji.write.registerFailed")),
         );
         return true;
       case "emoji/remove":

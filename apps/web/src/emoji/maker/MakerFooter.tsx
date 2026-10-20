@@ -12,6 +12,7 @@ import {
   textProblem,
 } from "@streets/core/emoji-maker/text";
 import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
+import { t } from "../../i18n/locale";
 import Button from "../../ui/Button";
 import type { PickerLayout } from "../PickerSurface";
 import { prefetchKana } from "./glyphs";
@@ -30,7 +31,7 @@ export const pickerCandidates = (last: Style | undefined): MakerCandidate[] => {
   if (!last || presets.some((candidate) => sameStyle(candidate.style, last))) {
     return presets;
   }
-  return [...presets, { label: "前回の見た目", style: last }];
+  return [...presets, { label: t("emoji.footer.lastStyle"), style: last }];
 };
 
 /** 候補 1 つ。投稿の下に並ぶのと同じ大きさ（高さ 18px・幅 48px まで）で見せる。 */
@@ -60,7 +61,7 @@ type Sizes = (typeof SIZES)[PickerLayout];
 const Candidate: Component<{
   text: string;
   /** 押したときにすること。読み上げの言葉に使う。 */
-  action: string;
+  verb: "send" | "insert";
   candidate: MakerCandidate;
   disabled: boolean;
   sizes: Sizes;
@@ -78,7 +79,10 @@ const Candidate: Component<{
     <button
       type="button"
       title={props.candidate.label}
-      aria-label={`${props.candidate.label}で「${props.text}」を${props.action}`}
+      aria-label={t(`emoji.footer.candidate.${props.verb}`, {
+        style: props.candidate.label,
+        text: props.text,
+      })}
       disabled={props.disabled || !image()}
       class={`inline-flex shrink-0 cursor-pointer items-center rounded-full border border-control bg-primary enabled:hover:bg-secondary disabled:cursor-default ${props.sizes.candidate}`}
       onClick={() => props.onSend(spec(), props.candidate.style)}
@@ -149,18 +153,18 @@ const MakerFooter: Component<{
             icon="i-material-symbols:add-rounded"
             onClick={() => props.onAdjust("", first())}
           >
-            カスタム絵文字を作る
+            {t("emoji.footer.create")}
           </Button>
         </Match>
         <Match when={textProblem(text(), true)?.type === "too-many-chars"}>
           <p class="c-secondary min-w-0 flex-1 text-caption">
-            カスタム絵文字にできるのは {MAX_CHARS} 字までです
+            {t("emoji.footer.tooLong", { max: MAX_CHARS })}
           </p>
         </Match>
         <Match when={missing()}>
           {(chars) => (
             <p class="c-secondary min-w-0 flex-1 text-caption">
-              描けない文字があります（{chars().join(" ")}）
+              {t("emoji.footer.missingChars", { chars: chars().join(" ") })}
             </p>
           )}
         </Match>
@@ -173,7 +177,7 @@ const MakerFooter: Component<{
                 <Candidate
                   text={text()}
                   candidate={candidate}
-                  action={props.verb === "insert" ? "入れる" : "送る"}
+                  verb={props.verb ?? "send"}
                   disabled={props.sending}
                   sizes={sizes()}
                   onSend={props.onSend}
@@ -189,7 +193,7 @@ const MakerFooter: Component<{
           size={sizes().button}
           onClick={() => props.onAdjust(text(), first())}
         >
-          調整する
+          {t("emoji.footer.adjust")}
         </Button>
       </Show>
     </div>

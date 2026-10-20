@@ -16,6 +16,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { displayHotkey } from "../keymap";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -58,13 +59,16 @@ const KeyboardSettings: Component<{
       const action = editing();
       if (!action) return true;
       const other = conflictingAction(props.keymap, action, hotkey);
-      if (other) return `${SHORTCUT_LABELS[other]} で使っています`;
+      if (other)
+        return t("settings.keyboard.conflict", {
+          action: SHORTCUT_LABELS[other],
+        });
       // 1〜9 は左から数えたカラムを見せるのに使っていて、変えられない。
       if (
         parsedHotkey.modifiers.length === 0 &&
         /^\[Digit[1-9]\]$/.test(hotkey)
       ) {
-        return "1〜9 はカラムを見せるのに使っています";
+        return t("settings.keyboard.digitsReserved");
       }
       return true;
     },
@@ -97,7 +101,7 @@ const KeyboardSettings: Component<{
       <SettingsSection
         id="shortcuts"
         scope="device"
-        description="使用するキーを変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。"
+        description={t("settings.keyboard.description")}
       >
         <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-control bg-tertiary">
           <For each={SHORTCUT_ACTIONS}>
@@ -111,7 +115,7 @@ const KeyboardSettings: Component<{
                   fallback={<Key hotkey={props.keymap[action]} />}
                 >
                   <span class="c-accent-5 font-600 text-caption">
-                    キーを押してください…
+                    {t("settings.keyboard.pressKey")}
                   </span>
                 </Show>
                 <Button
@@ -123,12 +127,16 @@ const KeyboardSettings: Component<{
                       : start(action)
                   }
                 >
-                  {editing() === action ? "やめる" : "変更"}
+                  {editing() === action
+                    ? t("settings.keyboard.cancel")
+                    : t("settings.keyboard.change")}
                 </Button>
                 <IconButton
                   icon="i-material-symbols:refresh-rounded"
-                  label={`${SHORTCUT_LABELS[action]} を既定のキーに戻す`}
-                  title="既定に戻す"
+                  label={t("settings.keyboard.resetLabel", {
+                    action: SHORTCUT_LABELS[action],
+                  })}
+                  title={t("settings.section.reset")}
                   disabled={props.keymap[action] === DEFAULT_KEYMAP[action]}
                   onClick={() => set(action, DEFAULT_KEYMAP[action])}
                 />
@@ -151,10 +159,10 @@ const KeyboardSettings: Component<{
             on: loadColumnDigits(null),
           })
         }
-        description="オンにすると、1〜9 の数字キーを押したときに、その番号のカラムに移動し、↑↓ でそのカラムを送れるようになります。オフにすると、数字キーは効かなくなります。"
+        description={t("settings.keyboard.digits.description")}
       >
         <Switch
-          label="数字キーでカラムへ移動する"
+          label={t("settings.keyboard.digits.switch")}
           checked={props.columnDigits}
           onChange={(on) => dispatch({ type: "deck/set-column-digits", on })}
         />
@@ -167,7 +175,11 @@ const KeyboardSettings: Component<{
 const Key: Component<{ hotkey: string }> = (props) => (
   <Show
     when={props.hotkey !== ""}
-    fallback={<span class="c-secondary text-caption">使わない</span>}
+    fallback={
+      <span class="c-secondary text-caption">
+        {t("settings.keyboard.unused")}
+      </span>
+    }
   >
     <kbd class="c-primary rounded-1.5 border border-control bg-secondary px-2 py-0.5 font-600 text-caption">
       {displayHotkey(props.hotkey)}

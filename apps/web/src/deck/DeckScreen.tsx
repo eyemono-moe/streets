@@ -95,7 +95,7 @@ import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { preloadEmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
 import { fallbackRelays, setFallbackRelays } from "../fallback-relay-setting";
-import { setLocalePreference } from "../i18n/locale";
+import { setLocalePreference, t } from "../i18n/locale";
 import { setImageDownscaling } from "../image-downscaling-setting";
 import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
@@ -307,7 +307,7 @@ const DeckScreen: Component<{
         routingSettled: settled,
         signer: props.session.signer,
         canSign: () => props.session.signerStatus() === "ready",
-        writer: trackReplaces(write.writer, "デッキの設定"),
+        writer: trackReplaces(write.writer, t("deck.writeLabel.deckSettings")),
         fetchLatest: write.fetchLatest,
         storage: localStorage,
       })
@@ -663,7 +663,7 @@ const DeckScreen: Component<{
     columnDigits,
     togglePanel: (panel) => {
       // ショートカットは段を通らずに呼ぶので、投稿のパネルはここで止める。
-      if (panel === "compose" && !gate("投稿")) return;
+      if (panel === "compose" && !gate(t("deck.loginReason.post"))) return;
       handle({ type: "deck/toggle-panel", panel });
     },
     openPalette: () => handle({ type: "deck/open-palette" }),
@@ -694,7 +694,7 @@ const DeckScreen: Component<{
   const saveAppearance = (next: DeckAppearance) => {
     clearTimeout(appearanceTimer);
     appearanceTimer = setTimeout(() => {
-      savedNotice = "表示の設定を保存しました";
+      savedNotice = t("deck.deckScreen.appearanceSaved");
       deckStore.update((set) => ({ ...set, appearance: next }));
     }, APPEARANCE_SAVE_DELAY_MS);
   };
@@ -717,8 +717,8 @@ const DeckScreen: Component<{
     if (localOnlyWarned) return;
     localOnlyWarned = true;
     notifyWarning(
-      "このログインの方法では、デッキをほかの端末と同期できません",
-      "デッキの変更はこの端末にだけ保存します。同期するには、暗号化に対応した拡張機能か、署名アプリでログインしてください。",
+      t("deck.deckScreen.localOnlyTitle"),
+      t("deck.deckScreen.localOnlyBody"),
     );
   });
   onCleanup(() => clearTimeout(appearanceTimer));
@@ -728,8 +728,8 @@ const DeckScreen: Component<{
   // ログインを促した時刻。紹介のカラムが、始め方の段を揺らして目立たせる。
   const [loginNudgedAt, setLoginNudgedAt] = createSignal<number>();
   // ログインしていない人に、紹介とログインのカラムを見せる。外していたら先頭に戻す。
-  const showLogin = (what?: string) => {
-    if (what) notifyInfo(`ログインすると、${what}ができます`);
+  const showLogin = (reason?: string) => {
+    if (reason) notifyInfo(reason);
     applyUi({ type: "deck/close-panel" });
     applyUi({ type: "deck/close-settings" });
     let id = columns().find((column) => column.source.kind === "welcome")?.id;
@@ -759,9 +759,9 @@ const DeckScreen: Component<{
     onNostrConnect: props.session.loginWithNostrConnect,
     onRetryRestore: props.session.restore,
   };
-  const gate: LoginGate = (what) => {
+  const gate: LoginGate = (reason) => {
     if (account) return true;
-    showLogin(what);
+    showLogin(reason);
     return false;
   };
 
@@ -778,7 +778,7 @@ const DeckScreen: Component<{
     if (!shared) return;
     untrack(() => {
       if (!account) {
-        showLogin("共有された内容の投稿");
+        showLogin(t("deck.deckScreen.sharedLogin"));
         return;
       }
       clearPendingShare();
@@ -888,7 +888,7 @@ const DeckScreen: Component<{
             );
           },
           (cause: unknown) =>
-            notifyError(cause, "ピクチャーインピクチャーを開けませんでした"),
+            notifyError(cause, t("deck.deckScreen.popOutFailed")),
         );
         return true;
       }
@@ -987,7 +987,7 @@ const DeckScreen: Component<{
         props.session.logout();
         return true;
       case "deck/login":
-        showLogin(event.what);
+        showLogin(event.reason);
         return true;
       case "deck/browse": {
         let id = browseTargetIn(columns());
@@ -1069,11 +1069,11 @@ const DeckScreen: Component<{
         void startTelemetry();
         return true;
       case "deck/set-client-tag":
-        savedNotice = "プライバシーの設定を保存しました";
+        savedNotice = t("deck.deckScreen.privacySaved");
         deckStore.update((set) => ({ ...set, clientTag: event.on }));
         return true;
       case "deck/set-notify-quoted":
-        savedNotice = "プライバシーの設定を保存しました";
+        savedNotice = t("deck.deckScreen.privacySaved");
         deckStore.update((set) => ({ ...set, notifyQuoted: event.on }));
         return true;
       case "deck/set-appearance":
@@ -1093,7 +1093,7 @@ const DeckScreen: Component<{
     <Switch>
       <Match when={shownPanel() === "compose"}>
         <SidePanel
-          title="投稿する"
+          title={t("deck.panels.compose")}
           icon="i-material-symbols:edit-square-outline-rounded"
           full={full}
         >
@@ -1101,7 +1101,7 @@ const DeckScreen: Component<{
             send={(text, media, emoji, contentWarning) =>
               actions.post(text, media, emoji, contentWarning)
             }
-            failure="投稿できませんでした"
+            failure={t("deck.panels.composeFailed")}
             onSent={() => handle({ type: "deck/close-panel" })}
             onClose={() => handle({ type: "deck/close-panel" })}
             drafts
@@ -1113,7 +1113,7 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "search"}>
         <SidePanel
-          title="検索する"
+          title={t("deck.panels.search")}
           icon="i-material-symbols:search-rounded"
           full={full}
         >
@@ -1129,7 +1129,9 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "add-column"}>
         <SidePanel
-          title={`「${currentDeck()?.name ?? ""}」にカラムを追加`}
+          title={t("deck.panels.addColumn", {
+            name: currentDeck()?.name ?? "",
+          })}
           icon="i-material-symbols:add-rounded"
           full={full}
           onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
@@ -1144,7 +1146,7 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "arrange"}>
         <SidePanel
-          title="デッキを編集する"
+          title={t("deck.panels.arrange")}
           icon="i-material-symbols:view-column-outline-rounded"
           full={full}
         >
@@ -1163,7 +1165,7 @@ const DeckScreen: Component<{
       <Match when={shownPanel() === "new-deck" && deckStore.value()}>
         {(set) => (
           <SidePanel
-            title="新しいデッキ"
+            title={t("deck.panels.newDeck")}
             icon="i-material-symbols:view-column-outline-rounded"
             full={full}
             onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
@@ -1215,11 +1217,13 @@ const DeckScreen: Component<{
       <Switch>
         <Match when={warmUp.error}>
           <p role="alert" class="c-danger p-4 text-caption">
-            フォローリストを取得できませんでした。
+            {t("deck.deckScreen.followsFailed")}
           </p>
         </Match>
         <Match when={deckStore.value() === undefined}>
-          <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
+          <p class="c-secondary p-4 text-caption">
+            {t("deck.deckScreen.loadingDeck")}
+          </p>
         </Match>
         <Match when={isMultiColumn()}>
           <div class="safe-pad-x flex h-dvh">
@@ -1553,23 +1557,32 @@ const DeckScreen: Component<{
                   <MediaMediator
                     writer={trackReplaces(
                       write().writer,
-                      "画像のアップロード先",
+                      t("deck.writeLabel.uploadServers"),
                     )}
                     blossomList={write().blossomServers}
                     nip96List={write().nip96Servers}
                   >
                     <SearchRelayMediator
-                      writer={trackReplaces(write().writer, "検索するリレー")}
+                      writer={trackReplaces(
+                        write().writer,
+                        t("deck.writeLabel.searchRelays"),
+                      )}
                       relayList={write().searchRelays}
                     >
                       <BlockedRelayMediator
-                        writer={trackReplaces(write().writer, "繋がないリレー")}
+                        writer={trackReplaces(
+                          write().writer,
+                          t("deck.writeLabel.blockedRelays"),
+                        )}
                         signer={props.session.signer}
                         viewer={viewer}
                         list={write().blockedRelays}
                       >
                         <CustomEmojisMediator
-                          writer={trackReplaces(write().writer, "自分の絵文字")}
+                          writer={trackReplaces(
+                            write().writer,
+                            t("deck.writeLabel.emoji"),
+                          )}
                           list={write().emojiList}
                           fetchLatest={write().fetchLatest}
                         >
@@ -1577,7 +1590,7 @@ const DeckScreen: Component<{
                             <ProfileMediator
                               writer={trackReplaces(
                                 write().writer,
-                                "プロフィール",
+                                t("deck.writeLabel.profile"),
                               )}
                               pubkey={viewer}
                               profile={write().profile}
@@ -1585,7 +1598,7 @@ const DeckScreen: Component<{
                               <RelayMediator
                                 writer={trackReplaces(
                                   write().writer,
-                                  "リレーの設定",
+                                  t("deck.writeLabel.relays"),
                                 )}
                                 relayList={write().relayList}
                                 settled={write().relayListSettled}
@@ -1604,7 +1617,7 @@ const DeckScreen: Component<{
                                 <MuteMediator
                                   writer={trackReplaces(
                                     write().writer,
-                                    "ミュート",
+                                    t("deck.writeLabel.mutes"),
                                   )}
                                   signer={props.session.signer}
                                   viewer={viewer}

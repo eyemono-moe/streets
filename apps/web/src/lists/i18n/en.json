@@ -1,0 +1,137 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "loading": "Loading…",
+    "list": "List",
+    "createList": "Create list"
+  },
+  "visibility": {
+    "label": {
+      "private": "Private",
+      "public": "Public"
+    },
+    "memberHint": {
+      "private": "Private: saved encrypted, so no one else can tell you added this person to the list.",
+      "public": "Public: anyone can see that you added this person to the list."
+    },
+    "privateUnavailable": "Your current sign-in method can't handle private members",
+    "none": "Don't add",
+    "membershipHint": "People you add privately are saved encrypted, so no one else can tell. People you add publicly can be seen by anyone."
+  },
+  "summary": {
+    "members": {
+      "one": "{{ count }} person",
+      "other": "{{ count }} people"
+    },
+    "membersWithPrivate": {
+      "one": "{{ total }} · {{ count }} private",
+      "other": "{{ total }} · {{ count }} private"
+    },
+    "legacyMuteNotice": "Some clients may treat this list as a list of people to mute"
+  },
+  "addTo": {
+    "title": "Add to list",
+    "membershipLabel": "Add to “{{ name }}”",
+    "empty": "You don't have any lists yet.",
+    "create": "Create a new list and add",
+    "createVisibility": "Visibility when added",
+    "createVisibilityLabel": "Visibility when added to the new list",
+    "createSubmit": "Create and add"
+  },
+  "createForm": {
+    "name": "List name",
+    "nameRequired": "Enter a list name",
+    "visibleToOthers": "The list's name and description can be seen by others."
+  },
+  "form": {
+    "createTitle": "Create a list",
+    "editTitle": "Edit list details",
+    "title": "Name (required)",
+    "titlePlaceholder": "e.g. People I talk to often",
+    "description": "Description",
+    "descriptionPlaceholder": "What kind of people the list gathers",
+    "image": "Image",
+    "visibleToOthers": "The list's name, description and image can be seen by others. You can choose public or private for each person you add.",
+    "blocked": "Save or discard your changes before closing",
+    "sending": "Sending…",
+    "save": "Save",
+    "unchanged": "No changes"
+  },
+  "info": {
+    "invalidUser": "Enter a user ID that starts with npub1… or nprofile1…",
+    "alreadyMember": "Already in this list",
+    "visibility": "Visibility",
+    "candidates": "Suggested people",
+    "searchPlaceholder": "Search by name or npub1…",
+    "memberInput": "Person to add to the list",
+    "add": "Add",
+    "removeMember": "Remove from list",
+    "delete": "Delete list",
+    "deleteNotice": "This deletes the list itself. The people in it and who you follow are not affected. This can't be undone.",
+    "confirmDelete": "Delete",
+    "linkCopied": "Link copied",
+    "linkCopyFailed": "Couldn't copy the link",
+    "notFound": "This list wasn't found. It may have been deleted, or couldn't be fetched from the relays.",
+    "author": "Created by",
+    "edit": "Edit details",
+    "copyLink": "Copy link",
+    "members": "Members ({{ summary }})",
+    "noMembersEditable": "No one is in this list yet. Add people with the field above, or with “Add to list” in a post or person menu.",
+    "noMembers": "No one is in this list yet."
+  },
+  "listView": {
+    "ownTab": "Your lists",
+    "ownTitle": "Lists you created (by name)",
+    "ownEmpty": "You don't have any lists yet. Group people to make a column showing only their posts.",
+    "memberOfTab": "Lists you're in",
+    "memberOfTitle": "Lists that add you publicly",
+    "memberOfEmpty": "No lists that add you publicly were found.",
+    "memberOfPrivateNote": "Lists that add you privately are only known to their creators, so they don't appear here.",
+    "label": "Lists"
+  },
+  "write": {
+    "list": "List",
+    "delete": "Delete list",
+    "deleteFailed": "Couldn't delete the list",
+    "createFailed": "Couldn't create the list",
+    "saveFailed": "Couldn't save the list",
+    "addFailed": "Couldn't add to the list",
+    "removeFailed": "Couldn't remove from the list",
+    "moveFailed": "Couldn't change the list's visibility"
+  },
+  "privatePart": {
+    "unavailable": "Your current sign-in method can't read private members, so only public members are shown.",
+    "invalid": "Couldn't read the private members. Only public members are shown."
+  },
+  "listSet": {
+    "addRelayColumn": "Add {{ relay }} as a deck column",
+    "moreRelays": "{{ count }} more",
+    "moreEvents": "{{ count }} more",
+    "relaySeparator": ", ",
+    "eventCount": {
+      "one": "{{ count }} item",
+      "other": "{{ count }} items"
+    },
+    "peopleCount": {
+      "one": "{{ count }} person",
+      "other": "{{ count }} people"
+    },
+    "relayCount": {
+      "one": "{{ count }} relay",
+      "other": "{{ count }} relays"
+    },
+    "topicCount": {
+      "one": "{{ count }} topic",
+      "other": "{{ count }} topics"
+    },
+    "kinds": {
+      "relaySet": "Relay set",
+      "bookmark": "Bookmarks",
+      "curation": "Curation",
+      "video": "Video collection",
+      "picture": "Picture collection",
+      "interest": "Interests",
+      "starterPack": "Starter pack"
+    }
+  }
+}

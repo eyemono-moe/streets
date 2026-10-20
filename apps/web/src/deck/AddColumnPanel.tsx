@@ -29,6 +29,7 @@ import {
   useUserSearch,
   userSource,
 } from "../completion/sources";
+import { plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import Completion from "../ui/Completion";
@@ -80,19 +81,21 @@ const ChannelPicker: Component<{
       <div class="flex items-center gap-1">
         <IconButton
           icon="i-material-symbols:arrow-back-rounded"
-          label="カラムの種類へ戻る"
+          label={t("deck.addColumn.backToKinds")}
           onClick={() => props.onBack()}
         />
         <div>
-          <h3 class="c-primary font-600 text-body">チャンネルを選ぶ</h3>
+          <h3 class="c-primary font-600 text-body">
+            {t("deck.addColumn.channelPicker.title")}
+          </h3>
           <p class="c-secondary mt-0.5 text-caption">
-            選んだチャンネルのメッセージを表示します。
+            {t("deck.addColumn.channelPicker.description")}
           </p>
         </div>
         <IconButton
           icon="i-material-symbols:open-in-new-rounded"
-          label="一覧をデッキのカラムとして足す"
-          title="一覧をデッキのカラムとして足す"
+          label={t("deck.addColumn.addListAsColumn")}
+          title={t("deck.addColumn.addListAsColumn")}
           class="ml-auto self-start"
           onClick={() => {
             const column = buildColumn("channels", "");
@@ -148,19 +151,21 @@ const FollowSetPicker: Component<{
       <div class="flex items-center gap-1">
         <IconButton
           icon="i-material-symbols:arrow-back-rounded"
-          label="カラムの種類へ戻る"
+          label={t("deck.addColumn.backToKinds")}
           onClick={() => props.onBack()}
         />
         <div>
-          <h3 class="c-primary font-600 text-body">リストを選ぶ</h3>
+          <h3 class="c-primary font-600 text-body">
+            {t("deck.addColumn.followSetPicker.title")}
+          </h3>
           <p class="c-secondary mt-0.5 text-caption">
-            選んだリストに入っている人の投稿を表示します。
+            {t("deck.addColumn.followSetPicker.description")}
           </p>
         </div>
         <IconButton
           icon="i-material-symbols:open-in-new-rounded"
-          label="一覧をデッキのカラムとして足す"
-          title="一覧をデッキのカラムとして足す"
+          label={t("deck.addColumn.addListAsColumn")}
+          title={t("deck.addColumn.addListAsColumn")}
           class="ml-auto self-start"
           onClick={() =>
             dispatch({
@@ -205,10 +210,10 @@ export const UserSearchStatus: Component<{
   <Show when={props.searching || props.found !== undefined}>
     <p class="c-secondary text-caption" aria-live="polite">
       {props.searching
-        ? "検索リレーで探しています…"
+        ? t("deck.addColumn.userSearch.searching")
         : props.found === 0
-          ? "検索リレーでは見つかりませんでした"
-          : `検索リレーで ${props.found} 人見つかりました`}
+          ? t("deck.addColumn.userSearch.none")
+          : plural("deck.addColumn.userSearch.found", props.found ?? 0)}
     </p>
   </Show>
 );
@@ -235,9 +240,7 @@ const UserPicker: Component<{
   const submit = () => {
     const column = buildColumn("user", text());
     if (!column) {
-      setError(
-        "候補から選ぶか、npub1… か nprofile1… で始まるユーザーの ID を入力してください",
-      );
+      setError(t("deck.addColumn.userPicker.invalid"));
       return;
     }
     dispatch({ type: "deck/add-column", column });
@@ -250,13 +253,15 @@ const UserPicker: Component<{
       <div class="flex items-center gap-1">
         <IconButton
           icon="i-material-symbols:arrow-back-rounded"
-          label="カラムの種類へ戻る"
+          label={t("deck.addColumn.backToKinds")}
           onClick={() => props.onBack()}
         />
         <div>
-          <h3 class="c-primary font-600 text-body">ユーザーを選ぶ</h3>
+          <h3 class="c-primary font-600 text-body">
+            {t("deck.addColumn.userPicker.title")}
+          </h3>
           <p class="c-secondary mt-0.5 text-caption">
-            選んだ人のノートと返信を表示します。
+            {t("deck.addColumn.userPicker.description")}
           </p>
         </div>
       </div>
@@ -267,13 +272,16 @@ const UserPicker: Component<{
           submit();
         }}
       >
-        <Completion sources={people} label="人の候補">
+        <Completion
+          sources={people}
+          label={t("deck.addColumn.userPicker.candidates")}
+        >
           {(attach) => (
             <input
               ref={attach}
               class={textInputClass}
-              placeholder="名前・npub1… で探す"
-              aria-label="カラムに出す人"
+              placeholder={t("deck.addColumn.userPicker.placeholder")}
+              aria-label={t("deck.addColumn.userPicker.inputLabel")}
               aria-invalid={error() !== undefined}
               autofocus
               value={text()}
@@ -302,7 +310,7 @@ const UserPicker: Component<{
           block
           disabled={text().trim() === ""}
         >
-          ユーザーカラムを追加
+          {t("deck.addColumn.userPicker.submit")}
         </Button>
       </form>
     </section>
@@ -321,13 +329,15 @@ const TimeslipPicker: Component<{ onBack: () => void }> = (props) => {
       <div class="flex items-center gap-1">
         <IconButton
           icon="i-material-symbols:arrow-back-rounded"
-          label="カラムの種類へ戻る"
+          label={t("deck.addColumn.backToKinds")}
           onClick={() => props.onBack()}
         />
         <div>
-          <h3 class="c-primary font-600 text-body">日時を選ぶ</h3>
+          <h3 class="c-primary font-600 text-body">
+            {t("deck.addColumn.timeslipPicker.title")}
+          </h3>
           <p class="c-secondary mt-0.5 text-caption">
-            フォロー中の人の投稿を、選んだ日時から過去へさかのぼって表示します。
+            {t("deck.addColumn.timeslipPicker.description")}
           </p>
         </div>
       </div>
@@ -342,14 +352,14 @@ const TimeslipPicker: Component<{ onBack: () => void }> = (props) => {
         }}
       >
         <DateTimeInput
-          label="さかのぼり始める日時"
+          label={t("deck.addColumn.timeslipPicker.label")}
           value={until()}
           max={now}
           autofocus
           onChange={setUntil}
         />
         <Button type="submit" variant="primary" shape="rounded" block>
-          タイムスリップカラムを追加
+          {t("deck.addColumn.timeslipPicker.submit")}
         </Button>
       </form>
     </section>
@@ -454,30 +464,31 @@ const AddColumnPanel: Component<{
             <div class="flex items-center gap-1">
               <IconButton
                 icon="i-material-symbols:arrow-back-rounded"
-                label="カラムの種類へ戻る"
+                label={t("deck.addColumn.backToKinds")}
                 onClick={back}
               />
               <div>
-                <h3 class="c-primary font-600 text-body">リレーを選ぶ</h3>
+                <h3 class="c-primary font-600 text-body">
+                  {t("deck.addColumn.relayPicker.title")}
+                </h3>
                 <p class="c-secondary mt-0.5 text-caption">
-                  選んだリレーにある公開ノートを時系列で表示します。
+                  {t("deck.addColumn.relayPicker.description")}
                 </p>
               </div>
             </div>
             <div>
               <p class="c-secondary mt-0.5 text-caption">
-                URL
-                を入れるか、候補から選んでください。候補には、アカウントとフォローしている人が使っているリレーが出ます。
+                {t("deck.addColumn.relayPicker.hint")}
               </p>
             </div>
             <Show when={props.relayList.phase === "loading"}>
               <p class="c-secondary text-caption">
-                リレー設定を読み込んでいます…
+                {t("deck.addColumn.relayPicker.loading")}
               </p>
             </Show>
             <Show when={props.relayList.phase === "missing"}>
               <p class="c-secondary text-caption">
-                アカウントのリレー設定がありません。URLを直接入力できます。
+                {t("deck.addColumn.relayPicker.missing")}
               </p>
             </Show>
             <RelayColumnEditor
@@ -497,7 +508,7 @@ const AddColumnPanel: Component<{
                 if (column) dispatch({ type: "deck/add-column", column });
               }}
             >
-              リレーカラムを追加
+              {t("deck.addColumn.relayPicker.submit")}
             </Button>
           </section>
         </Match>

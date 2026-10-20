@@ -6,6 +6,7 @@ import {
   usageOp,
 } from "@streets/core/settings/relay-edit";
 import { type Component, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
@@ -17,23 +18,14 @@ import {
 import SegmentedControl from "../ui/SegmentedControl";
 import { useRelayEdit } from "./RelayMediator";
 
-const USAGES: { value: RelayUsage; label: string; icon: string }[] = [
-  {
-    value: "both",
-    label: "両方",
-    icon: "i-material-symbols:swap-vert-rounded",
-  },
-  {
-    value: "read",
-    label: "読み込み",
-    icon: "i-material-symbols:download-rounded",
-  },
-  {
-    value: "write",
-    label: "書き込み",
-    icon: "i-material-symbols:upload-rounded",
-  },
+const USAGES: { value: RelayUsage; icon: string }[] = [
+  { value: "both", icon: "i-material-symbols:swap-vert-rounded" },
+  { value: "read", icon: "i-material-symbols:download-rounded" },
+  { value: "write", icon: "i-material-symbols:upload-rounded" },
 ];
+
+const usageLabel = (usage: RelayUsage): string =>
+  t(`settings.relays.usage.${usage}`);
 
 /**
  * 足すときも使い方を変えるときも同じダイアログで選ばせる。外す操作は置かない ——
@@ -66,31 +58,36 @@ const RelayUseDialog: Component<{
         <DialogContent class="w-full max-w-105 gap-4 rounded-3 border border-control p-4">
           <DialogTitle class="font-600 text-body">
             {props.current === undefined
-              ? "このリレーを自分も使いますか？"
-              : "このリレーの使い方を変えますか？"}
+              ? t("settings.relayUse.addTitle")
+              : t("settings.relayUse.changeTitle")}
           </DialogTitle>
           <p class="break-all text-caption">{relayLabel(props.url)}</p>
           <SegmentedControl
-            label="このリレーの使い方"
+            label={t("settings.relayUse.usageLabel")}
             value={usage()}
-            options={USAGES}
+            options={USAGES.map((item) => ({
+              ...item,
+              label: usageLabel(item.value),
+            }))}
             onChange={setUsage}
           />
           <Show when={props.current !== undefined}>
             <p class="c-secondary text-caption">
-              使うのをやめるときは、設定の「リレー」から外してください。
+              {t("settings.relayUse.stopHint")}
             </p>
           </Show>
           <div class="flex justify-end gap-2">
             <Button variant="secondary" onClick={props.onClose}>
-              キャンセル
+              {t("settings.relayUse.cancel")}
             </Button>
             <Button
               variant="primary"
               disabled={props.current === usage()}
               onClick={submit}
             >
-              {props.current === undefined ? "追加" : "変更"}
+              {props.current === undefined
+                ? t("settings.relayUse.add")
+                : t("settings.relayUse.change")}
             </Button>
           </div>
         </DialogContent>
@@ -121,7 +118,7 @@ const RelayUseButton: Component<{
         when={current() !== undefined}
         fallback={
           <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-            自分も使う
+            {t("settings.relayUse.use")}
           </Button>
         }
       >
@@ -129,10 +126,12 @@ const RelayUseButton: Component<{
           variant="secondary"
           size="sm"
           icon="i-material-symbols:check-rounded"
-          aria-label={`${relayLabel(props.url)} の使い方を変える`}
+          aria-label={t("settings.relayUse.changeLabel", {
+            relay: relayLabel(props.url),
+          })}
           onClick={() => setOpen(true)}
         >
-          使用中
+          {t("settings.relayUse.inUse")}
         </Button>
       </Show>
       <Show when={open()}>

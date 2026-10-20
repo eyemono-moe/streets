@@ -263,8 +263,8 @@ export const createEventDialogs = (event: () => NostrEvent) => {
     }
   };
   const openDialog = (dialog: EventDialog | undefined) => {
-    const what = needsAccount(dialog);
-    if (what && !gate(what)) return;
+    const reason = needsAccount(dialog);
+    if (reason && !gate(reason)) return;
     setOpen(dialog);
   };
   const close = () => setOpen(undefined);

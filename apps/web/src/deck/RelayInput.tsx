@@ -14,15 +14,11 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import { Portal } from "../ui/Portal";
 import { textInputClass } from "../ui/TextField";
 import { useFolloweeWriteRelays } from "./use-followee-relays";
-
-const GROUP_LABEL: Record<RelaySuggestion["group"], string> = {
-  account: "アカウントで使っているリレー",
-  followees: "フォローしている人が使っているリレー",
-};
 
 /**
  * リレーを 1 つ足す欄。焦点を当てると、自分のリレーとフォローしている人が使って
@@ -105,13 +101,13 @@ const RelayInput: Component<{
       class="flex flex-col gap-1.5"
     >
       <Combobox.Label class="c-secondary font-600 text-caption">
-        リレーを足す
+        {t("deck.relayInput.label")}
       </Combobox.Label>
       {props.options}
       <Combobox.Control class="flex items-center gap-2">
         <Combobox.Input
           class={`${textInputClass} min-w-0 flex-1`}
-          placeholder="URL を入れるか、候補から選ぶ"
+          placeholder={t("deck.relayInput.placeholder")}
           onKeyDown={(event) => {
             // 候補を選んでいるときの Enter は Combobox に任せる（その候補を足す）。
             if (
@@ -130,7 +126,7 @@ const RelayInput: Component<{
           disabled={props.disabled}
           onClick={addTyped}
         >
-          追加
+          {t("deck.relayInput.add")}
         </Button>
       </Combobox.Control>
       <Show when={error()}>
@@ -143,7 +139,9 @@ const RelayInput: Component<{
               {([group, groupItems]) => (
                 <Combobox.ItemGroup>
                   <Combobox.ItemGroupLabel class="c-secondary block px-2.5 pt-2 pb-0.5 font-600 text-caption">
-                    {GROUP_LABEL[group as RelaySuggestion["group"]]}
+                    {t(
+                      `deck.relayInput.group.${group as RelaySuggestion["group"]}`,
+                    )}
                   </Combobox.ItemGroupLabel>
                   <For each={groupItems}>
                     {(item) => (
@@ -164,7 +162,7 @@ const RelayInput: Component<{
                         <Show when={item.added}>
                           <span
                             class="i-material-symbols:check-rounded c-accent-5 size-4 shrink-0"
-                            aria-label="追加済み"
+                            aria-label={t("deck.relayInput.added")}
                           />
                         </Show>
                       </Combobox.Item>

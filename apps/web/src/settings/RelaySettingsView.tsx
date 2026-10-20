@@ -11,6 +11,7 @@ import {
 } from "@streets/core/settings/relay-edit";
 import { type Component, For, Match, Switch } from "solid-js";
 import RelayInput from "../deck/RelayInput";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -41,15 +42,15 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
     <SettingsSection
       id="relays"
       scope="account"
-      description="リレーは、投稿やリアクションをアップロードして保存しておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。"
+      description={t("settings.relays.description")}
     >
       <Switch>
         <Match when={props.loading}>
-          <p class="c-secondary text-caption">読み込み中…</p>
+          <p class="c-secondary text-caption">{t("settings.relays.loading")}</p>
         </Match>
         <Match when={props.entries.length === 0}>
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            {"まだリレーを選んでいません。いまは次のリレーを使っています。"}
+            {t("settings.relays.noneChosen")}
             <For each={props.fallback}>
               {(url) => (
                 <span class="c-primary block break-all">{relayLabel(url)}</span>
@@ -87,23 +88,14 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
 
 // 説明の「読み込み」「書き込み」と同じ語を使う。矢印は受け取る（↓）・送る（↑）の向き。
 // 雲のアイコンは「アカウントに保存」の印に使っているので、ここでは使わない。
-const USAGES: { value: RelayUsage; label: string; icon: string }[] = [
-  {
-    value: "both",
-    label: "両方",
-    icon: "i-material-symbols:swap-vert-rounded",
-  },
-  {
-    value: "read",
-    label: "読み込み",
-    icon: "i-material-symbols:download-rounded",
-  },
-  {
-    value: "write",
-    label: "書き込み",
-    icon: "i-material-symbols:upload-rounded",
-  },
+const USAGES: { value: RelayUsage; icon: string }[] = [
+  { value: "both", icon: "i-material-symbols:swap-vert-rounded" },
+  { value: "read", icon: "i-material-symbols:download-rounded" },
+  { value: "write", icon: "i-material-symbols:upload-rounded" },
 ];
+
+const usageLabel = (usage: RelayUsage): string =>
+  t(`settings.relays.usage.${usage}`);
 
 const RelayRow: Component<{
   entry: RelayListEntry;
@@ -125,13 +117,16 @@ const RelayRow: Component<{
         actions={
           <div class="ml-auto flex items-center gap-1">
             <SegmentedControl
-              label={`${relayLabel(props.entry.url)} の使い方`}
+              label={t("settings.relays.usageLabel", {
+                relay: relayLabel(props.entry.url),
+              })}
               variant="secondary"
               value={usageOf(props.entry)}
               options={USAGES.map((usage) => ({
                 ...usage,
+                label: usageLabel(usage.value),
                 disabled: !props.allows(usageOp(props.entry.url, usage.value)),
-                hint: "これにすると、読み込みか書き込みに使うリレーが 1 つも無くなります",
+                hint: t("settings.relays.lastUsageHint"),
               }))}
               onChange={(usage) =>
                 props.onEdit(usageOp(props.entry.url, usage))
@@ -140,12 +135,16 @@ const RelayRow: Component<{
             {/* 一覧から外すだけで、リレーそのものは消えない（remove）。ゴミ箱や × にしない。 */}
             <IconButton
               icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-              label={`${relayLabel(props.entry.url)} を一覧から外す`}
+              label={t("settings.relays.removeLabel", {
+                relay: relayLabel(props.entry.url),
+              })}
               disabled={!props.allows(remove())}
               title={
                 props.allows(remove())
-                  ? `${relayLabel(props.entry.url)} を一覧から外す`
-                  : "これを外すと、読み込みか書き込みに使うリレーが 1 つも無くなります"
+                  ? t("settings.relays.removeLabel", {
+                      relay: relayLabel(props.entry.url),
+                    })
+                  : t("settings.relays.lastRemoveHint")
               }
               onClick={() => props.onEdit(remove())}
             />

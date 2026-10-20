@@ -266,7 +266,7 @@ const ChannelChat: Component<{
                     onClick={() =>
                       dispatch({
                         type: "deck/login",
-                        what: t("columns.blocks.channel.loginReason"),
+                        reason: t("columns.blocks.channel.loginReason"),
                       })
                     }
                   >

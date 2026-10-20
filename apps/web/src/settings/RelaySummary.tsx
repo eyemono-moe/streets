@@ -4,15 +4,16 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import UserLink from "../note/UserLink";
 import { useRelayInfo } from "./relay-info-cache";
 
-const STATUS: Record<RelayStatus, { label: string; dot: string }> = {
-  "in-use": { label: "つながっています", dot: "bg-status-ok" },
-  failing: { label: "つながりにくくなっています", dot: "bg-status-warn" },
-  idle: { label: "今は使っていません", dot: "bg-status-off" },
-};
+const STATUS = {
+  "in-use": { key: "inUse", dot: "bg-status-ok" },
+  failing: { key: "failing", dot: "bg-status-warn" },
+  idle: { key: "idle", dot: "bg-status-off" },
+} as const satisfies Record<RelayStatus, { key: string; dot: string }>;
 
 const RelayIcon: Component<{
   info: RelayInfo | undefined;
@@ -60,7 +61,7 @@ const RelayDetails: Component<{ info: RelayInfo | undefined }> = (props) => (
     <Show when={props.info?.description}>
       {(description) => (
         <>
-          <dt class="c-secondary">説明</dt>
+          <dt class="c-secondary">{t("settings.relaySummary.description")}</dt>
           <dd class="c-primary break-anywhere line-clamp-4 whitespace-pre-wrap">
             {description()}
           </dd>
@@ -70,7 +71,7 @@ const RelayDetails: Component<{ info: RelayInfo | undefined }> = (props) => (
     <Show when={props.info?.pubkey}>
       {(pubkey) => (
         <>
-          <dt class="c-secondary">管理者</dt>
+          <dt class="c-secondary">{t("settings.relaySummary.admin")}</dt>
           <dd class="c-primary flex min-w-0 items-center gap-1.5">
             <Avatar pubkey={pubkey()} size="tiny" />
             <UserLink pubkey={pubkey()} class="c-primary min-w-0 truncate" />
@@ -81,7 +82,7 @@ const RelayDetails: Component<{ info: RelayInfo | undefined }> = (props) => (
     <Show when={props.info?.contact}>
       {(contact) => (
         <>
-          <dt class="c-secondary">連絡先</dt>
+          <dt class="c-secondary">{t("settings.relaySummary.contact")}</dt>
           <dd class="c-primary break-all">
             <Show
               when={/^(mailto:|https:\/\/)/.test(contact()) && contact()}
@@ -148,7 +149,7 @@ const RelaySummary: Component<{
             <Show when={props.status}>
               {(status) => (
                 <span class="c-secondary text-caption">
-                  {STATUS[status()].label}
+                  {t(`settings.relaySummary.status.${STATUS[status()].key}`)}
                 </span>
               )}
             </Show>

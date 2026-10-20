@@ -9,6 +9,7 @@ import { type ParentComponent, Show } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEventActions } from "../actions";
 import { columnView } from "../columns/column-views";
+import { t } from "../i18n/locale";
 import { useLoginGate } from "../login-gate";
 import { composeDrafts } from "../note/compose-drafts";
 import { ComposeMediator } from "../note/ComposeMediator";
@@ -38,7 +39,7 @@ const PipFrame: ParentComponent<{
       case "deck/open-panel":
       case "deck/toggle-panel":
         if (event.panel !== "compose") return false;
-        if (!gate("投稿")) return true;
+        if (!gate(t("deck.loginReason.post"))) return true;
         apply(event);
         return true;
       case "deck/close-panel":
@@ -66,7 +67,7 @@ const PipFrame: ParentComponent<{
           {(actions) => (
             <SidePanelMotion open={ui.panel === "compose"} full>
               <SidePanel
-                title="投稿する"
+                title={t("deck.panels.compose")}
                 icon="i-material-symbols:edit-square-outline-rounded"
                 full
               >
@@ -74,7 +75,7 @@ const PipFrame: ParentComponent<{
                   send={(text, media, emoji, contentWarning) =>
                     actions().post(text, media, emoji, contentWarning)
                   }
-                  failure="投稿できませんでした"
+                  failure={t("deck.panels.composeFailed")}
                   onSent={() => apply({ type: "deck/close-panel" })}
                   onClose={() => apply({ type: "deck/close-panel" })}
                   drafts

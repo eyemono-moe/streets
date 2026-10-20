@@ -4,6 +4,7 @@ import { loadSearchHistoryEnabled } from "@streets/core/search/history";
 import { DEFAULT_SEARCH_RELAYS } from "@streets/core/settings/search-relay-list";
 import { type Component, For, Match, Show, Switch } from "solid-js";
 import RelayInput from "../deck/RelayInput";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -30,18 +31,17 @@ const SearchSettingsView: Component<SearchSettingsViewProps> = (props) => (
     <SettingsSection
       id="searchRelays"
       scope="account"
-      description="言葉での検索は、検索に対応したリレー（NIP-50）へ問い合わせます。投稿を読むリレーとは別に指定できます。上から順に、すべてへ問い合わせます。"
+      description={t("settings.search.relays.description")}
     >
       <Show when={!props.chosen && props.relays.length > 0}>
         <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
-          まだ自分で選んでいません。いまは下のリレーへ問い合わせています。外したり足したりすると、その一覧を自分の設定として保存します。
+          {t("settings.search.relays.notChosen")}
         </p>
       </Show>
       <Switch>
         <Match when={props.relays.length === 0}>
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            検索するリレーがありません。このままでは言葉で検索できません。下のおすすめから足すか、URL
-            を入力してください。
+            {t("settings.search.relays.empty")}
           </p>
         </Match>
         <Match when={props.relays.length > 0}>
@@ -72,10 +72,10 @@ const SearchHistorySetting: Component<{ on: boolean }> = (props) => {
       scope="device"
       changed={props.on !== initial}
       onReset={() => dispatch({ type: "deck/set-search-history", on: initial })}
-      description="探した条件を、検索パネルの入力欄が空のときに並べます。アカウントごとにこの端末だけに残し、リレーには送りません。オフにすると、それまでの履歴も消します。"
+      description={t("settings.search.history.description")}
     >
       <ToggleSwitch
-        label="検索履歴を残す"
+        label={t("settings.search.history.switch")}
         checked={props.on}
         onChange={(on) => dispatch({ type: "deck/set-search-history", on })}
       />
@@ -92,8 +92,10 @@ const RelayRow: Component<{ relay: RelayUrl; disabled: boolean }> = (props) => {
       </span>
       <IconButton
         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-        label={`${props.relay} を一覧から外す`}
-        title="一覧から外す"
+        label={t("settings.search.relays.removeLabel", {
+          relay: props.relay,
+        })}
+        title={t("settings.search.relays.remove")}
         disabled={props.disabled}
         onClick={() =>
           dispatch({ type: "search-relays/remove", url: props.relay })
@@ -114,7 +116,9 @@ const Recommended: Component<{
   return (
     <Show when={rest().length > 0}>
       <div class="flex flex-col gap-1.5">
-        <span class="c-secondary font-600 text-caption">おすすめ</span>
+        <span class="c-secondary font-600 text-caption">
+          {t("settings.search.relays.recommended")}
+        </span>
         <div class="flex flex-wrap gap-2">
           <For each={rest()}>
             {(relay) => (
@@ -153,9 +157,7 @@ const AddRelay: Component<{
         disabled={props.disabled}
         onAdd={(url) => dispatch({ type: "search-relays/add", url })}
       />
-      <p class="c-secondary text-caption">
-        検索に対応していないリレーを入れても、そこからは結果が返りません。
-      </p>
+      <p class="c-secondary text-caption">{t("settings.search.relays.hint")}</p>
     </div>
   );
 };

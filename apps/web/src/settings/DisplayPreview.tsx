@@ -1,6 +1,7 @@
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { buildReaction } from "@streets/core/nostr/reaction";
 import type { Component } from "solid-js";
+import { t } from "../i18n/locale";
 import Event from "../note/Event";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -17,16 +18,21 @@ const DisplayPreview: Component = () => {
   });
   const friend = createStoryAuthor(202, {
     name: "friend",
-    displayName: "ともだち",
+    displayName: t("settings.preview.friend"),
   });
   const other = createStoryAuthor(203, {
     name: "other",
-    displayName: "ほかのひと",
+    displayName: t("settings.preview.other"),
   });
-  const viewer = createStoryAuthor(204, { name: "you", displayName: "あなた" });
+  const viewer = createStoryAuthor(204, {
+    name: "you",
+    displayName: t("settings.preview.viewer"),
+  });
 
   const note = author.note(
-    `色を確かめるためのノート。https://example.com/ へのリンク、#streets のハッシュタグ、nostr:${encodeBech32("npub", friend.pubkey)} へのメンションが入っています。`,
+    t("settings.preview.note", {
+      npub: encodeBech32("npub", friend.pubkey),
+    }),
     [["t", "streets"]],
   );
   const reactions = [

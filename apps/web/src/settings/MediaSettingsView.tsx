@@ -12,6 +12,7 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -42,10 +43,10 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
             on: loadImageDownscaling(null),
           })
         }
-        description="オンにすると、画像を画面に合う大きさに縮めてから表示します。使うメモリが減り、動作が軽くなる可能性がありますが、最初の表示は遅くなります。オフにすると、元の画像をそのまま読むため、最初の表示は早くなりますが、メモリを多く使う場合があります。"
+        description={t("settings.media.downscaling.description")}
       >
         <ToggleSwitch
-          label="画像を縮めて表示する"
+          label={t("settings.media.downscaling.switch")}
           checked={props.imageDownscaling}
           onChange={(on) =>
             dispatch({ type: "deck/set-image-downscaling", on })
@@ -55,18 +56,17 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
       <SettingsSection
         id="imageUpload"
         scope="account"
-        description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へアップロードして、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへアップロードします。"
+        description={t("settings.media.upload.description")}
       >
         <Show when={!props.chosen && props.servers.length > 0}>
           <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
-            まだ自分で選んでいません。いまは下のアップロード先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。
+            {t("settings.media.upload.notChosen")}
           </p>
         </Show>
         <Switch>
           <Match when={props.servers.length === 0}>
             <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-              アップロード先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL
-              を入れてください。
+              {t("settings.media.upload.empty")}
             </p>
           </Match>
           <Match when={true}>
@@ -106,19 +106,23 @@ const ServerRow: Component<{
               class="i-material-symbols:warning-outline-rounded c-status-warn mt-0.5 size-3.5 shrink-0"
               aria-hidden="true"
             />
-            古い方式（NIP-96）のアップロード先です。将来的にこのアップロード先は使用できなくなる可能性があります
+            {t("settings.media.upload.nip96")}
           </span>
         </Show>
       </div>
       <div class="ml-auto flex items-center gap-2">
         <Show when={props.primary}>
-          <span class="c-secondary text-caption">いちばん先に試す</span>
+          <span class="c-secondary text-caption">
+            {t("settings.media.upload.primary")}
+          </span>
         </Show>
         {/* 一覧から外すだけで、アップロードしたファイルは消えない（remove）。 */}
         <IconButton
           icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-          label={`${props.server.url} を一覧から外す`}
-          title="一覧から外す"
+          label={t("settings.media.upload.removeLabel", {
+            server: props.server.url,
+          })}
+          title={t("settings.media.upload.remove")}
           disabled={props.disabled}
           onClick={() =>
             dispatch({ type: "media/remove-server", url: props.server.url })
@@ -142,7 +146,9 @@ const Recommended: Component<{
   return (
     <Show when={rest().length > 0}>
       <div class="flex flex-col gap-1.5">
-        <span class="c-secondary font-600 text-caption">おすすめ</span>
+        <span class="c-secondary font-600 text-caption">
+          {t("settings.media.upload.recommended")}
+        </span>
         <div class="flex flex-wrap gap-2">
           <For each={rest()}>
             {(server) => (
@@ -199,7 +205,7 @@ const AddServer: Component<{
         <input
           class={`${textInputClass} min-w-0 flex-1`}
           placeholder="https://"
-          aria-label="足すアップロード先の URL"
+          aria-label={t("settings.media.upload.urlLabel")}
           aria-invalid={error() !== undefined}
           aria-describedby="media-input-error"
           value={text()}
@@ -214,14 +220,14 @@ const AddServer: Component<{
           icon="i-material-symbols:add-rounded"
           disabled={props.disabled}
         >
-          追加
+          {t("settings.media.upload.add")}
         </Button>
       </div>
       <Show
         when={error()}
         fallback={
           <p class="c-secondary text-caption">
-            アップロード先は自分で選べます。運営者や保存期間はサーバーごとに違うので、アップロードしたものが消えても困らないものだけを置いてください。
+            {t("settings.media.upload.hint")}
           </p>
         }
       >

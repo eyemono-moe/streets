@@ -2,6 +2,7 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckUiState } from "@streets/core/deck/deck-ui";
 import { type Component, For, type JSX, Show } from "solid-js";
 import { columnView } from "../columns/column-views";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -52,7 +53,7 @@ const Row: Component<{
       </span>
       <IconButton
         icon="i-material-symbols:delete-outline-rounded"
-        label={`「${title()}」を削除`}
+        label={t("deck.columnArrange.delete", { title: title() })}
         // 行を押すと掴むので、ここで押したときは掴まない。
         onPointerDown={(event) => event.stopPropagation()}
         onClick={() =>
@@ -72,8 +73,12 @@ const Row: Component<{
       >
         <IconButton
           icon="i-material-symbols:drag-indicator"
-          label={`「${title()}」を動かす（${props.position + 1} / ${props.count} 番目）`}
-          title="掴んで上下に動かすか、↑↓ キーで動かす"
+          label={t("deck.columnArrange.move", {
+            title: title(),
+            position: props.position + 1,
+            count: props.count,
+          })}
+          title={t("deck.columnArrange.moveHint")}
           aria-keyshortcuts="ArrowUp ArrowDown"
           onKeyDown={(event) => {
             if (event.key === "ArrowUp") {
@@ -134,13 +139,11 @@ const ColumnArrangePanel: Component<{
         when={props.columns.length > 0}
         fallback={
           <p class="c-secondary text-caption">
-            このデッキにはカラムがありません。
+            {t("deck.columnArrange.empty")}
           </p>
         }
       >
-        <p class="c-secondary text-caption">
-          行を掴んで上下に動かすと、カラムの並びが変わります。
-        </p>
+        <p class="c-secondary text-caption">{t("deck.columnArrange.hint")}</p>
         {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
         <ol class="relative m-0 flex list-none flex-col gap-1.5 p-0" ref={list}>
           <For each={order.mounted()}>
@@ -173,7 +176,7 @@ const ColumnArrangePanel: Component<{
           dispatch({ type: "deck/open-panel", panel: "add-column" })
         }
       >
-        カラムを追加
+        {t("deck.columnArrange.add")}
       </Button>
     </div>
   );

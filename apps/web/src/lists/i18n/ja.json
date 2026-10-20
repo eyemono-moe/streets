@@ -1,0 +1,137 @@
+{
+  "common": {
+    "cancel": "やめる",
+    "loading": "読み込み中…",
+    "list": "リスト",
+    "createList": "リストを作る"
+  },
+  "visibility": {
+    "label": {
+      "private": "非公開",
+      "public": "公開"
+    },
+    "memberHint": {
+      "private": "非公開：暗号化して保存するので、この人をリストに入れたことはほかの人には分かりません。",
+      "public": "公開：この人をリストに入れたことを、ほかの人も見られます。"
+    },
+    "privateUnavailable": "今のログインの方法では、非公開のメンバーを扱えません",
+    "none": "入れない",
+    "membershipHint": "非公開で入れると暗号化して保存するので、入れたことはほかの人には分かりません。公開で入れたことは、ほかの人も見られます。"
+  },
+  "summary": {
+    "members": {
+      "one": "{{ count }} 人",
+      "other": "{{ count }} 人"
+    },
+    "membersWithPrivate": {
+      "one": "{{ total }}・非公開 {{ count }} 人",
+      "other": "{{ total }}・非公開 {{ count }} 人"
+    },
+    "legacyMuteNotice": "一部のクライアントでは、このリストがミュートする人の指定として扱われている可能性があります"
+  },
+  "addTo": {
+    "title": "リストに追加",
+    "membershipLabel": "「{{ name }}」に入れるか",
+    "empty": "まだリストがありません。",
+    "create": "新しいリストを作って入れる",
+    "createVisibility": "入れるときの公開範囲",
+    "createVisibilityLabel": "新しいリストに入れるときの公開範囲",
+    "createSubmit": "作って入れる"
+  },
+  "createForm": {
+    "name": "リストの名前",
+    "nameRequired": "リストの名前を入力してください",
+    "visibleToOthers": "リストの名前と説明は、ほかの人も見られます。"
+  },
+  "form": {
+    "createTitle": "リストを作る",
+    "editTitle": "リストの情報を直す",
+    "title": "名前（必須）",
+    "titlePlaceholder": "例：よく話す人",
+    "description": "説明",
+    "descriptionPlaceholder": "どんな人を集めたリストか",
+    "image": "画像",
+    "visibleToOthers": "リストの名前・説明・画像は、ほかの人も見られます。入れる人ごとに、公開か非公開かを選べます。",
+    "blocked": "保存するか、やめてから閉じてください",
+    "sending": "送信中…",
+    "save": "保存",
+    "unchanged": "変えたところがありません"
+  },
+  "info": {
+    "invalidUser": "npub1… か nprofile1… で始まる、ユーザーの ID を入力してください",
+    "alreadyMember": "もうこのリストに入っています",
+    "visibility": "公開範囲",
+    "candidates": "人の候補",
+    "searchPlaceholder": "名前・npub1… で探す",
+    "memberInput": "リストに入れる人",
+    "add": "追加",
+    "removeMember": "リストから外す",
+    "delete": "リストを削除",
+    "deleteNotice": "リストそのものを削除します。入っている人やフォローには影響しません。元には戻せません。",
+    "confirmDelete": "削除する",
+    "linkCopied": "リンクをコピーしました",
+    "linkCopyFailed": "リンクをコピーできませんでした",
+    "notFound": "このリストが見つかりません。削除されたか、リレーから取得できませんでした。",
+    "author": "作った人",
+    "edit": "情報を直す",
+    "copyLink": "リンクをコピー",
+    "members": "入っている人（{{ summary }}）",
+    "noMembersEditable": "まだ誰も入っていません。上の欄や、投稿・人のメニューの「リストに追加」から入れられます。",
+    "noMembers": "まだ誰も入っていません。"
+  },
+  "listView": {
+    "ownTab": "作ったリスト",
+    "ownTitle": "あなたが作ったリスト（名前順）",
+    "ownEmpty": "まだリストがありません。人をまとめて、その人たちの投稿だけを流すカラムを作れます。",
+    "memberOfTab": "入っているリスト",
+    "memberOfTitle": "あなたを公開で入れているリスト",
+    "memberOfEmpty": "あなたを公開で入れているリストは見つかりませんでした。",
+    "memberOfPrivateNote": "非公開で入れられたリストは、作った人にしか分からないので、ここには出ません。",
+    "label": "リストの一覧"
+  },
+  "write": {
+    "list": "リスト",
+    "delete": "リストの削除",
+    "deleteFailed": "リストを削除できませんでした",
+    "createFailed": "リストを作れませんでした",
+    "saveFailed": "リストを保存できませんでした",
+    "addFailed": "リストに追加できませんでした",
+    "removeFailed": "リストから外せませんでした",
+    "moveFailed": "リストの公開範囲を変えられませんでした"
+  },
+  "privatePart": {
+    "unavailable": "今のログインの方法では非公開のメンバーを読めないため、公開のメンバーだけを表示しています。",
+    "invalid": "非公開のメンバーを読み取れませんでした。公開のメンバーだけを表示しています。"
+  },
+  "listSet": {
+    "addRelayColumn": "{{ relay }} をデッキのカラムとして足す",
+    "moreRelays": "ほか {{ count }} 個",
+    "moreEvents": "ほか {{ count }} 件",
+    "relaySeparator": "、",
+    "eventCount": {
+      "one": "{{ count }} 件",
+      "other": "{{ count }} 件"
+    },
+    "peopleCount": {
+      "one": "{{ count }} 人",
+      "other": "{{ count }} 人"
+    },
+    "relayCount": {
+      "one": "リレー {{ count }} 個",
+      "other": "リレー {{ count }} 個"
+    },
+    "topicCount": {
+      "one": "話題 {{ count }} 個",
+      "other": "話題 {{ count }} 個"
+    },
+    "kinds": {
+      "relaySet": "リレーセット",
+      "bookmark": "ブックマーク",
+      "curation": "まとめ",
+      "video": "動画のまとめ",
+      "picture": "画像のまとめ",
+      "interest": "好きな話題",
+      "starterPack": "スターターパック"
+    }
+  }
+}
