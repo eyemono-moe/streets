@@ -16,9 +16,10 @@ const DeckStrip = (props: {
   <ScrollArea.Root class={`relative ${props.class ?? ""}`}>
     {/* OS のスクロールバーは溝の分だけ帯の背景色がカラムの下に覗くので、
         消して細いつまみをカラムの上に重ねる。 */}
+    {/* 見えている幅を、中の余白（DeckEndSpace）が cqw で読めるようにする。 */}
     <ScrollArea.Viewport
       ref={props.ref}
-      class="scrollbar-none h-full bg-tertiary"
+      class="scrollbar-none h-full bg-tertiary [container-type:inline-size]"
       onPointerDown={(event) => props.onPointerDown?.(event)}
       onKeyDown={(event) => props.onKeyDown?.(event)}
     >
