@@ -33,6 +33,7 @@ import {
   userSource,
 } from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { t } from "../i18n/locale";
 import ImageUrlField from "../media/ImageUrlField";
 import { useNip05Lookup } from "../profile/nip05";
 import { Nip05View } from "../profile/Nip05Badge";
@@ -104,7 +105,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
       <SettingsSection
         id="profile"
         scope="account"
-        description="ほかの人に見える名前やアイコンです。ほかのアプリでも同じプロフィールが表示されます。"
+        description={t("settings.account.profileDescription")}
       >
         <Show when={!filter}>
           <ProfilePreview
@@ -127,7 +128,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 state={props.state}
                 emoji
                 label={settingTitle("profileDisplayName")}
-                placeholder="例：わたし"
+                placeholder={t("settings.account.displayNameExample")}
               />
             </Show>
             <Show when={visible("profileName")}>
@@ -136,8 +137,8 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 state={props.state}
                 emoji
                 label={settingTitle("profileName")}
-                placeholder="例：me"
-                hint="表示名の下に @ を付けて出ます。"
+                placeholder={t("settings.account.nameExample")}
+                hint={t("settings.account.nameHint")}
               />
             </Show>
           </div>
@@ -189,15 +190,16 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 placeholder="name@example.com"
                 hint={
                   <>
-                    持っているドメインで、このアカウントが自分のものだと示せます。
+                    {t("settings.account.nip05.hintBefore")}
                     <a
                       class="text-link"
                       href="https://welcome.nostr-jp.org/tutorial/nip-05.html"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      NIP-05 とは？
+                      {t("settings.account.nip05.hintLink")}
                     </a>
+                    {t("settings.account.nip05.hintAfter")}
                   </>
                 }
               />
@@ -218,7 +220,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 label={settingTitle("profileLud16")}
                 type="email"
                 placeholder="name@wallet.example"
-                hint="Zap（ビットコインでの投げ銭）を受け取るウォレットのアドレスです。ウォレットのアプリに表示されています。空欄なら、あなたの投稿に Zap は送れません。"
+                hint={t("settings.account.lud16Hint")}
               />
             </Show>
           </div>
@@ -240,8 +242,8 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 role={warned() ? "alert" : undefined}
               >
                 {warned()
-                  ? "保存していない変更があります。保存するか、元に戻してから閉じてください"
-                  : "保存するまで、ほかの人には反映されません"}
+                  ? t("settings.account.unsavedWarning")
+                  : t("settings.account.unsavedNotice")}
               </p>
             </Show>
             <div class="flex flex-wrap items-center justify-end gap-2">
@@ -252,7 +254,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                   disabled={props.state.saving}
                   onClick={() => dispatch({ type: "profile/reset" })}
                 >
-                  元に戻す
+                  {t("settings.account.revert")}
                 </Button>
               </Show>
               <Button
@@ -260,7 +262,9 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 variant={props.state.saving ? "muted" : "primary"}
                 disabled={!canSave()}
               >
-                {props.state.saving ? "保存中…" : "保存"}
+                {props.state.saving
+                  ? t("settings.account.saving")
+                  : t("settings.account.save")}
               </Button>
             </div>
           </div>
@@ -269,7 +273,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
 
       <SettingsSection
         id="accountId"
-        description="ほかの人にあなたを教えるときや、ほかのアプリで同じアカウントを使うときの目印です。"
+        description={t("settings.account.idDescription")}
       >
         <AccountId pubkey={props.pubkey} />
       </SettingsSection>
@@ -281,10 +285,10 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             icon="i-material-symbols:logout-rounded"
             onClick={() => dispatch({ type: "deck/logout" })}
           >
-            この端末からログアウト
+            {t("settings.account.logout")}
           </Button>
           <p class="c-secondary text-caption">
-            プロフィールやデッキは消えません。もう一度ログインすれば、元のとおりに使えます。
+            {t("settings.account.logoutHint")}
           </p>
         </section>
       </Show>
@@ -336,37 +340,37 @@ const Nip05CheckResult: Component<{ check: Nip05Check }> = (props) => {
     <Show when={props.check.current()}>
       <Switch>
         <Match when={props.check.lookup.isFetching}>
-          <p class="c-secondary text-caption">ドメインに確認しています…</p>
+          <p class="c-secondary text-caption">
+            {t("settings.account.nip05.checking")}
+          </p>
         </Match>
         <Match
           when={nip05Status(lookup(), props.check.pubkey()) === "verified"}
         >
           <p class="c-accent-5 flex items-center gap-1 text-caption">
             <span class="i-material-symbols:verified-rounded size-[1.15em] shrink-0" />
-            ドメインで本人と確認できました
+            {t("settings.account.nip05.verified")}
           </p>
         </Match>
         <Match when={lookup()?.kind === "found"}>
           <p class="c-danger text-caption">
-            このドメインには、別のアカウントが「{name()}
-            」として登録されています。
-            {domain()} の nostr.json で「{name()}
-            」に書く公開鍵を、このアカウントのもの（hex）にしてください
+            {t("settings.account.nip05.found", {
+              name: name(),
+              domain: domain(),
+            })}
           </p>
         </Match>
         <Match when={lookup()?.kind === "missing"}>
           <p class="c-danger text-caption">
-            {domain()} の nostr.json に「{name()}
-            」が登録されていません。名前の綴りか、nostr.json
-            の中身を確かめてください
+            {t("settings.account.nip05.missing", {
+              name: name(),
+              domain: domain(),
+            })}
           </p>
         </Match>
         <Match when={lookup()?.kind === "unreachable"}>
           <p class="c-danger break-anywhere text-caption">
-            確認できませんでした。アドレスが合っているか、https://{domain()}
-            /.well-known/nostr.json
-            をほかのサイトから読めるようになっているか（CORS
-            の設定）を確かめてください
+            {t("settings.account.nip05.unreachable", { domain: domain() })}
           </p>
         </Match>
       </Switch>
@@ -483,7 +487,9 @@ const ProfilePreview: Component<{
   const tags = () => profileEmojiTags([], props.state.draft, emoji);
   return (
     <div class="flex flex-col gap-1.5">
-      <span class="c-secondary text-caption">カラムでの見え方</span>
+      <span class="c-secondary text-caption">
+        {t("settings.account.previewLabel")}
+      </span>
       <div class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0">
         {/* 見え方を確かめるだけなので、自己紹介の中の人やノートを押してもカラムは開かない。 */}
         <Mediates handle={(event) => event.type === "stack/open"}>
@@ -519,10 +525,10 @@ const AccountId: Component<{ pubkey: string }> = (props) => {
   const copy = async () => {
     try {
       await appWindow.navigator.clipboard.writeText(npub());
-      setCopied("コピーしました");
+      setCopied(t("settings.account.copied"));
     } catch {
       // 非セキュアな接続や権限拒否で失敗する。黙って何も起きないと壊れて見える。
-      setCopied("コピーできませんでした");
+      setCopied(t("settings.account.copyFailed"));
     }
     clearTimeout(timer);
     timer = setTimeout(() => setCopied(undefined), 2500);
@@ -538,7 +544,7 @@ const AccountId: Component<{ pubkey: string }> = (props) => {
         icon="i-material-symbols:content-copy-outline-rounded"
         onClick={() => void copy()}
       >
-        {copied() ?? "コピー"}
+        {copied() ?? t("settings.account.copy")}
       </Button>
     </div>
   );

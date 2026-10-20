@@ -1,4 +1,5 @@
 import { type Component, Match, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import type { DeckStore } from "./deck-store";
 
 /**
@@ -14,17 +15,19 @@ const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
           class="flex items-center gap-2 bg-secondary px-3 py-2 text-caption"
         >
           <span class="min-w-0 flex-1">
-            デッキを保存できませんでした：
-            {state().phase === "error" && "message" in state()
-              ? (state() as { message: string }).message
-              : ""}
+            {t("deck.syncNotice.saveFailed", {
+              message:
+                state().phase === "error" && "message" in state()
+                  ? (state() as { message: string }).message
+                  : "",
+            })}
           </span>
           <button
             type="button"
             class="c-primary shrink-0 cursor-pointer rounded-full border border-control bg-primary px-3 py-1"
             onClick={() => void props.store.refresh()}
           >
-            再試行
+            {t("deck.syncNotice.retry")}
           </button>
         </div>
       )}
@@ -34,22 +37,20 @@ const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
         role="alert"
         class="flex items-center gap-2 bg-secondary px-3 py-2 text-caption"
       >
-        <span class="min-w-0 flex-1">
-          別の端末でデッキが変わりました。どちらを残しますか？
-        </span>
+        <span class="min-w-0 flex-1">{t("deck.syncNotice.conflict")}</span>
         <button
           type="button"
           class="c-primary shrink-0 cursor-pointer rounded-full border border-control bg-primary px-3 py-1"
           onClick={() => void props.store.keepLocal()}
         >
-          この端末を残す
+          {t("deck.syncNotice.keepLocal")}
         </button>
         <button
           type="button"
           class="c-primary shrink-0 cursor-pointer rounded-full border border-control bg-primary px-3 py-1"
           onClick={() => props.store.useRemote()}
         >
-          別の端末に合わせる
+          {t("deck.syncNotice.useRemote")}
         </button>
       </div>
     </Match>

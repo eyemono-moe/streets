@@ -2,6 +2,7 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import { type Component, For, Show, createEffect, onCleanup } from "solid-js";
 import { ColumnHeaderActions } from "../columns/ColumnHeader";
+import { t } from "../i18n/locale";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import Avatar from "../note/Avatar";
 import { tourTarget } from "../tour/tour-target";
@@ -71,7 +72,7 @@ export const Sidebar: Component<{
         variant="primary"
         size="lg"
         icon="i-material-symbols:edit-square-outline-rounded"
-        label="投稿パネルを開く"
+        label={t("deck.nav.openCompose")}
         title={shortcutTitle("compose")}
         aria-keyshortcuts={ariaKeyShortcuts("compose")}
         aria-expanded={props.panel === "compose"}
@@ -83,7 +84,7 @@ export const Sidebar: Component<{
         variant={props.panel === "search" ? "filled" : "ghost"}
         size="lg"
         icon="i-material-symbols:search-rounded"
-        label="検索パネルを開く"
+        label={t("deck.nav.openSearch")}
         title={shortcutTitle("search")}
         aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
@@ -111,7 +112,7 @@ export const Sidebar: Component<{
             variant={props.panel === "add-column" ? "filled" : "ghost"}
             size="lg"
             icon="i-material-symbols:add-rounded"
-            label="カラムを追加"
+            label={t("deck.nav.addColumn")}
             title={shortcutTitle("add-column")}
             aria-keyshortcuts={ariaKeyShortcuts("add-column")}
             aria-expanded={props.panel === "add-column"}
@@ -129,7 +130,7 @@ export const Sidebar: Component<{
         }
         size="lg"
         icon="i-material-symbols:view-column-outline-rounded"
-        label="デッキを編集"
+        label={t("deck.nav.editDeck")}
         aria-expanded={props.panel === "arrange"}
         onClick={() =>
           dispatch({ type: "deck/toggle-panel", panel: "arrange" })
@@ -138,7 +139,7 @@ export const Sidebar: Component<{
       <IconButton
         size="lg"
         icon="i-material-symbols:manage-search-rounded"
-        label="コマンドパレットを開く"
+        label={t("deck.nav.openCommandPalette")}
         title={shortcutTitle("palette")}
         aria-keyshortcuts={ariaKeyShortcuts("palette")}
         onClick={() => dispatch({ type: "deck/open-palette" })}
@@ -146,7 +147,7 @@ export const Sidebar: Component<{
       <IconButton
         size="lg"
         icon="i-material-symbols:settings-outline-rounded"
-        label="設定"
+        label={t("deck.nav.settings")}
         onClick={() => dispatch({ type: "deck/open-settings" })}
       />
       <AccountMenu
@@ -165,7 +166,7 @@ export const ComposeFab: Component = () => {
     <button
       type="button"
       {...tourTarget("compose")}
-      aria-label="投稿パネルを開く"
+      aria-label={t("deck.nav.openCompose")}
       title={shortcutTitle("compose")}
       aria-keyshortcuts={ariaKeyShortcuts("compose")}
       class="absolute right-4 bottom-4 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
@@ -201,7 +202,7 @@ export const MobileTopBar: Component<{
       <button
         type="button"
         {...tourTarget("account")}
-        aria-label="メニューを開く"
+        aria-label={t("deck.nav.openMenu")}
         aria-haspopup="dialog"
         class="cursor-pointer rounded-full bg-transparent"
         onClick={() => dispatch({ type: "deck/open-menu" })}
@@ -351,7 +352,7 @@ export const MobileTabBar: Component<{
   return (
     // 下から上がるパネルより上に描く（位置を持たせ、DOM の順で重ねる）。
     <nav
-      aria-label="カラム"
+      aria-label={t("deck.nav.columns")}
       class="relative shrink-0 border-primary border-t bg-primary pb-[env(safe-area-inset-bottom)]"
     >
       {/* 帯の端が切れていることで、横に送れると分かるようにする。 */}

@@ -21,6 +21,7 @@ import {
   type StackedColumn,
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
+import { t } from "../i18n/locale";
 import { measureUntilPaint } from "../telemetry";
 import { Mediates, type UiEvent } from "../ui-events";
 import { Portal } from "../ui/Portal";
@@ -209,7 +210,7 @@ const Column: Component<ColumnProps> = (props) => {
           <Show when={stack.layers.length > 0}>
             <button
               type="button"
-              aria-label="重ねた表示を閉じる"
+              aria-label={t("deck.column.closeStack")}
               class="motion-fade absolute inset-0 w-full cursor-pointer bg-ui-950/25"
               data-state={opened() ? "open" : "closed"}
               onClick={() => handle({ type: "stack/back" })}

@@ -26,6 +26,7 @@ import {
   useContext,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { t } from "../i18n/locale";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
@@ -95,11 +96,11 @@ export const RelayMediator: ParentComponent<{
       .then(
         () => {
           apply({ type: "relays/saved" });
-          notifySaved("リレーの設定を保存しました");
+          notifySaved(t("settings.relays.saved"));
         },
         (cause) => {
           apply({ type: "relays/failed" });
-          notifyError(cause, "リレーの設定を保存できませんでした");
+          notifyError(cause, t("settings.relays.saveFailed"));
         },
       )
       .finally(() => {

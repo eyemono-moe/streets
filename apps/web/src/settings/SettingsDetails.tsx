@@ -5,6 +5,7 @@ import {
   settingsDetailsStorageKey,
 } from "@streets/core/settings/settings-details";
 import { type ParentComponent, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import { useSettingFilter } from "./SettingFilter";
 
 const readOpen = (page: string): boolean => {
@@ -59,7 +60,9 @@ const SettingsDetails: ParentComponent<{
             aria-hidden="true"
           />
           <span class="flex min-w-0 flex-col gap-0.5">
-            <span class="c-primary font-600 text-body">詳しく</span>
+            <span class="c-primary font-600 text-body">
+              {t("settings.details.title")}
+            </span>
             <span class="c-secondary text-caption">{props.summary}</span>
           </span>
         </Collapsible.Trigger>

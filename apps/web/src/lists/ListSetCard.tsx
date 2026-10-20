@@ -15,6 +15,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, type JSX, Show, createSignal } from "solid-js";
+import { plural, t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import { type EventSize, EventRefView } from "../note/Event";
 import QuoteBox from "../note/QuoteBox";
@@ -41,7 +42,9 @@ const RelayRow: Component<{ url: RelayUrl }> = (props) => {
           <div class="ml-auto flex items-center gap-1">
             <IconButton
               icon="i-material-symbols:open-in-new-rounded"
-              label={`${relayLabel(props.url)} をデッキのカラムとして足す`}
+              label={t("lists.listSet.addRelayColumn", {
+                relay: relayLabel(props.url),
+              })}
               onClick={() => {
                 const column = buildRelayColumn([props.url]);
                 if (column) dispatch({ type: "deck/add-column", column });
@@ -74,7 +77,7 @@ const RelayList: Component<{ relays: readonly RelayUrl[] }> = (props) => {
           icon="i-material-symbols:expand-more-rounded"
           onClick={() => setShowAll(true)}
         >
-          {`ほか ${rest()} 個`}
+          {t("lists.listSet.moreRelays", { count: rest() })}
         </Button>
       </Show>
     </div>
@@ -86,7 +89,7 @@ const RelayNames: Component<{ relays: readonly RelayUrl[] }> = (props) => (
   <p class="c-secondary break-all text-caption">
     {props.relays
       .map((url) => relayLabel(url).replace(/^wss?:\/\//, ""))
-      .join("、")}
+      .join(t("lists.listSet.relaySeparator"))}
   </p>
 );
 
@@ -108,7 +111,9 @@ const FirstEvent: Component<{ set: ListSet }> = (props) => (
         </QuoteBox>
         <Show when={props.set.events.length > 1}>
           <span class="c-secondary text-caption">
-            ほか {props.set.events.length - 1} 件
+            {t("lists.listSet.moreEvents", {
+              count: props.set.events.length - 1,
+            })}
           </span>
         </Show>
       </div>
@@ -118,8 +123,8 @@ const FirstEvent: Component<{ set: ListSet }> = (props) => (
 
 type ListKind = {
   icon: string;
-  /** 題名の無いリストの呼び名。 */
-  name: string;
+  /** 題名の無いリストの呼び名の辞書のキー。 */
+  name: ListKindName;
   count: (set: ListSet) => string;
   /** 題名の下に足す中身。引用の中（compact）では足さない。 */
   body?: (set: ListSet) => JSX.Element;
@@ -127,8 +132,19 @@ type ListKind = {
   compactBody?: (set: ListSet) => JSX.Element;
 };
 
-const eventCount = (set: ListSet) => `${set.events.length} 件`;
-const people = (set: ListSet) => `${set.pubkeys.length} 人`;
+type ListKindName =
+  | "relaySet"
+  | "bookmark"
+  | "curation"
+  | "video"
+  | "picture"
+  | "interest"
+  | "starterPack";
+
+const eventCount = (set: ListSet) =>
+  plural("lists.listSet.eventCount", set.events.length);
+const people = (set: ListSet) =>
+  plural("lists.listSet.peopleCount", set.pubkeys.length);
 
 type ListSetKind =
   | typeof RELAY_SET_KIND
@@ -143,8 +159,8 @@ type ListSetKind =
 const LIST_KINDS: Record<ListSetKind, ListKind> = {
   [RELAY_SET_KIND]: {
     icon: "i-material-symbols:language",
-    name: "リレーセット",
-    count: (set) => `リレー ${set.relays.length} 個`,
+    name: "relaySet",
+    count: (set) => plural("lists.listSet.relayCount", set.relays.length),
     body: (set) => (
       <Show when={set.relays.length > 0}>
         <RelayList relays={set.relays} />
@@ -158,36 +174,36 @@ const LIST_KINDS: Record<ListSetKind, ListKind> = {
   },
   [BOOKMARK_SET_KIND]: {
     icon: "i-material-symbols:bookmarks-outline-rounded",
-    name: "ブックマーク",
+    name: "bookmark",
     count: eventCount,
     body: (set) => <FirstEvent set={set} />,
   },
   [CURATION_SET_KIND]: {
     icon: "i-material-symbols:collections-bookmark-outline-rounded",
-    name: "まとめ",
+    name: "curation",
     count: eventCount,
     body: (set) => <FirstEvent set={set} />,
   },
   [VIDEO_SET_KIND]: {
     icon: "i-material-symbols:video-library-outline-rounded",
-    name: "動画のまとめ",
+    name: "video",
     count: eventCount,
     body: (set) => <FirstEvent set={set} />,
   },
   [PICTURE_SET_KIND]: {
     icon: "i-material-symbols:photo-library-outline-rounded",
-    name: "画像のまとめ",
+    name: "picture",
     count: eventCount,
     body: (set) => <FirstEvent set={set} />,
   },
   [INTEREST_SET_KIND]: {
     icon: "i-material-symbols:tag-rounded",
-    name: "好きな話題",
-    count: (set) => `話題 ${set.hashtags.length} 個`,
+    name: "interest",
+    count: (set) => plural("lists.listSet.topicCount", set.hashtags.length),
   },
   [STARTER_PACK_KIND]: {
     icon: "i-material-symbols:group-add-outline-rounded",
-    name: "スターターパック",
+    name: "starterPack",
     count: people,
     body: (set) => (
       <Show when={set.pubkeys.length > 0}>
@@ -197,7 +213,7 @@ const LIST_KINDS: Record<ListSetKind, ListKind> = {
   },
   [MEDIA_STARTER_PACK_KIND]: {
     icon: "i-material-symbols:group-add-outline-rounded",
-    name: "スターターパック",
+    name: "starterPack",
     count: people,
     body: (set) => (
       <Show when={set.pubkeys.length > 0}>
@@ -214,11 +230,18 @@ const ListSetCard: Component<CardProps> = (props) => {
   const set = () => readListSet(props.event);
   const kind = () =>
     isListSetKind(props.event.kind) ? LIST_KINDS[props.event.kind] : undefined;
+  const kindName = () => {
+    const name = kind()?.name;
+    return name ? t(`lists.listSet.kinds.${name}`) : undefined;
+  };
   return (
     <ListRow
       event={props.event}
       size={props.size}
-      title={set().title ?? (set().identifier || kind()?.name || "リスト")}
+      title={
+        set().title ??
+        (set().identifier || kindName() || t("lists.common.list"))
+      }
       image={set().image}
       icon={kind()?.icon}
       count={kind()?.count(set())}

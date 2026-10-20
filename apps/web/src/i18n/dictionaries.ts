@@ -8,6 +8,10 @@ import columnsEn from "../columns/i18n/en.json";
 import columnsJa from "../columns/i18n/ja.json";
 import deckEn from "../deck/i18n/en.json";
 import deckJa from "../deck/i18n/ja.json";
+import emojiEn from "../emoji/i18n/en.json";
+import emojiJa from "../emoji/i18n/ja.json";
+import listsEn from "../lists/i18n/en.json";
+import listsJa from "../lists/i18n/ja.json";
 import mediaEn from "../media/i18n/en.json";
 import mediaJa from "../media/i18n/ja.json";
 import noteEn from "../note/i18n/en.json";
@@ -36,6 +40,8 @@ export const ja = {
   chat: chatJa,
   columns: columnsJa,
   deck: deckJa,
+  emoji: emojiJa,
+  lists: listsJa,
   media: mediaJa,
   note: noteJa,
   poll: pollJa,
@@ -56,6 +62,8 @@ export const en: Messages = {
   chat: chatEn,
   columns: columnsEn,
   deck: deckEn,
+  emoji: emojiEn,
+  lists: listsEn,
   media: mediaEn,
   note: noteEn,
   poll: pollEn,

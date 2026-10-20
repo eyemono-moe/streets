@@ -8,6 +8,7 @@ import {
   Switch as Branch,
   createSignal,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import { ProfileName } from "../note/Name";
 import { useProfileDetails } from "../note/use-profile";
@@ -24,8 +25,8 @@ import SegmentedControl from "../ui/SegmentedControl";
 import CreateFollowSetForm from "./CreateFollowSetForm";
 import { useFollowSets } from "./FollowSetMediator";
 import {
-  MEMBERSHIP_HINT,
   type Membership,
+  membershipHint,
   membershipOptions,
   visibilityOptions,
 } from "./visibility";
@@ -71,7 +72,7 @@ export const AddToListDialogView: Component<{
         <DialogContent class="w-full max-w-105 rounded-3 border border-primary">
           <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
             <DialogTitle class="min-w-0 flex-1 font-600 text-body">
-              リストに追加
+              {t("lists.addTo.title")}
             </DialogTitle>
             <DialogClose />
           </div>
@@ -86,7 +87,7 @@ export const AddToListDialogView: Component<{
                 />
               </span>
             </div>
-            <p class="c-secondary text-caption">{MEMBERSHIP_HINT}</p>
+            <p class="c-secondary text-caption">{membershipHint()}</p>
             <Branch>
               <Match when={props.sets.length > 0}>
                 <ul class="flex flex-col">
@@ -97,7 +98,9 @@ export const AddToListDialogView: Component<{
                           {followSetName(set)}
                         </span>
                         <SegmentedControl
-                          label={`「${followSetName(set)}」に入れるか`}
+                          label={t("lists.addTo.membershipLabel", {
+                            name: followSetName(set),
+                          })}
                           variant="secondary"
                           value={memberOf(set)?.visibility ?? "none"}
                           options={membershipOptions(props.privateReady)}
@@ -109,10 +112,12 @@ export const AddToListDialogView: Component<{
                 </ul>
               </Match>
               <Match when={props.loading}>
-                <p class="c-secondary text-caption">読み込み中…</p>
+                <p class="c-secondary text-caption">
+                  {t("lists.common.loading")}
+                </p>
               </Match>
               <Match when={true}>
-                <p class="c-secondary text-caption">まだリストがありません。</p>
+                <p class="c-secondary text-caption">{t("lists.addTo.empty")}</p>
               </Match>
             </Branch>
             <Show
@@ -127,17 +132,17 @@ export const AddToListDialogView: Component<{
                     class="i-material-symbols:add-rounded size-4.5"
                     aria-hidden="true"
                   />
-                  新しいリストを作って入れる
+                  {t("lists.addTo.create")}
                 </button>
               }
             >
               <div class="motion-fade flex animate-in flex-col gap-3 rounded-2 border border-primary p-3">
                 <div class="flex items-center gap-3">
                   <span class="min-w-0 flex-1 text-body">
-                    入れるときの公開範囲
+                    {t("lists.addTo.createVisibility")}
                   </span>
                   <SegmentedControl
-                    label="新しいリストに入れるときの公開範囲"
+                    label={t("lists.addTo.createVisibilityLabel")}
                     variant="secondary"
                     value={visibility()}
                     options={visibilityOptions(props.privateReady)}
@@ -145,7 +150,7 @@ export const AddToListDialogView: Component<{
                   />
                 </div>
                 <CreateFollowSetForm
-                  submitLabel="作って入れる"
+                  submitLabel={t("lists.addTo.createSubmit")}
                   onSubmit={(title) => {
                     dispatch({
                       type: "follow-sets/create",

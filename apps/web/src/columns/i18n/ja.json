@@ -75,7 +75,7 @@
       "muteFailed": "ミュートできませんでした",
       "messageNotLoaded": "発言を読み込めていません",
       "writeFailed": "チャンネルに書けませんでした",
-      "loginReason": "チャンネルへの書き込み",
+      "loginReason": "ログインすると、チャンネルへの書き込みができます",
       "loginToWrite": "ログインして書き込む"
     },
     "followSet": {

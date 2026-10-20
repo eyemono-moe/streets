@@ -4,6 +4,7 @@ import {
   customFallbackRelays,
   fallbackRelays,
 } from "../fallback-relay-setting";
+import { t } from "../i18n/locale";
 import { readRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode } from "../read-routing-setting";
 import { useBlockedRelays } from "./BlockedRelayMediator";
@@ -58,7 +59,7 @@ const RelaySettings: Component = () => {
           <RelayRecommendations edit={edit()} />
           <SettingsDetails
             page="relays"
-            summary="投稿を読むリレーの決め方・投稿を探すリレーの数・既定のリレー"
+            summary={t("settings.relays.detailsSummary")}
           >
             <ReadRoutingView
               mode={readRoutingMode()}

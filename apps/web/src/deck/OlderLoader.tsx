@@ -1,5 +1,6 @@
 import type { Paging } from "@streets/core/read/source";
 import { type Component, Match, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import { watchEdge } from "./edge-watch";
 
@@ -27,18 +28,20 @@ const OlderLoader: Component<{
       <Switch>
         {/* 取り足すのは最初のページが揃ってから。黙っていると、下端まで来ても止まって見える。 */}
         <Match when={props.paging === "waiting"}>
-          ほかのリレーから届くのを待っています…
+          {t("deck.olderLoader.waiting")}
         </Match>
-        <Match when={props.paging === "loading"}>古い投稿を読み込み中…</Match>
+        <Match when={props.paging === "loading"}>
+          {t("deck.olderLoader.loading")}
+        </Match>
         <Match when={props.paging === "exhausted"}>
-          これより前の投稿はありません
+          {t("deck.olderLoader.exhausted")}
         </Match>
         {/* 返事をしないリレーがあると、もう無いのかどうか分からない。無いとは言わない。 */}
         <Match when={props.paging === "failed"}>
           <div class="flex flex-col items-center gap-2">
-            <p>古い投稿を読み込めませんでした</p>
+            <p>{t("deck.olderLoader.failed")}</p>
             <Button size="sm" onClick={() => props.onReach()}>
-              もう一度読み込む
+              {t("deck.olderLoader.retry")}
             </Button>
           </div>
         </Match>

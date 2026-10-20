@@ -19,6 +19,7 @@ import {
   createSignal,
   useContext,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
@@ -60,8 +61,8 @@ export const BlockedRelayMediator: ParentComponent<{
         changeBlockedRelays(props.signer, props.viewer, change),
       )
       .then(
-        () => notifySaved("繋がないリレーを保存しました"),
-        (cause) => notifyError(cause, "繋がないリレーを保存できませんでした"),
+        () => notifySaved(t("settings.blockedRelays.saved")),
+        (cause) => notifyError(cause, t("settings.blockedRelays.saveFailed")),
       )
       .finally(() => {
         setPending(undefined);

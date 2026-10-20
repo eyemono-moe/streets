@@ -1,4 +1,5 @@
 import { type Component, type JSX, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import IconButton from "../ui/IconButton";
 
 /** カラムの設定の 1 項目。名前を上に置き、中身を下に並べる。 */
@@ -20,8 +21,8 @@ const SettingField: Component<{
           <IconButton
             size="sm"
             icon="i-material-symbols:refresh-rounded"
-            label={`${props.label}を既定に戻す`}
-            title="既定に戻す"
+            label={t("deck.settingField.reset", { label: props.label })}
+            title={t("deck.settingField.resetTitle")}
             onClick={() => onReset()()}
           />
         )}

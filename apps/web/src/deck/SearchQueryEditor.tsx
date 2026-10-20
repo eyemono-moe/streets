@@ -12,6 +12,7 @@ import {
   useUserCandidates,
   userSource,
 } from "../completion/sources";
+import { t } from "../i18n/locale";
 import SearchInput from "../ui/SearchInput";
 import SearchForm from "./SearchForm";
 
@@ -112,8 +113,8 @@ const SearchQueryEditor: Component<{
         ref={(el) => {
           input = el;
         }}
-        label="検索クエリ"
-        placeholder="ねこ #nostr from:npub1…"
+        label={t("deck.searchQuery.label")}
+        placeholder={t("deck.searchQuery.placeholder")}
         completion={sources}
         value={shown()}
         onValueChange={typed}
@@ -155,7 +156,7 @@ const SearchQueryEditor: Component<{
             class="i-material-symbols:expand-more-rounded size-5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
             aria-hidden="true"
           />
-          詳細な条件
+          {t("deck.searchQuery.details")}
         </Collapsible.Trigger>
         <Collapsible.Content class="motion-collapse">
           <div class="pt-2">

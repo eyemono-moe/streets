@@ -1,3 +1,4 @@
+import { t } from "../i18n/locale";
 type DocumentPictureInPicture = {
   readonly window: Window | null;
   requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
@@ -54,8 +55,7 @@ const mirrorTheme = (target: Document): (() => void) => {
  */
 export const openPipWindow = async (title: string): Promise<Window> => {
   const pip = api();
-  if (!pip)
-    throw new Error("このブラウザはピクチャーインピクチャーに対応していません");
+  if (!pip) throw new Error(t("deck.pip.unsupported"));
   const win = await pip.requestWindow(SIZE);
   win.document.title = title;
   copyStyles(win.document);

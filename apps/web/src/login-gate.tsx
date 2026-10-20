@@ -5,9 +5,9 @@ import { t } from "./i18n/locale";
 /**
  * ログインの要る操作の手前で呼ぶ。続けてよければ true。ログインしていなければ
  * ログインを案内して false を返す —— 書いてから「送れませんでした」と言うより、
- * 書き始める前に伝える。
+ * 書き始める前に伝える。`reason` は案内の一文そのもの。
  */
-export type LoginGate = (what: string) => boolean;
+export type LoginGate = (reason: string) => boolean;
 
 // ログインしている画面では、何もせずに通す。
 const LoginGateContext = createContext<LoginGate>(() => true);

@@ -4,6 +4,7 @@ import {
   mayBeLegacyMuteSet,
 } from "@streets/core/lists/follow-set";
 import { type Component, For, Show } from "solid-js";
+import { plural, t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import Name from "../note/Name";
 import ListPicture from "./ListPicture";
@@ -13,8 +14,10 @@ export const memberCountLabel = (set: FollowSet): string => {
   const hidden = set.members.filter(
     (member) => member.visibility === "private",
   ).length;
-  const total = `${set.members.length} 人`;
-  return hidden > 0 ? `${total}・非公開 ${hidden} 人` : total;
+  const total = plural("lists.summary.members", set.members.length);
+  return hidden > 0
+    ? plural("lists.summary.membersWithPrivate", hidden, { total })
+    : total;
 };
 
 /** 作った人。アイコンと名前を 1 行に並べる。 */
@@ -34,7 +37,7 @@ export const LegacyMuteNotice: Component = () => (
       class="i-material-symbols:warning-outline-rounded mt-0.5 size-3.5 shrink-0"
       aria-hidden="true"
     />
-    一部のクライアントでは、このリストがミュートする人の指定として扱われている可能性があります
+    {t("lists.summary.legacyMuteNotice")}
   </span>
 );
 

@@ -1,0 +1,107 @@
+{
+  "picker": {
+    "insert": "絵文字を挿入",
+    "react": "リアクションする",
+    "search": "絵文字を探す",
+    "searchPlaceholder": "絵文字を探す（ねこ / cat）",
+    "groups": "絵文字の種類",
+    "recent": "よく使う",
+    "results": "検索結果",
+    "loading": "読み込み中…",
+    "notFound": "見つかりませんでした"
+  },
+  "groups": {
+    "smileys": "顔と気持ち",
+    "people": "人と体",
+    "animals": "動物と自然",
+    "food": "食べ物と飲み物",
+    "travel": "旅行と場所",
+    "activities": "アクティビティ",
+    "objects": "もの",
+    "symbols": "記号",
+    "flags": "旗"
+  },
+  "write": {
+    "saved": "自分の絵文字を保存しました",
+    "saveFailed": "自分の絵文字を保存できませんでした",
+    "makeFailed": "カスタム絵文字を作れませんでした",
+    "registerFailed": "自分の絵文字に登録できませんでした"
+  },
+  "set": {
+    "unnamed": "名前の無い絵文字セットは表示できません",
+    "count": {
+      "one": "{{ count }} 個",
+      "other": "{{ count }} 個"
+    },
+    "imageFailed": "画像を読み込めませんでした",
+    "empty": "絵文字が入っていません",
+    "more": "ほか {{ count }} 個",
+    "added": "自分の絵文字リストに入っています",
+    "add": "自分の絵文字リストに加える"
+  },
+  "maker": {
+    "title": "カスタム絵文字を作る",
+    "placeholder": "カスタム",
+    "fonts": {
+      "gothic": "ゴシック",
+      "rounded": "丸ゴシック",
+      "serif": "明朝"
+    },
+    "tooManyChars": "{{ max }} 字までです（いま {{ count }} 字）",
+    "tooManyLines": "{{ max }} 行までです",
+    "submit": {
+      "send": {
+        "plain": "これで送る",
+        "register": "登録して送る"
+      },
+      "insert": {
+        "plain": "これで入れる",
+        "register": "登録して入れる"
+      }
+    },
+    "shortcodeInvalid": "半角の英数字・「_」・「-」だけが使えます",
+    "realSize": "実際の大きさ",
+    "missingChars": "描けない文字があります（{{ chars }}）。使えるのは、かな・漢字（JIS の第 2 水準まで）・英数字・記号です。",
+    "cramped": "小さく表示された時に読みにくいかもしれません。横長にすると読みやすくなります。",
+    "text": "テキスト",
+    "hintAuto": "文字数に合わせて改行します。{{ maxChars }} 字・{{ maxLines }} 行まで。",
+    "hintManual": "打った改行のとおりに並べます。{{ maxChars }} 字・{{ maxLines }} 行まで。",
+    "autoBreak": "自動で改行する",
+    "preset": "プリセット",
+    "color": "文字の色",
+    "outline": "縁取り",
+    "outlineAuto": "自動",
+    "outlinePick": "色を選ぶ",
+    "outlineNone": "なし",
+    "outlineColor": "縁取りの色",
+    "font": "フォント",
+    "shape": "形",
+    "shapeSquare": "正方形",
+    "shapeWide": "横長",
+    "fit": "字の形",
+    "fitStretch": "伸ばす",
+    "fitKeep": "保つ",
+    "align": "そろえ",
+    "alignLeft": "左",
+    "alignCenter": "中央",
+    "alignRight": "右",
+    "shortcode": "ショートコード（任意）",
+    "shortcodeReplace": "「{{ shortcode }}」はもう自分の絵文字にあります。登録すると、この絵文字に置き換わります。",
+    "shortcodeHint": "「:名前:」で呼び出すときの名前です。カスタム絵文字を表示できないアプリでは、この名前が文字で出ます。空なら自動で付けます。",
+    "register": "自分の絵文字に登録する",
+    "back": "戻る",
+    "registerOnly": "登録する",
+    "registerOnlyShort": "登録だけする"
+  },
+  "footer": {
+    "lastStyle": "前回の見た目",
+    "create": "カスタム絵文字を作る",
+    "tooLong": "カスタム絵文字にできるのは {{ max }} 字までです",
+    "missingChars": "描けない文字があります（{{ chars }}）",
+    "candidate": {
+      "send": "{{ style }}で「{{ text }}」を送る",
+      "insert": "{{ style }}で「{{ text }}」を入れる"
+    },
+    "adjust": "調整する"
+  }
+}
