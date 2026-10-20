@@ -68,6 +68,16 @@ const storyHost = (): NappletHost => {
       keys: () => [...stored.keys()],
     },
     writeRelays: () => undefined,
+    intent: {
+      invoke: async () => ({ ok: false, error: "no handler" }),
+      available: (archetype) => ({
+        archetype,
+        available: false,
+        candidates: [],
+        hasDefault: false,
+      }),
+      handlers: () => [],
+    },
     fetchResource: async () => ({ ok: false, error: "not-found" }),
     subscribe: (_, sink) => {
       for (const note of notes) sink.event(note);

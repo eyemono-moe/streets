@@ -33,6 +33,11 @@ export type NappletManifest = {
   optional: string[];
   /** 何をする napplet か（`z` タグ。`feed`・`profile` など）。自己申告。 */
   archetypes: string[];
+  /**
+   * 受け付ける依頼（NAP-INTENT の `i` タグ）。`params` は napplet が挙げた引数の名前で、
+   * 型や必須かどうかは表さない。
+   */
+  intents: { convention: string; params: string[] }[];
   icon?: { hash: string; mime: string };
   source?: string;
   /**
@@ -161,11 +166,30 @@ export const parseNappletManifest = (
       requires: unique(legacy ? values(event, "requires") : values(event, "R")),
       optional: legacy ? [] : unique(values(event, "O")),
       archetypes: unique(values(event, "z")),
+      intents: intentsOf(event),
       ...(icon ? { icon } : {}),
       source: values(event, "source")[0],
       legacy,
     },
   };
+};
+
+/** NAP-INTENT の慣習の名前（`napplet:<archetype>/<action>`）。問い合わせと断片は持たない。 */
+export const INTENT_CONVENTION = /^napplet:([^/?#]+)\/([^/?#]+)$/;
+
+// NAP-INTENT: > For each valid `i` tag, the runtime MUST expose an `IntentContract` whose
+// > `convention` is the tag's second element and whose `params` are the remaining elements
+const intentsOf = (event: NostrEvent) => {
+  const seen = new Set<string>();
+  return event.tags.flatMap((tag) => {
+    const [name, convention, ...params] = tag;
+    if (name !== "i" || !convention || !INTENT_CONVENTION.test(convention)) {
+      return [];
+    }
+    if (seen.has(convention)) return [];
+    seen.add(convention);
+    return [{ convention, params }];
+  });
 };
 
 /**

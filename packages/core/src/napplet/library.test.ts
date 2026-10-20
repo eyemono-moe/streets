@@ -61,6 +61,16 @@ describe("アップレットのインストール", () => {
     expect(library.defaults).toEqual({ note: { type: "streets" } });
   });
 
+  it("既定には住所だけを保存する", () => {
+    const library = setIntentDefault(emptyAppletLibrary(), "profile", {
+      type: "applet",
+      ...{ ...profile, relays: ["wss://a.example/"], installedAt: 1 },
+    });
+    expect(library.defaults).toEqual({
+      profile: { type: "applet", ...profile },
+    });
+  });
+
   it("既定を消すと、その役割の欄が無くなる", () => {
     const library = setIntentDefault(
       setIntentDefault(emptyAppletLibrary(), "note", { type: "streets" }),

@@ -58,6 +58,8 @@ const NappletView: Component<{
   /** napplet が必須と申告したのに、Streets が渡せない機能。 */
   unsupported?: readonly string[];
   frame?: JSX.Element;
+  /** 動いているアップレットの上に重ねるもの（依頼を受けたときのシートなど）。 */
+  overlay?: JSX.Element;
 }> = (props) => (
   <div class="flex h-full min-h-0 flex-col">
     <Switch>
@@ -99,7 +101,10 @@ const NappletView: Component<{
             </span>
           </p>
         </Show>
-        <div class="min-h-0 flex-1">{props.frame}</div>
+        <div class="relative min-h-0 flex-1">
+          {props.frame}
+          {props.overlay}
+        </div>
       </Match>
     </Switch>
   </div>

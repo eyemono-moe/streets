@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { encodeNaddr } from "../nostr/nip19";
 import { nappletPrelude } from "./prelude";
 import { NAPPLET_CSP, prepareNappletSrcdoc } from "./srcdoc";
 
@@ -18,6 +19,11 @@ type TestNapplet = {
   };
   identity: { getPublicKey(): Promise<string> };
   theme: { onChanged(handler: (theme: unknown) => void): unknown };
+  intent: {
+    invoke(uri: string, options?: Record<string, unknown>): Promise<unknown>;
+    open(uri: string, options?: Record<string, unknown>): Promise<unknown>;
+    onDelivery(handler: (delivery: unknown) => void): unknown;
+  };
   outbox: {
     query(filters: unknown): Promise<unknown>;
     subscribe(filters: unknown): {
@@ -230,5 +236,70 @@ describe("nappletPrelude", () => {
       (win as unknown as { napplet: unknown }).napplet = {};
     }).toThrow();
     expect(Object.isFrozen(win.napplet)).toBe(true);
+  });
+
+  // NAP-INTENT: > 4. Each unique, percent-decoded `name=value` query pair becomes a text payload
+  // > field. The binding MUST NOT coerce query values to boolean, number, or null.
+  // > A `+` is a literal plus sign, not a space.
+  it("intent の URI を、役割・依頼・慣習の名前と中身に分けて送る", () => {
+    const { win, sent } = run(["intent"]);
+    void win.napplet.intent.invoke("napplet:profile/open?pubkey=a%2Bb+c&n=1");
+    expect(sent.at(-1)).toMatchObject({
+      type: "intent.invoke",
+      request: {
+        archetype: "profile",
+        action: "open",
+        convention: "napplet:profile/open",
+        payload: { pubkey: "a+b+c", n: "1" },
+      },
+    });
+  });
+
+  // > A URI with ... malformed percent-encoding, a repeated query name, or an explicit payload
+  // > alongside query parameters MUST be rejected before invocation.
+  it("読めない URI は送らずに断る", () => {
+    const { win, sent } = run(["intent"]);
+    for (const [uri, options] of [
+      ["napplet:profile/open?pubkey=%zz", undefined],
+      ["napplet:profile/open?a=1&a=2", undefined],
+      ["napplet:profile/open?a=1", { payload: { a: "1" } }],
+      ["profile/open", undefined],
+    ] as const) {
+      expect(() => win.napplet.intent.invoke(uri, options)).toThrow();
+    }
+    expect(() => win.napplet.intent.open("napplet:profile/edit")).toThrow();
+    expect(sent).toEqual([]);
+  });
+
+  // > Absent `handler` ... The hint ... `IntentHandlerHint` accepts kind `35129` only.
+  it("URI の断片の naddr を、勧める受け手として送る", () => {
+    const { win, sent } = run(["intent"]);
+    const naddr = encodeNaddr({
+      identifier: "map",
+      pubkey: "c".repeat(64),
+      eventKind: 35129,
+      relays: ["wss://relay.example/"],
+    });
+    void win.napplet.intent.open(`napplet:map/open#${naddr}`);
+    expect(sent.at(-1)).toMatchObject({
+      request: {
+        convention: "napplet:map/open",
+        handlerHint: {
+          address: `35129:${"c".repeat(64)}:map`,
+          relays: ["wss://relay.example/"],
+        },
+      },
+    });
+  });
+
+  // > The runtime-provided binding MUST retain an incoming delivery until an `onDelivery`
+  // > handler is registered.
+  it("onDelivery を登録する前に届いた依頼を取っておく", () => {
+    const { win, deliver } = run(["intent"]);
+    deliver({ type: "intent.deliver", delivery: { payload: 1 } });
+    const received: unknown[] = [];
+    win.napplet.intent.onDelivery((delivery) => received.push(delivery));
+    deliver({ type: "intent.deliver", delivery: { payload: 2 } });
+    expect(received).toEqual([{ payload: 1 }, { payload: 2 }]);
   });
 });

@@ -1,5 +1,6 @@
 import {
   type NappletHost,
+  type NappletSession,
   createNappletSession,
 } from "@streets/core/napplet/session";
 import { type Component, createEffect, on, onCleanup, onMount } from "solid-js";
@@ -18,6 +19,8 @@ const NappletFrame: Component<{
   host: NappletHost;
   /** ログインしている人。変わったら napplet に知らせる。 */
   viewer: string;
+  /** 動き始めた napplet とのやりとり。依頼を届けるのに使う。 */
+  onSession?: (session: NappletSession | undefined) => void;
 }> = (props) => {
   let frame!: HTMLIFrameElement;
 
@@ -34,6 +37,7 @@ const NappletFrame: Component<{
       session.receive(event.data);
     };
     view.addEventListener("message", receive);
+    props.onSession?.(session);
     const stopTheme = watchNappletTheme(frame, () => session.themeChanged());
     createEffect(
       on(
@@ -43,6 +47,7 @@ const NappletFrame: Component<{
       ),
     );
     onCleanup(() => {
+      props.onSession?.(undefined);
       view.removeEventListener("message", receive);
       stopTheme();
       session.dispose();

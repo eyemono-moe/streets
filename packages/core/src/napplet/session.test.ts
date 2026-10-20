@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayFilter } from "../relay/relay-connection";
+import type { IntentRequest } from "./intent";
 import {
   NAPPLET_MAX_LIMIT,
   NAPPLET_QUERY_TIMEOUT_MS,
@@ -40,6 +41,7 @@ const setup = (
   }[] = [];
   const stored = new Map<string, string>();
   const fetched: { url: string; signal: AbortSignal }[] = [];
+  const invoked: IntentRequest[] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -62,6 +64,25 @@ const setup = (
           .filter((key) => key.startsWith(`${scope}/`))
           .map((key) => key.slice(scope.length + 1)),
     },
+    intent: {
+      invoke: async (request) => {
+        invoked.push(request);
+        return {
+          ok: true,
+          archetype: request.archetype,
+          action: request.action,
+          convention: request.convention,
+          handler: "streets",
+        };
+      },
+      available: (archetype) => ({
+        archetype,
+        available: false,
+        candidates: [],
+        hasDefault: false,
+      }),
+      handlers: () => [],
+    },
     fetchResource: async (url, _servers, signal) => {
       fetched.push({ url, signal });
       return url.includes("missing")
@@ -79,7 +100,7 @@ const setup = (
     },
   };
   const session = createNappletSession(host, (message) => sent.push(message));
-  return { session, sent, opened, fetched };
+  return { session, sent, opened, fetched, invoked };
 };
 
 describe("createNappletSession", () => {
@@ -547,5 +568,74 @@ describe("nappletProfile", () => {
       ),
     ).toEqual({ name: "a", displayName: "A", lud16: "a@b.c" });
     expect(nappletProfile("not json")).toBeNull();
+  });
+});
+
+describe("NAP-INTENT", () => {
+  // > The runtime MUST reject a normalized wire request when:
+  // > - the convention archetype differs from `request.archetype`
+  it("食い違う要求は受け手を探さずに断る", async () => {
+    const { session, sent, invoked } = setup(["shell", "intent"]);
+    session.receive({
+      type: "intent.invoke",
+      id: "i1",
+      request: {
+        archetype: "note",
+        action: "open",
+        convention: "napplet:profile/open",
+      },
+    });
+    await Promise.resolve();
+    expect(invoked).toEqual([]);
+    expect(sent).toEqual([
+      {
+        type: "intent.invoke.result",
+        id: "i1",
+        result: { ok: false, error: "invalid convention" },
+      },
+    ]);
+  });
+
+  // NAP-INTENT の「Invoke a convention URI」の例。
+  it("要求に同じ id で結果を返す", async () => {
+    const { session, sent } = setup(["shell", "intent"]);
+    session.receive({
+      type: "intent.invoke",
+      id: "i1",
+      request: {
+        archetype: "profile",
+        action: "open",
+        convention: "napplet:profile/open",
+        payload: { pubkey: "abc123..." },
+      },
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual({
+      type: "intent.invoke.result",
+      id: "i1",
+      result: {
+        ok: true,
+        archetype: "profile",
+        action: "open",
+        convention: "napplet:profile/open",
+        handler: "streets",
+      },
+    });
+  });
+
+  // > The runtime MUST deliver `IntentDelivery` only after the target is ready.
+  it("届ける依頼は、napplet が起動し終えるまで待たせる", () => {
+    const { session, sent } = setup(["shell", "intent"]);
+    const delivery = {
+      sender: "streets",
+      archetype: "profile",
+      action: "open",
+      convention: "napplet:profile/open",
+      payload: { pubkey: "abc123..." },
+    };
+    session.deliver(delivery);
+    expect(sent).toEqual([]);
+    session.receive({ type: "shell.ready" });
+    expect(sent.at(-1)).toEqual({ type: "intent.deliver", delivery });
   });
 });

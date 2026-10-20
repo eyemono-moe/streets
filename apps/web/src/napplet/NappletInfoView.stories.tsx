@@ -27,6 +27,7 @@ const manifest: NappletManifest = {
   requires: ["identity", "outbox", "relay"],
   optional: ["resource", "theme"],
   archetypes: ["note"],
+  intents: [{ convention: "napplet:note/open", params: ["id"] }],
   source: "https://example.invalid/chronofeed",
   legacy: false,
 };

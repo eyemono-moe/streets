@@ -138,8 +138,14 @@ export const setIntentDefault = (
   target: IntentTarget | undefined,
 ): AppletLibrary => {
   const { [archetype]: _, ...rest } = library.defaults;
-  return {
-    ...library,
-    defaults: target ? { ...rest, [archetype]: target } : rest,
-  };
+  if (!target) return { ...library, defaults: rest };
+  const saved: IntentTarget =
+    target.type === "streets"
+      ? { type: "streets" }
+      : {
+          type: "applet",
+          pubkey: target.pubkey,
+          identifier: target.identifier,
+        };
+  return { ...library, defaults: { ...rest, [archetype]: saved } };
 };

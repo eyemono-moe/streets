@@ -60,6 +60,11 @@ describe("parseNappletManifest", () => {
         source: "https://github.com/example/my-napplet",
         createdAt: 1_760_000_000,
         archetypes: ["feed"],
+        // NAP-INTENT: > A napplet repeats `z` for multiple roles and `i` for multiple accepted intents
+        intents: [
+          { convention: "napplet:feed/open", params: [] },
+          { convention: "napplet:feed/edit", params: ["filters", "relays"] },
+        ],
         icon: {
           hash: "ae7a3bd1a3fa9d824d0e64a6f57fe6cb4dd80c423786b6a2ecb94d587c94c75a",
           mime: "image/png",

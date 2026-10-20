@@ -23,6 +23,7 @@ const manifest = (
   requires: [],
   optional: [],
   archetypes: [],
+  intents: [],
   legacy: false,
   icon: { hash: "f".repeat(64), mime: "image/png" },
   ...overrides,

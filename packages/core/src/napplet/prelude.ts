@@ -408,6 +408,173 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("intent")) {
+    // NAP-INTENT の URI の読み方。`@napplet/shim` の normalizeIntentUri と同じく、
+    // 送る前に断る（呼んだ側へ同期で例外を返す）。
+    const decodeNaddr = (value: string) => {
+      const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+      const lower = value.toLowerCase();
+      const split = lower.lastIndexOf("1");
+      if (lower.slice(0, split) !== "naddr") {
+        throw new Error("Intent handler fragment must be a bare naddr");
+      }
+      const words = lower
+        .slice(split + 1, -6)
+        .split("")
+        .map((char) => {
+          const word = CHARSET.indexOf(char);
+          if (word < 0)
+            throw new Error("Intent handler fragment must be a bare naddr");
+          return word;
+        });
+      const bytes: number[] = [];
+      let acc = 0;
+      let bits = 0;
+      for (const word of words) {
+        acc = (acc << 5) | word;
+        bits += 5;
+        while (bits >= 8) {
+          bits -= 8;
+          bytes.push((acc >> bits) & 0xff);
+        }
+      }
+      let identifier: string | undefined;
+      let pubkey: string | undefined;
+      let kind: number | undefined;
+      const relays: string[] = [];
+      for (let i = 0; i + 2 <= bytes.length;) {
+        const type = bytes[i] as number;
+        const length = bytes[i + 1] as number;
+        const chunk = bytes.slice(i + 2, i + 2 + length);
+        i += 2 + length;
+        if (type === 0)
+          identifier = new TextDecoder().decode(new Uint8Array(chunk));
+        if (type === 1)
+          relays.push(new TextDecoder().decode(new Uint8Array(chunk)));
+        if (type === 2)
+          pubkey = chunk.map((b) => b.toString(16).padStart(2, "0")).join("");
+        if (type === 3) kind = chunk.reduce((n, b) => n * 256 + b, 0);
+      }
+      if (identifier === undefined || !pubkey || kind !== 35129) {
+        throw new Error(
+          "Intent handler hint requires a named napplet coordinate",
+        );
+      }
+      return {
+        address: `${kind}:${pubkey}:${identifier}`,
+        ...(relays.length > 0 ? { relays } : {}),
+      };
+    };
+    type InvokeOptions = {
+      payload?: unknown;
+      handler?: string;
+      handlerHint?: { address: string; relays?: string[] };
+      behavior?: unknown;
+    };
+    const normalize = (uri: string, options: InvokeOptions = {}) => {
+      if (typeof uri !== "string")
+        throw new Error("Convention URI must be a string");
+      decodeURIComponent(uri);
+      const fragmentIndex = uri.indexOf("#");
+      if (fragmentIndex >= 0 && options.handlerHint !== undefined) {
+        throw new Error(
+          "Intent handler fragment cannot accompany an explicit handler hint",
+        );
+      }
+      const base = fragmentIndex < 0 ? uri : uri.slice(0, fragmentIndex);
+      const queryIndex = base.indexOf("?");
+      const convention = queryIndex < 0 ? base : base.slice(0, queryIndex);
+      const match = /^napplet:([^/?#]+)\/([^/?#]+)$/.exec(convention);
+      if (!match) {
+        throw new Error(
+          "Convention URI must use napplet:<archetype>/<intent> syntax",
+        );
+      }
+      let payload = options.payload;
+      if (queryIndex >= 0) {
+        if (options.payload !== undefined) {
+          throw new Error(
+            "Convention URI queries cannot be combined with an explicit payload",
+          );
+        }
+        const fields: Record<string, string> = {};
+        const query = base.slice(queryIndex + 1);
+        for (const pair of query ? query.split("&") : []) {
+          const separator = pair.indexOf("=");
+          if (separator < 0) {
+            throw new Error(
+              "Convention URI query parameters must use name=value form",
+            );
+          }
+          const name = decodeURIComponent(pair.slice(0, separator));
+          if (Object.prototype.hasOwnProperty.call(fields, name)) {
+            throw new Error(
+              "Convention URI query parameter names must be unique",
+            );
+          }
+          fields[name] = decodeURIComponent(pair.slice(separator + 1));
+        }
+        payload = fields;
+      }
+      const handlerHint =
+        fragmentIndex >= 0
+          ? decodeNaddr(uri.slice(fragmentIndex + 1))
+          : options.handlerHint;
+      return {
+        archetype: match[1],
+        action: match[2],
+        convention,
+        ...(payload !== undefined ? { payload } : {}),
+        ...(options.handler !== undefined ? { handler: options.handler } : {}),
+        ...(options.behavior !== undefined
+          ? { behavior: options.behavior }
+          : {}),
+        ...(handlerHint !== undefined ? { handlerHint } : {}),
+      };
+    };
+    // NAP-INTENT: > The runtime-provided binding MUST retain an incoming delivery until an
+    // > `onDelivery` handler is registered.
+    const deliveries: unknown[] = [];
+    const deliveryHandlers = new Set<(delivery: unknown) => void>();
+    onPush("intent.deliver", (message) => {
+      if (deliveryHandlers.size === 0) deliveries.push(message.delivery);
+      else for (const handler of deliveryHandlers) handler(message.delivery);
+    });
+    const invoke = (uri: string, options?: InvokeOptions) => {
+      const normalized = normalize(uri, options);
+      return request(
+        "intent.invoke",
+        { request: normalized },
+        (message) => message.result,
+        false,
+      );
+    };
+    napplet.intent = {
+      invoke,
+      open: (uri: string, options?: InvokeOptions) => {
+        if (normalize(uri, options).action !== "open") {
+          throw new Error("intent.open requires the open URI action");
+        }
+        return invoke(uri, options);
+      },
+      available: (archetype: string) =>
+        request(
+          "intent.available",
+          { archetype },
+          (message) => message.availability,
+        ),
+      handlers: () =>
+        request("intent.handlers", {}, (message) => message.handlers),
+      onChanged: (handler: (availability: unknown) => void) =>
+        onPush("intent.changed", (message) => handler(message.availability)),
+      onDelivery: (handler: (delivery: unknown) => void) => {
+        deliveryHandlers.add(handler);
+        for (const delivery of deliveries.splice(0)) handler(delivery);
+        return { close: () => deliveryHandlers.delete(handler) };
+      },
+    };
+  }
+
   Object.defineProperty(window, "napplet", {
     value: Object.freeze(napplet),
     writable: false,

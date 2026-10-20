@@ -21,6 +21,7 @@ import {
   type StackedColumn,
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
+import { useAppletIntents } from "../napplet/applet-intents";
 import { measureUntilPaint } from "../telemetry";
 import { Mediates, type UiEvent } from "../ui-events";
 import { Portal } from "../ui/Portal";
@@ -61,6 +62,7 @@ export type ColumnProps = {
 /** 共通の枠とスタックを持ち、カラム固有の本文は `ColumnContent` に委ねる。 */
 const Column: Component<ColumnProps> = (props) => {
   const [stack, setStack] = createStore<ColumnStackState>(emptyColumnStack());
+  const intents = useAppletIntents();
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
       case "stack/open":
@@ -70,19 +72,24 @@ const Column: Component<ColumnProps> = (props) => {
           measureUntilPaint("column.stack", "ui.column");
         }
         const wasOpen = stack.layers.length > 0;
+        // 人・投稿・記事は、開く先の既定がアップレットならそちらで開く。
+        const opened =
+          event.type === "stack/open" && !event.direct && intents
+            ? { ...event, column: intents.route(event.column) }
+            : event;
         setStack(
           reconcile(
             columnStackTransition(
               unwrap(stack),
-              event.type === "stack/open" && event.from
+              opened.type === "stack/open" && opened.from
                 ? {
-                    ...event,
+                    ...opened,
                     column: withKnownRelays(
-                      event.column,
-                      relaysSeenOn(props.readLayer.store, event.from),
+                      opened.column,
+                      relaysSeenOn(props.readLayer.store, opened.from),
                     ),
                   }
-                : event,
+                : opened,
               props.column,
             ),
             { key: "key" },

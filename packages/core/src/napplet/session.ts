@@ -13,6 +13,13 @@
 import type { NostrEvent } from "../nostr/event";
 import type { RelayFilter } from "../relay/relay-connection";
 import {
+  type IntentAvailability,
+  type IntentDelivery,
+  type IntentRequest,
+  type IntentResult,
+  parseIntentRequest,
+} from "./intent";
+import {
   NAPPLET_RESOURCE_MAX_BYTES,
   NAPPLET_RESOURCE_MAX_SERVERS,
   NAPPLET_RESOURCE_MAX_URLS,
@@ -71,6 +78,15 @@ export type NappletHost = {
   ) => () => void;
   /** その人の書き込み先（NIP-65）。分からなければ `undefined`。 */
   writeRelays: (pubkey: string) => readonly string[] | undefined;
+  /**
+   * NAP-INTENT。受け手を決めて開く。選ばせるときは、ユーザーが選ぶまで待つ。
+   * 中身を確かめた要求だけが届く（`parseIntentRequest`）。
+   */
+  intent: {
+    invoke: (request: IntentRequest) => Promise<IntentResult>;
+    available: (archetype: string) => IntentAvailability;
+    handlers: () => IntentAvailability[];
+  };
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -203,6 +219,13 @@ export type NappletSession = {
   themeChanged: () => void;
   /** ログインしている人が変わった。 */
   identityChanged: () => void;
+  /**
+   * NAP-INTENT の依頼を届ける。napplet が起動し終えるまで待ってから送る。
+   * > The runtime MUST deliver `IntentDelivery` only after the target is ready.
+   */
+  deliver: (delivery: IntentDelivery) => void;
+  /** 受け手の一覧や既定が変わった。 */
+  intentChanged: (availability: IntentAvailability) => void;
   dispose: () => void;
 };
 
@@ -222,6 +245,7 @@ export const createNappletSession = (
   const fetches = new Map<string, AbortController>();
   let initialized = false;
   let disposed = false;
+  const waitingDeliveries: IntentDelivery[] = [];
 
   const send = (message: Message) => {
     if (!disposed) post(message);
@@ -257,6 +281,39 @@ export const createNappletSession = (
       capabilities: { domains: [...host.domains] },
       services: [],
     });
+    for (const delivery of waitingDeliveries.splice(0)) {
+      send({ type: "intent.deliver", delivery });
+    }
+  };
+
+  const handleIntent = (request: Message) => {
+    switch (request.type) {
+      case "intent.invoke": {
+        const parsed = parseIntentRequest(request.request);
+        if (!parsed.ok) {
+          reply(request, { result: { ok: false, error: parsed.error } });
+          return;
+        }
+        host.intent.invoke(parsed.request).then(
+          (result) => reply(request, { result }),
+          () =>
+            reply(request, { result: { ok: false, error: "invoke rejected" } }),
+        );
+        return;
+      }
+      case "intent.available":
+        if (typeof request.archetype !== "string") {
+          fail(request, "invalid archetype");
+          return;
+        }
+        reply(request, {
+          availability: host.intent.available(request.archetype),
+        });
+        return;
+      case "intent.handlers":
+        reply(request, { handlers: host.intent.handlers() });
+        return;
+    }
   };
 
   const handleTheme = (request: Message) => {
@@ -681,6 +738,8 @@ export const createNappletSession = (
           return handleOutbox(message);
         case "resource":
           return handleResource(message);
+        case "intent":
+          return handleIntent(message);
       }
     },
     themeChanged: () => {
@@ -691,6 +750,14 @@ export const createNappletSession = (
       if (exposed.has("identity")) {
         send({ type: "identity.changed", pubkey: host.publicKey() });
       }
+    },
+    deliver: (delivery) => {
+      if (!exposed.has("intent")) return;
+      if (initialized) send({ type: "intent.deliver", delivery });
+      else waitingDeliveries.push(delivery);
+    },
+    intentChanged: (availability) => {
+      if (exposed.has("intent")) send({ type: "intent.changed", availability });
     },
     dispose: () => {
       for (const close of subscriptions.values()) close();
