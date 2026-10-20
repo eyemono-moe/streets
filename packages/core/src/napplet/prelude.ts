@@ -42,6 +42,17 @@ function installNapplet(domains: readonly string[]): void {
       subscriptions.get(message.subId)?.(message);
       return;
     }
+    // NAP-RESOURCE は失敗を `<type>.error` という別の種類で返す。
+    if (typeof message.id === "string" && message.type.endsWith(".error")) {
+      const waiting = pending.get(message.id);
+      if (!waiting) return;
+      pending.delete(message.id);
+      clearTimeout(waiting.timer);
+      const detail =
+        typeof message.message === "string" ? `: ${message.message}` : "";
+      waiting.reject(new Error(`${String(message.error)}${detail}`));
+      return;
+    }
     if (typeof message.id === "string" && message.type.endsWith(".result")) {
       const waiting = pending.get(message.id);
       if (!waiting) return;
@@ -62,9 +73,9 @@ function installNapplet(domains: readonly string[]): void {
     payload: Record<string, unknown>,
     pick: (message: Message) => unknown,
     rejectOnError = true,
+    id = newId(),
   ): Promise<never> =>
     new Promise((resolve, reject) => {
-      const id = newId();
       const timer = setTimeout(() => {
         if (pending.delete(id)) reject(new Error(`${type} timed out`));
       }, 30_000);
@@ -311,6 +322,89 @@ function installNapplet(domains: readonly string[]): void {
         ),
       resolveRelays: (target: unknown) =>
         request("outbox.resolveRelays", { target }, (message) => message.plan),
+    };
+  }
+
+  if (exposed.has("resource")) {
+    // data: は中身が URL に入っているので、ランチャーへ頼まずにここで読む（@napplet/shim と同じ）。
+    const decodeData = (url: string): Blob => {
+      const match = /^data:([^,]*?)(;base64)?,(.*)$/s.exec(url);
+      if (!match) throw new Error("decode-failed");
+      const type = (match[1] ?? "").split(";")[0] || "text/plain";
+      const body = decodeURIComponent(match[3] ?? "");
+      const bytes = match[2]
+        ? Uint8Array.from(atob(body), (char) => char.charCodeAt(0))
+        : new TextEncoder().encode(body);
+      return new Blob([bytes], { type });
+    };
+    const inflight = new Map<string, Promise<Blob>>();
+    const bytes = (
+      url: string,
+      options?: { servers?: string[]; signal?: AbortSignal },
+    ): Promise<Blob> => {
+      if (options?.signal?.aborted) {
+        return Promise.reject(new DOMException("Aborted", "AbortError"));
+      }
+      if (url.startsWith("data:")) {
+        try {
+          return Promise.resolve(decodeData(url));
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      }
+      const cached = inflight.get(url);
+      const id = newId();
+      const work =
+        cached ??
+        request(
+          "resource.bytes",
+          { url, ...(options?.servers ? { servers: options.servers } : {}) },
+          (message) => message.blob,
+          true,
+          id,
+        ).finally(() => inflight.delete(url));
+      if (!cached) inflight.set(url, work);
+      const signal = options?.signal;
+      if (!signal) return work;
+      return new Promise<Blob>((resolve, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            if (!cached) post({ type: "resource.cancel", id });
+            reject(new DOMException("Aborted", "AbortError"));
+          },
+          { once: true },
+        );
+        work.then(resolve, reject);
+      });
+    };
+    napplet.resource = {
+      info: () => request("resource.info", {}, (message) => message.info),
+      bytes,
+      bytesMany: (requests: { url: string; servers?: string[] }[]) =>
+        request("resource.bytesMany", { requests }, (message) =>
+          Array.isArray(message.items) ? message.items : [],
+        ),
+      bytesAsObjectURL: (url: string) => {
+        let objectUrl: string | undefined;
+        let revoked = false;
+        const handle = {
+          url: "",
+          revoke: () => {
+            if (revoked) return;
+            revoked = true;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+          },
+        };
+        const ready = bytes(url).then((blob) => {
+          if (revoked) return undefined;
+          objectUrl = URL.createObjectURL(blob);
+          handle.url = objectUrl;
+          return objectUrl;
+        });
+        Object.defineProperty(handle, "ready", { value: ready });
+        return handle;
+      },
     };
   }
 

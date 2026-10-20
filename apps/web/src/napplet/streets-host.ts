@@ -1,5 +1,6 @@
 import type { NappletManifest } from "@streets/core/napplet/manifest";
 import { nappletScope } from "@streets/core/napplet/manifest";
+import { fetchNappletResource } from "@streets/core/napplet/resource";
 import type {
   NappletHost,
   NappletProfile,
@@ -13,6 +14,8 @@ import type {
   RelayUrl,
 } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
+import { imageDownscaling } from "../image-downscaling-setting";
+import { resizedImageUrl } from "../media/image-proxy";
 
 /** Streets が napplet に渡す機能。ここに無い機能（publish・intent など）はまだ渡さない。 */
 export const STREETS_NAPPLET_DOMAINS = [
@@ -22,6 +25,7 @@ export const STREETS_NAPPLET_DOMAINS = [
   "storage",
   "relay",
   "outbox",
+  "resource",
 ] as const;
 
 /** NAP-STORAGE が勧める、napplet 1 つあたりの保存の枠（UTF-8 のバイト数）。 */
@@ -183,6 +187,15 @@ export const createStreetsNappletHost = (
   theme: inputs.theme,
   storage: createNappletStorage(inputs.manifest, inputs.instance),
   subscribe: subscribeThroughReadLayer(inputs.readLayer),
+  fetchResource: (url, servers, signal) =>
+    fetchNappletResource(url, {
+      fetch: globalThis.fetch.bind(globalThis),
+      servers,
+      signal,
+      // 画像を縮めない設定なら、中継も通さない（中継は縮めて返す）。
+      proxy: (source) =>
+        imageDownscaling() ? resizedImageUrl(source, "napplet") : undefined,
+    }),
   writeRelays: (pubkey) =>
     inputs.readLayer.manager.relaysForAuthor(pubkey, NAPPLET_RESOLVED_RELAYS),
 });

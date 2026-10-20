@@ -12,6 +12,12 @@
  */
 import type { NostrEvent } from "../nostr/event";
 import type { RelayFilter } from "../relay/relay-connection";
+import {
+  NAPPLET_RESOURCE_MAX_BYTES,
+  NAPPLET_RESOURCE_MAX_SERVERS,
+  NAPPLET_RESOURCE_MAX_URLS,
+  type NappletResourceResult,
+} from "./resource";
 
 export type NappletTheme = {
   colors: { background: string; text: string; primary: string };
@@ -65,6 +71,12 @@ export type NappletHost = {
   ) => () => void;
   /** その人の書き込み先（NIP-65）。分からなければ `undefined`。 */
   writeRelays: (pubkey: string) => readonly string[] | undefined;
+  /** 画像などの中身を取る（`fetchNappletResource`）。 */
+  fetchResource: (
+    url: string,
+    servers: readonly string[],
+    signal: AbortSignal,
+  ) => Promise<NappletResourceResult>;
 };
 
 type Message = { type: string; [key: string]: unknown };
@@ -207,6 +219,7 @@ export const createNappletSession = (
   const exposed = new Set(host.domains);
   const subscriptions = new Map<string, () => void>();
   const queries = new Set<() => void>();
+  const fetches = new Map<string, AbortController>();
   let initialized = false;
   let disposed = false;
 
@@ -519,6 +532,132 @@ export const createNappletSession = (
     }
   };
 
+  /*
+   * NAP-RESOURCE。結果は `<type>.result`、失敗は `<type>.error` で返す（@napplet/shim の形）。
+   * 取っている途中に napplet が `resource.cancel` を送ったら、取るのをやめる。
+   */
+  const handleResource = (request: Message) => {
+    const id = request.id as string;
+    const serversOf = (raw: unknown) =>
+      stringList(raw)
+        ? raw
+            .filter((server) => server.startsWith("https://"))
+            .slice(0, NAPPLET_RESOURCE_MAX_SERVERS)
+        : [];
+    const start = (url: string, servers: readonly string[]) => {
+      const controller = new AbortController();
+      fetches.set(id, controller);
+      return host
+        .fetchResource(url, servers, controller.signal)
+        .catch((error): NappletResourceResult => ({
+          ok: false,
+          error: "network-error",
+          message: String(error),
+        }));
+    };
+    const done = () => fetches.delete(id);
+    switch (request.type) {
+      case "resource.info":
+        send({
+          type: "resource.info.result",
+          id,
+          info: {
+            schemes: [
+              { scheme: "https", enabled: true },
+              { scheme: "blossom", enabled: true },
+              { scheme: "data", enabled: true },
+              { scheme: "nostr", enabled: false },
+              { scheme: "htree", enabled: false },
+            ],
+            maxBytes: NAPPLET_RESOURCE_MAX_BYTES,
+            maxUrls: NAPPLET_RESOURCE_MAX_URLS,
+            maxServers: NAPPLET_RESOURCE_MAX_SERVERS,
+          },
+        });
+        return;
+      case "resource.bytes": {
+        if (typeof request.url !== "string") {
+          send({ type: "resource.bytes.error", id, error: "invalid-request" });
+          return;
+        }
+        void start(request.url, serversOf(request.servers)).then((result) => {
+          const cancelled = !fetches.has(id);
+          done();
+          if (cancelled) return;
+          send(
+            result.ok
+              ? {
+                  type: "resource.bytes.result",
+                  id,
+                  blob: result.blob,
+                  mime: result.mime,
+                }
+              : {
+                  type: "resource.bytes.error",
+                  id,
+                  error: result.error,
+                  ...(result.message ? { message: result.message } : {}),
+                },
+          );
+        });
+        return;
+      }
+      case "resource.bytesMany": {
+        const requests = Array.isArray(request.requests)
+          ? request.requests
+          : [];
+        if (
+          requests.length === 0 ||
+          requests.length > NAPPLET_RESOURCE_MAX_URLS ||
+          !requests.every(
+            (item) => isRecord(item) && typeof item.url === "string",
+          )
+        ) {
+          send({
+            type: "resource.bytesMany.error",
+            id,
+            error: "invalid-request",
+          });
+          return;
+        }
+        const controller = new AbortController();
+        fetches.set(id, controller);
+        void Promise.all(
+          (requests as { url: string; servers?: unknown }[]).map(
+            ({ url, servers }) =>
+              host
+                .fetchResource(url, serversOf(servers), controller.signal)
+                .catch((error): NappletResourceResult => ({
+                  ok: false,
+                  error: "network-error",
+                  message: String(error),
+                }))
+                .then((result) =>
+                  result.ok
+                    ? { url, ok: true, blob: result.blob, mime: result.mime }
+                    : {
+                        url,
+                        ok: false,
+                        error: result.error,
+                        ...(result.message ? { message: result.message } : {}),
+                      },
+                ),
+          ),
+        ).then((items) => {
+          const cancelled = !fetches.has(id);
+          done();
+          if (!cancelled)
+            send({ type: "resource.bytesMany.result", id, items });
+        });
+        return;
+      }
+      case "resource.cancel":
+        fetches.get(id)?.abort();
+        fetches.delete(id);
+        return;
+    }
+  };
+
   return {
     receive: (data) => {
       if (disposed || !isRecord(data) || typeof data.type !== "string") return;
@@ -540,6 +679,8 @@ export const createNappletSession = (
           return handleRelay(message);
         case "outbox":
           return handleOutbox(message);
+        case "resource":
+          return handleResource(message);
       }
     },
     themeChanged: () => {
@@ -556,6 +697,8 @@ export const createNappletSession = (
       subscriptions.clear();
       for (const stop of queries) stop();
       queries.clear();
+      for (const controller of fetches.values()) controller.abort();
+      fetches.clear();
       disposed = true;
     },
   };

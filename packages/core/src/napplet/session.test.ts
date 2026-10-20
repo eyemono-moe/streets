@@ -39,6 +39,7 @@ const setup = (
     closed: boolean;
   }[] = [];
   const stored = new Map<string, string>();
+  const fetched: { url: string; signal: AbortSignal }[] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -61,6 +62,12 @@ const setup = (
           .filter((key) => key.startsWith(`${scope}/`))
           .map((key) => key.slice(scope.length + 1)),
     },
+    fetchResource: async (url, _servers, signal) => {
+      fetched.push({ url, signal });
+      return url.includes("missing")
+        ? { ok: false, error: "not-found" }
+        : { ok: true, blob: new Blob(["png"]), mime: "image/png" };
+    },
     writeRelays: (pubkey) =>
       pubkey === "b".repeat(64) ? ["wss://author.example/"] : undefined,
     subscribe: (filters, sink, hints) => {
@@ -72,7 +79,7 @@ const setup = (
     },
   };
   const session = createNappletSession(host, (message) => sent.push(message));
-  return { session, sent, opened };
+  return { session, sent, opened, fetched };
 };
 
 describe("createNappletSession", () => {
@@ -427,6 +434,80 @@ describe("NAP-OUTBOX", () => {
       id: "p",
       ok: false,
     });
+  });
+});
+
+describe("NAP-RESOURCE", () => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  // @napplet/shim: 成功は `resource.bytes.result`、失敗は `resource.bytes.error` で返す。
+  it("取れたら Blob と種類を、取れなければ error を、別の種類のメッセージで返す", async () => {
+    const { session, sent } = setup(["resource"]);
+    session.receive({
+      type: "resource.bytes",
+      id: "r1",
+      url: "https://a.example/x.png",
+    });
+    session.receive({
+      type: "resource.bytes",
+      id: "r2",
+      url: "https://a.example/missing.png",
+    });
+    await settle();
+    expect(sent).toEqual([
+      {
+        type: "resource.bytes.result",
+        id: "r1",
+        blob: expect.any(Blob),
+        mime: "image/png",
+      },
+      { type: "resource.bytes.error", id: "r2", error: "not-found" },
+    ]);
+  });
+
+  it("cancel された取得は止め、結果を送らない", async () => {
+    const { session, sent, fetched } = setup(["resource"]);
+    session.receive({
+      type: "resource.bytes",
+      id: "r",
+      url: "https://a.example/x.png",
+    });
+    session.receive({ type: "resource.cancel", id: "r" });
+    await settle();
+    expect(fetched[0]?.signal.aborted).toBe(true);
+    expect(sent).toEqual([]);
+  });
+
+  it("bytesMany は頼んだ順に、URL ごとの結果を並べて返す", async () => {
+    const { session, sent } = setup(["resource"]);
+    session.receive({
+      type: "resource.bytesMany",
+      id: "m",
+      requests: [
+        { url: "https://a.example/missing.png" },
+        { url: "https://a.example/x.png" },
+      ],
+    });
+    await settle();
+    expect(sent).toEqual([
+      {
+        type: "resource.bytesMany.result",
+        id: "m",
+        items: [
+          {
+            url: "https://a.example/missing.png",
+            ok: false,
+            error: "not-found",
+          },
+          {
+            url: "https://a.example/x.png",
+            ok: true,
+            blob: expect.any(Blob),
+            mime: "image/png",
+          },
+        ],
+      },
+    ]);
   });
 });
 
