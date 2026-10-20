@@ -35,7 +35,7 @@ import SearchSettings from "./SearchSettings";
 import {
   ACCOUNT_PAGES,
   availableSettings,
-  pageNames,
+  pageName,
   type SettingEntry,
   type SettingPage,
 } from "./setting-registry";
@@ -125,54 +125,54 @@ const SettingsDialog: Component<{
   const allPages: (DialogPage & { value: SettingPage })[] = [
     {
       value: "account",
-      label: pageNames.account,
+      label: pageName("account"),
       icon: "i-material-symbols:person-outline-rounded",
-      title: pageNames.account,
+      title: pageName("account"),
       content: () => <AccountSettings />,
     },
     {
       value: "relays",
-      label: pageNames.relays,
+      label: pageName("relays"),
       icon: "i-material-symbols:globe",
-      title: pageNames.relays,
+      title: pageName("relays"),
       content: () => <RelaySettings />,
     },
 
     {
       value: "media",
-      label: pageNames.media,
+      label: pageName("media"),
       icon: "i-material-symbols:image-outline-rounded",
-      title: pageNames.media,
+      title: pageName("media"),
       content: () => <MediaSettings />,
     },
     {
       value: "search",
-      label: pageNames.search,
+      label: pageName("search"),
       icon: "i-material-symbols:search-rounded",
-      title: pageNames.search,
+      title: pageName("search"),
       content: () => <SearchSettings />,
     },
     {
       value: "emoji",
-      label: pageNames.emoji,
+      label: pageName("emoji"),
       icon: "i-material-symbols:add-reaction-outline-rounded",
-      title: pageNames.emoji,
+      title: pageName("emoji"),
       description:
         "いいねボタンで送る絵文字と、リアクションのピッカーに出る絵文字を設定します",
       content: () => <EmojiSettings defaultReaction={props.defaultReaction} />,
     },
     {
       value: "mute",
-      label: pageNames.mute,
+      label: pageName("mute"),
       icon: "i-material-symbols:volume-off-outline-rounded",
-      title: pageNames.mute,
+      title: pageName("mute"),
       content: () => <MuteSettings />,
     },
     {
       value: "keyboard",
-      label: pageNames.keyboard,
+      label: pageName("keyboard"),
       icon: "i-material-symbols:keyboard-outline-rounded",
-      title: pageNames.keyboard,
+      title: pageName("keyboard"),
       content: () => (
         <KeyboardSettings
           keymap={props.keymap}
@@ -182,9 +182,9 @@ const SettingsDialog: Component<{
     },
     {
       value: "display",
-      label: pageNames.display,
+      label: pageName("display"),
       icon: "i-material-symbols:visibility-outline-rounded",
-      title: pageNames.display,
+      title: pageName("display"),
       content: () => (
         <DisplaySettings
           scheme={props.scheme}
@@ -203,9 +203,9 @@ const SettingsDialog: Component<{
     },
     {
       value: "privacy",
-      label: pageNames.privacy,
+      label: pageName("privacy"),
       icon: "i-material-symbols:lock-person-outline-rounded",
-      title: pageNames.privacy,
+      title: pageName("privacy"),
       content: () => (
         <PrivacySettings
           clientTag={props.clientTag}
@@ -216,9 +216,9 @@ const SettingsDialog: Component<{
     },
     {
       value: "stats",
-      label: pageNames.stats,
+      label: pageName("stats"),
       icon: "i-material-symbols:bar-chart-rounded",
-      title: pageNames.stats,
+      title: pageName("stats"),
       description:
         "リレーとやりとりしたデータの量と、いま投稿を読んでいるリレーです。",
       content: () => <StatsSettings />,

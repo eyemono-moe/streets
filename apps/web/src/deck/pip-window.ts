@@ -30,6 +30,7 @@ const copyStyles = (target: Document) => {
 const mirrorTheme = (target: Document): (() => void) => {
   const sync = () => {
     target.documentElement.className = document.documentElement.className;
+    target.documentElement.lang = document.documentElement.lang;
     target.documentElement.style.cssText =
       document.documentElement.style.cssText;
     target.body.className = document.body.className;
@@ -38,7 +39,7 @@ const mirrorTheme = (target: Document): (() => void) => {
   const observer = new MutationObserver(sync);
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["class", "style"],
+    attributeFilter: ["class", "style", "lang"],
   });
   observer.observe(document.body, {
     attributes: true,

@@ -1,0 +1,232 @@
+{
+  "pages": {
+    "account": "Account",
+    "relays": "Relays",
+    "media": "Images",
+    "search": "Search",
+    "emoji": "Emoji",
+    "mute": "Mute",
+    "keyboard": "Keyboard",
+    "display": "Display",
+    "privacy": "Privacy",
+    "stats": "Statistics"
+  },
+  "items": {
+    "profile": {
+      "title": "Profile",
+      "keywords": []
+    },
+    "profileDisplayName": {
+      "title": "Display name",
+      "keywords": ["profile name", "name"]
+    },
+    "profileName": {
+      "title": "Username",
+      "keywords": ["handle"]
+    },
+    "profileAbout": {
+      "title": "About",
+      "description": "The profile text other people see",
+      "keywords": ["bio", "description"]
+    },
+    "profilePicture": {
+      "title": "Profile picture",
+      "description": "The image shown on your profile",
+      "keywords": ["avatar", "icon"]
+    },
+    "profileBanner": {
+      "title": "Banner image",
+      "keywords": ["header", "cover"]
+    },
+    "profileNip05": {
+      "title": "Domain verification (NIP-05)",
+      "keywords": ["verification", "domain"]
+    },
+    "profileWebsite": {
+      "title": "Website",
+      "keywords": ["URL", "homepage"]
+    },
+    "profileLud16": {
+      "title": "Zap address (Lightning address)",
+      "keywords": ["tip", "wallet", "lightning"]
+    },
+    "accountId": {
+      "title": "Your ID",
+      "keywords": ["public key", "npub"]
+    },
+    "relays": {
+      "title": "Your relays",
+      "keywords": ["connections", "write relays", "read relays"]
+    },
+    "blockedRelays": {
+      "title": "Blocked relays",
+      "keywords": ["block", "deny"]
+    },
+    "relayRecommendations": {
+      "title": "Recommended relays",
+      "keywords": []
+    },
+    "readRouting": {
+      "title": "Relays to read posts from",
+      "keywords": ["reading", "routing"]
+    },
+    "readRedundancy": {
+      "title": "Relays to search per person",
+      "keywords": ["per person", "missing posts", "redundancy"]
+    },
+    "fallbackRelays": {
+      "title": "Default relays",
+      "keywords": ["fallback"]
+    },
+    "relayPlan": {
+      "title": "Relays in use",
+      "keywords": []
+    },
+    "relayTraffic": {
+      "title": "Relay traffic",
+      "keywords": []
+    },
+    "imageDisplay": {
+      "title": "Image display",
+      "description": "Shrink images to fit the screen and use less memory",
+      "keywords": ["downscale", "memory"]
+    },
+    "imageUpload": {
+      "title": "Image upload server",
+      "description": "The server that stores images you attach to posts",
+      "keywords": ["Blossom", "server"]
+    },
+    "searchHistory": {
+      "title": "Search history",
+      "description": "Keep past searches so you can run them again from the search panel",
+      "keywords": ["history", "recent searches"]
+    },
+    "searchRelays": {
+      "title": "Search relays",
+      "keywords": ["search"]
+    },
+    "reactionEmoji": {
+      "title": "Like button emoji",
+      "keywords": ["reaction"]
+    },
+    "emojiList": {
+      "title": "Your emoji list",
+      "keywords": []
+    },
+    "emojiFind": {
+      "title": "Find emoji sets",
+      "keywords": []
+    },
+    "emojiManage": {
+      "title": "Manage more emoji",
+      "keywords": []
+    },
+    "muteAdd": {
+      "title": "Add a mute",
+      "keywords": ["hide"]
+    },
+    "muteList": {
+      "title": "Muted",
+      "keywords": ["hidden", "unmute"]
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "keywords": ["key bindings"]
+    },
+    "columnDigits": {
+      "title": "Number keys to switch columns",
+      "keywords": ["switch columns"]
+    },
+    "theme": {
+      "title": "Color theme",
+      "description": "Choose a light or dark screen",
+      "keywords": ["dark mode", "light mode"]
+    },
+    "contrast": {
+      "title": "Contrast",
+      "description": "Choose how much text stands out from the background",
+      "keywords": ["text", "background", "readability"]
+    },
+    "accent": {
+      "title": "Accent color",
+      "keywords": ["color", "theme"]
+    },
+    "preview": {
+      "title": "Preview",
+      "keywords": []
+    },
+    "deckLayout": {
+      "title": "Column layout",
+      "description": "Show columns side by side, or one at a time",
+      "keywords": ["layout", "single column", "multiple columns"]
+    },
+    "swipeMode": {
+      "title": "Swipe to switch columns",
+      "description": "Choose what swiping left or right does when showing one column at a time",
+      "keywords": ["swipe", "left and right", "wrap around", "loop", "menu"]
+    },
+    "columnWidth": {
+      "title": "Column width",
+      "description": "Stretch side-by-side columns to fill the screen",
+      "keywords": ["width", "stretch"]
+    },
+    "contentWarning": {
+      "title": "Sensitive posts",
+      "keywords": ["sensitive", "content warning"]
+    },
+    "chatOrder": {
+      "title": "Chat order",
+      "description": "Choose whether new chat messages appear at the bottom or the top",
+      "keywords": ["public chat", "channel", "new messages", "top", "bottom"]
+    },
+    "timeFormat": {
+      "title": "Post time",
+      "description": "Show post times as dates or as time ago",
+      "keywords": [
+        "relative time",
+        "absolute time",
+        "time ago",
+        "minutes ago",
+        "date"
+      ]
+    },
+    "writeProgress": {
+      "title": "Saving progress",
+      "keywords": ["progress", "upload"]
+    },
+    "actionLayout": {
+      "title": "Action bar",
+      "keywords": ["post actions", "reorder"]
+    },
+    "clientTag": {
+      "title": "Show which app you use",
+      "keywords": ["client tag", "client"]
+    },
+    "notifyQuoted": {
+      "title": "Notify people you quote",
+      "keywords": ["quote", "mention", "p tag"]
+    },
+    "errorReport": {
+      "title": "Error and performance reports",
+      "keywords": ["error reports", "telemetry"]
+    }
+  },
+  "section": {
+    "reset": "Reset to default",
+    "resetLabel": "Reset {{title}} to default"
+  },
+  "privacy": {
+    "clientTag": {
+      "description": "Marks your posts as sent from Streets. Other apps show something like “via Streets”, so anyone can see which app you use. The mark can't be removed from posts you have already sent.",
+      "switch": "Show that posts were sent from Streets"
+    },
+    "notifyQuoted": {
+      "description": "When you quote a post, its author gets a notification. If you turn this off, they aren't told you quoted them. This applies both to the quote button and to links to posts in your text. People you mention by name in the text are still notified.",
+      "switch": "Notify the author of the post you quote"
+    },
+    "errorReport": {
+      "description": "Sends error details, along with how long screens and actions took to load, to the developers together with information about your device and browser. When signing or logging in fails, it also sends how you log in (the type of extension, and the relays used to talk to your signer). It never sends your private key, public key, event IDs or the text of your posts.",
+      "switch": "Send error and performance reports"
+    }
+  }
+}

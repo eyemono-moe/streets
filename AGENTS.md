@@ -61,6 +61,19 @@ pnpm workspace の 2 パッケージ。
 - 開閉するもの（ダイアログ・メニュー・ホバーカード・折りたたみ・重ねたカラム・サイドパネル）には動きを付ける。`uno.config.ts` の `motion-fade` / `motion-pop` / `motion-collapse` と `animate-*` を使い、長さは 100〜180ms に収める。`prefers-reduced-motion` は preflight が 0ms に落とすので、部品ごとに分岐を書かない
 - Ark UI の開閉する部品は `lazyMount` と `unmountOnExit` を付ける。閉じている間も中身を作ると、投稿の数だけ DOM が増える
 
+## 文言（i18n）
+
+画面は日本語と英語で出す。仕組みは `@solid-primitives/i18n`。既存の画面には、まだ移していない日本語が多く残っている。触った画面の文言は移す。
+
+- 画面に出る文言は、コードに直に書かない。使う機能のフォルダの `i18n/ja.json` と `i18n/en.json` に置き、`src/i18n/locale.ts` の `t("<フォルダ>.<キー>")` で引く（例: `t("settings.pages.account")`）。新しいフォルダに辞書を作ったら、`src/i18n/dictionaries.ts` にフォルダの名前で登録する。入れ子のフォルダは `"columns.blocks"` のように `.` でつなぐ。VS Code の i18n-ally が同じ置き方で読む（`.vscode/settings.json`）
+- 日本語がキーの正。英語に無いキーは型検査が、英語にだけあるキーと `{{ }}` の名前の食い違いは `scripts/i18n.test.mjs` が落とす。訳が抜けたまま出すことはしない
+- キーは意味で付ける（`privacy.clientTag.description`）。文をそのままキーにしない
+- 値を埋めるときは `{{ name }}` を使う。文を `+` やテンプレートリテラルでつながない（語順が言語で違う）
+- `t()` はモジュールの最上位で呼ばない。言語を切り替えても変わらなくなる。表（設定の項目・操作の一覧など）には id を持たせ、文言は描くところで引く（`settings/setting-registry.ts` の `settingTitle`）
+- core は文言を持たない。画面に出す値（カラムの題名・警告・エラーなど）は、キーと引数で返し、web が辞書で引く
+- 日付・数・相対時刻は `Intl` に `locale()` を渡して書く。ロケールを固定しない
+- 英語の文言が揃うまでは、ブラウザの言語に従わず日本語にしている（`i18n/locale.ts` の `followsBrowser`）。英語は devtools の Language パネルか、Storybook のツールバーの「言語」で確かめる。ストーリーで英語を並べるときは `globals: { locale: "en" }`
+
 ## 画面の組み立て
 
 状態と規則を持つ操作（重ねたカラム、デッキのパネル・並べ替え・一時カラム、投稿や返信の送信中・下書き、通知の既読など）は、次の形で書く。

@@ -1,7 +1,8 @@
 import { type JSX, type ParentComponent, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import IconButton from "../ui/IconButton";
 import StorageHint, { type StorageScope } from "../ui/StorageHint";
-import { settings, type SettingId } from "./setting-registry";
+import { settings, type SettingId, settingTitle } from "./setting-registry";
 import { useSettingFilter } from "./SettingFilter";
 
 /**
@@ -32,8 +33,8 @@ const SettingsSection: ParentComponent<{
   const title = () => {
     const id = field();
     return id
-      ? settings[id].title
-      : (props.title ?? (props.id ? settings[props.id].title : ""));
+      ? settingTitle(id)
+      : (props.title ?? (props.id ? settingTitle(props.id) : ""));
   };
   return (
     <Show when={!filter || filter() === props.id || field()}>
@@ -48,8 +49,8 @@ const SettingsSection: ParentComponent<{
             {(onReset) => (
               <IconButton
                 icon="i-material-symbols:refresh-rounded"
-                label={`${title()}を既定に戻す`}
-                title="既定に戻す"
+                label={t("settings.section.resetLabel", { title: title() })}
+                title={t("settings.section.reset")}
                 onClick={() => onReset()()}
               />
             )}

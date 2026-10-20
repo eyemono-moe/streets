@@ -41,7 +41,7 @@ import { Mediates, useDispatch } from "../ui-events";
 import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";
-import { settings, type SettingId } from "./setting-registry";
+import { type SettingId, settingTitle } from "./setting-registry";
 import { useSettingFilter } from "./SettingFilter";
 import SettingsSection from "./SettingsSection";
 
@@ -126,7 +126,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 field="display_name"
                 state={props.state}
                 emoji
-                label={settings.profileDisplayName.title}
+                label={settingTitle("profileDisplayName")}
                 placeholder="例：わたし"
               />
             </Show>
@@ -135,7 +135,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 field="name"
                 state={props.state}
                 emoji
-                label={settings.profileName.title}
+                label={settingTitle("profileName")}
                 placeholder="例：me"
                 hint="表示名の下に @ を付けて出ます。"
               />
@@ -147,7 +147,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               state={props.state}
               emoji
               mention
-              label={settings.profileAbout.title}
+              label={settingTitle("profileAbout")}
               multiline
             />
           </Show>
@@ -156,7 +156,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             <ProfileImageInput
               field="picture"
               state={props.state}
-              label={settings.profilePicture.title}
+              label={settingTitle("profilePicture")}
               aspectRatio={1}
               onUploading={countUpload}
               preview={(url) => (
@@ -172,7 +172,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             <ProfileImageInput
               field="banner"
               state={props.state}
-              label={settings.profileBanner.title}
+              label={settingTitle("profileBanner")}
               onUploading={countUpload}
               preview={(url) => <BannerThumb url={url} />}
             />
@@ -184,7 +184,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
                 state={props.state}
                 onBlur={nip05.check}
                 status={<Nip05CheckResult check={nip05} />}
-                label={settings.profileNip05.title}
+                label={settingTitle("profileNip05")}
                 type="email"
                 placeholder="name@example.com"
                 hint={
@@ -206,7 +206,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               <ProfileInput
                 field="website"
                 state={props.state}
-                label={settings.profileWebsite.title}
+                label={settingTitle("profileWebsite")}
                 type="url"
                 placeholder="https://"
               />
@@ -215,7 +215,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               <ProfileInput
                 field="lud16"
                 state={props.state}
-                label={settings.profileLud16.title}
+                label={settingTitle("profileLud16")}
                 type="email"
                 placeholder="name@wallet.example"
                 hint="Zap（ビットコインでの投げ銭）を受け取るウォレットのアドレスです。ウォレットのアプリに表示されています。空欄なら、あなたの投稿に Zap は送れません。"

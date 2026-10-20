@@ -1,4 +1,5 @@
 import type { SearchEntry } from "@streets/core/signal/search";
+import { t } from "../i18n/locale";
 
 export type SettingPage =
   | "account"
@@ -12,18 +13,9 @@ export type SettingPage =
   | "privacy"
   | "stats";
 
-export const pageNames: Record<SettingPage, string> = {
-  account: "アカウント",
-  relays: "リレー",
-  media: "画像",
-  search: "検索",
-  emoji: "絵文字",
-  mute: "ミュート",
-  keyboard: "キーボード",
-  display: "表示",
-  privacy: "プライバシー",
-  stats: "統計",
-};
+/** 設定のページの名前。言語を切り替えると変わるので、描くところで呼ぶ。 */
+export const pageName = (page: SettingPage): string =>
+  t(`settings.pages.${page}`);
 
 /** アカウントに保存するページ。ログインしていなければ読む先も書く先も無い。 */
 export const ACCOUNT_PAGES: ReadonlySet<SettingPage> = new Set([
@@ -35,7 +27,7 @@ export const ACCOUNT_PAGES: ReadonlySet<SettingPage> = new Set([
   "mute",
 ]);
 
-type SettingInfo = Omit<SearchEntry, "id"> & {
+type SettingInfo = {
   page: SettingPage;
   /** 編集欄のない説明・案内は検索結果へ出さない。 */
   searchable?: boolean;
@@ -43,189 +35,86 @@ type SettingInfo = Omit<SearchEntry, "id"> & {
   within?: "profile";
 };
 
-const setting = (
-  title: string,
-  page: SettingPage,
-  keywords: string[] = [],
-): SettingInfo => ({ title, page, section: pageNames[page], keywords });
+/**
+ * 設定画面の各項目と、その置き場所。名前・説明・検索の語は辞書
+ * （`settings.items.<id>`）にあり、`settingTitle` などで引く。
+ */
+const placements = {
+  profile: { page: "account", searchable: false },
+  profileDisplayName: { page: "account", within: "profile" },
+  profileName: { page: "account", within: "profile" },
+  profileAbout: { page: "account", within: "profile" },
+  profilePicture: { page: "account", within: "profile" },
+  profileBanner: { page: "account", within: "profile" },
+  profileNip05: { page: "account", within: "profile" },
+  profileWebsite: { page: "account", within: "profile" },
+  profileLud16: { page: "account", within: "profile" },
+  accountId: { page: "account", searchable: false },
+  relays: { page: "relays" },
+  blockedRelays: { page: "relays" },
+  relayRecommendations: { page: "relays", searchable: false },
+  readRouting: { page: "relays" },
+  readRedundancy: { page: "relays" },
+  fallbackRelays: { page: "relays" },
+  relayPlan: { page: "stats", searchable: false },
+  relayTraffic: { page: "stats", searchable: false },
+  imageDisplay: { page: "media" },
+  imageUpload: { page: "media" },
+  searchHistory: { page: "search" },
+  searchRelays: { page: "search" },
+  reactionEmoji: { page: "emoji" },
+  emojiList: { page: "emoji" },
+  emojiFind: { page: "emoji", searchable: false },
+  emojiManage: { page: "emoji", searchable: false },
+  muteAdd: { page: "mute" },
+  muteList: { page: "mute" },
+  shortcuts: { page: "keyboard" },
+  columnDigits: { page: "keyboard" },
+  theme: { page: "display" },
+  contrast: { page: "display" },
+  accent: { page: "display" },
+  preview: { page: "display", searchable: false },
+  deckLayout: { page: "display" },
+  swipeMode: { page: "display" },
+  columnWidth: { page: "display" },
+  contentWarning: { page: "display" },
+  chatOrder: { page: "display" },
+  timeFormat: { page: "display" },
+  writeProgress: { page: "display" },
+  actionLayout: { page: "display" },
+  clientTag: { page: "privacy" },
+  notifyQuoted: { page: "privacy" },
+  errorReport: { page: "privacy" },
+} as const satisfies Record<string, SettingInfo>;
 
-const profileField = (title: string, keywords: string[]): SettingInfo => ({
-  ...setting(title, "account", keywords),
-  within: "profile",
-});
+export type SettingId = keyof typeof placements;
 
-/** 設定画面の各項目が参照する検索情報。表示名もここを正とする。 */
-export const settings = {
-  profile: {
-    ...setting("プロフィール", "account"),
-    searchable: false,
-  },
-  profileDisplayName: profileField("表示名", ["プロフィール名", "名前"]),
-  profileName: profileField("ユーザー名", ["ハンドル"]),
-  profileAbout: {
-    ...profileField("自己紹介", ["プロフィール文", "bio"]),
-    description: "ほかの人に見えるプロフィールの文章",
-  },
-  profilePicture: {
-    ...profileField("アイコン画像", ["プロフィール画像", "アバター"]),
-    description: "プロフィールに表示する画像",
-  },
-  profileBanner: profileField("ヘッダー画像", ["バナー画像"]),
-  profileNip05: profileField("ドメインでの本人確認（NIP-05）", [
-    "認証",
-    "ドメイン",
-  ]),
-  profileWebsite: profileField("Web サイト", ["URL", "ホームページ"]),
-  profileLud16: profileField("Zap の受け取り先（ライトニングアドレス）", [
-    "投げ銭",
-    "ウォレット",
-  ]),
-  accountId: {
-    ...setting("あなたの ID", "account", ["公開鍵", "npub"]),
-    searchable: false,
-  },
-  relays: setting("使うリレー", "relays", ["接続先", "投稿先", "読むリレー"]),
-  blockedRelays: setting("繋がないリレー", "relays", ["ブロック", "接続拒否"]),
-  relayRecommendations: {
-    ...setting("おすすめのリレー", "relays"),
-    searchable: false,
-  },
-  readRouting: setting("投稿を読むリレー", "relays", [
-    "読み取り",
-    "ルーティング",
-  ]),
-  readRedundancy: setting("投稿を探すリレーの数", "relays", [
-    "1 人あたり",
-    "取りこぼし",
-    "冗長",
-  ]),
-  fallbackRelays: setting("既定のリレー", "relays", [
-    "フォールバック",
-    "fallback",
-  ]),
-  relayPlan: {
-    ...setting("いま使っているリレー", "stats"),
-    searchable: false,
-  },
-  relayTraffic: {
-    ...setting("リレーとの通信量", "stats"),
-    searchable: false,
-  },
-  imageDisplay: {
-    ...setting("画像の表示", "media", ["画像を縮める", "メモリ"]),
-    description: "画像を画面に合う大きさに縮め、メモリの使用を減らす",
-  },
-  imageUpload: {
-    ...setting("画像のアップロード先", "media", ["Blossom", "サーバー"]),
-    description: "投稿に付ける画像を置くサーバー",
-  },
-  searchHistory: {
-    ...setting("検索履歴", "search", ["履歴", "最近の検索"]),
-    description: "探した条件を、検索パネルからすぐ探し直せるように残す",
-  },
-  searchRelays: setting("検索するリレー", "search", ["検索先"]),
-  reactionEmoji: setting("いいねボタンの絵文字", "emoji", ["リアクション"]),
-  emojiList: setting("自分の絵文字リスト", "emoji"),
-  emojiFind: {
-    ...setting("絵文字セットを探す", "emoji"),
-    searchable: false,
-  },
-  emojiManage: {
-    ...setting("もっと絵文字を管理する", "emoji"),
-    searchable: false,
-  },
-  muteAdd: setting("ミュートを足す", "mute", ["非表示"]),
-  muteList: setting("ミュートしているもの", "mute", ["非表示", "解除"]),
-  shortcuts: setting("ショートカットキー", "keyboard", ["キー割り当て"]),
-  columnDigits: setting("数字キーでのカラム移動", "keyboard", ["カラム切替"]),
-  theme: {
-    ...setting("カラーテーマ", "display", ["ダークモード", "ライトモード"]),
-    description: "画面を明るい色にするか暗い色にするか選ぶ",
-  },
-  contrast: {
-    ...setting("コントラスト", "display", ["文字", "背景", "見やすさ", "濃さ"]),
-    description: "文字と背景の明るさの差を選ぶ",
-  },
-  accent: setting("アクセントカラー", "display", ["色", "テーマ"]),
-  preview: {
-    ...setting("プレビュー", "display"),
-    searchable: false,
-  },
-  deckLayout: {
-    ...setting("カラムの並べ方", "display", ["レイアウト", "1列", "複数列"]),
-    description: "カラムを横に並べるか一列ずつ切り替えるかを選ぶ",
-  },
-  swipeMode: {
-    ...setting("スワイプでカラムを切り替える", "display", [
-      "スワイプ",
-      "左右",
-      "一周",
-      "ループ",
-      "メニュー",
-    ]),
-    description: "1 列ずつのときに左右へ払うと何が起きるかを選ぶ",
-  },
-  columnWidth: {
-    ...setting("カラムの幅", "display", ["column width", "横幅", "広げる"]),
-    description: "横に並べたカラムを画面の幅いっぱいに広げる",
-  },
-  contentWarning: setting("閲覧注意の投稿", "display", [
-    "センシティブ",
-    "警告",
-  ]),
-  chatOrder: {
-    ...setting("チャットの並び順", "display", [
-      "パブリックチャット",
-      "チャンネル",
-      "新しい発言",
-      "上から",
-      "下から",
-    ]),
-    description: "チャットで新しい発言を下に足すか上に足すかを選ぶ",
-  },
-  timeFormat: {
-    ...setting("投稿の時刻", "display", [
-      "相対時間",
-      "絶対時間",
-      "経過時間",
-      "何分前",
-      "日時",
-    ]),
-    description: "投稿の時刻を絶対時間で出すか相対時間で出すかを選ぶ",
-  },
-  writeProgress: setting("ローディング表示", "display", [
-    "保存の進み具合",
-    "アップロード",
-  ]),
-  actionLayout: setting("アクション欄", "display", ["投稿の操作", "並べ替え"]),
-  clientTag: setting("使用しているアプリの表示", "privacy", [
-    "client tag",
-    "クライアント",
-  ]),
-  notifyQuoted: setting("引用した相手への通知", "privacy", [
-    "引用",
-    "quote",
-    "メンション",
-    "p tag",
-  ]),
-  errorReport: setting("不具合と動作の速さの報告", "privacy", [
-    "エラー報告",
-    "計測",
-  ]),
-} as const;
+export const settings: Record<SettingId, SettingInfo> = placements;
 
-export type SettingId = keyof typeof settings;
+export type SettingEntry = SearchEntry & SettingInfo & { id: SettingId };
 
-export type SettingEntry = SettingInfo & { id: SettingId };
+/** 項目の名前・説明・検索の語。言語を切り替えると変わるので、描くところで呼ぶ。 */
+export const settingTitle = (id: SettingId): string =>
+  t(`settings.items.${id}.title`);
 
-const entries: SettingEntry[] = Object.entries(settings).map(([id, info]) => ({
-  ...info,
-  id: id as SettingId,
-}));
+const settingEntry = (id: SettingId): SettingEntry => {
+  const info = settings[id];
+  const item = t(`settings.items.${id}`);
+  return {
+    ...info,
+    id,
+    title: item.title,
+    description: "description" in item ? item.description : undefined,
+    keywords: item.keywords,
+    section: pageName(info.page),
+  };
+};
 
 export const availableSettings = (signedIn: boolean): SettingEntry[] =>
-  entries.filter(
-    (entry) =>
-      entry.searchable !== false &&
-      (signedIn || !ACCOUNT_PAGES.has(entry.page)),
-  );
+  (Object.keys(settings) as SettingId[])
+    .map(settingEntry)
+    .filter(
+      (entry) =>
+        entry.searchable !== false &&
+        (signedIn || !ACCOUNT_PAGES.has(entry.page)),
+    );
