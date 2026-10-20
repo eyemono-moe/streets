@@ -703,6 +703,36 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("common")) {
+    // 結果は `ok` と `error` の欄で返し、reject しない（@napplet/shim と同じ）。
+    const result = (message: Message) => {
+      const { type: _type, id: _id, ...rest } = message;
+      return rest;
+    };
+    const ask = (type: string, payload: Record<string, unknown>) =>
+      request(type, payload, result, false);
+    napplet.common = {
+      encodeNip19: (input: unknown) => ask("common.encodeNip19", { input }),
+      decodeNip19: (value: string) => ask("common.decodeNip19", { value }),
+      getProfile: (target: string) => ask("common.getProfile", { target }),
+      follows: () => ask("common.follows", {}),
+      follow: (...pubkeys: string[]) => ask("common.follow", { pubkeys }),
+      unfollow: (...pubkeys: string[]) => ask("common.unfollow", { pubkeys }),
+      react: (
+        targetEventId: string,
+        reaction: string,
+        customEmojiHref?: string,
+      ) =>
+        ask("common.react", {
+          targetEventId,
+          reaction,
+          ...(customEmojiHref === undefined ? {} : { customEmojiHref }),
+        }),
+      report: (target: unknown, reason: string, text: string) =>
+        ask("common.report", { target, reason, text }),
+    };
+  }
+
   if (exposed.has("link")) {
     // 断られたときも reject せず `{ status: "denied" }` で返す（@napplet/shim と同じ）。
     napplet.link = {

@@ -30,6 +30,7 @@ export const STREETS_NAPPLET_DOMAINS = [
   "inc",
   "link",
   "keys",
+  "common",
 ] as const;
 
 /** NAP-STORAGE が勧める、napplet 1 つあたりの保存の枠（UTF-8 のバイト数）。 */
@@ -182,6 +183,7 @@ export type StreetsHostInputs = {
   publish: NappletHost["publish"];
   openLink: NappletHost["openLink"];
   forwardKey: NappletHost["forwardKey"];
+  common: NappletHost["common"];
 };
 
 export const createStreetsNappletHost = (
@@ -200,6 +202,7 @@ export const createStreetsNappletHost = (
   publish: inputs.publish,
   openLink: inputs.openLink,
   forwardKey: inputs.forwardKey,
+  common: inputs.common,
   subscribe: subscribeThroughReadLayer(inputs.readLayer),
   fetchResource: (url, servers, signal) =>
     fetchNappletResource(url, {

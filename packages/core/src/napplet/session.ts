@@ -13,7 +13,17 @@ import type { EventDraft } from "../nostr/build/draft";
  */
 import type { NostrEvent } from "../nostr/event";
 import { relayOf } from "../nostr/event-refs";
+import { decodeNpub } from "../nostr/nip19";
+import type { ReactionInput } from "../nostr/reaction";
+import { type ReportReason, isReportReason } from "../nostr/report";
 import type { RelayFilter } from "../relay/relay-connection";
+import {
+  commonProfileData,
+  commonReaction,
+  decodeCommonNip19,
+  encodeCommonNip19,
+  profileTarget,
+} from "./common";
 import {
   type IntentAvailability,
   type IntentDelivery,
@@ -127,6 +137,24 @@ export type NappletHost = {
     shift: boolean;
     meta: boolean;
   }) => void;
+  /**
+   * NAP-COMMON の書き込み。ユーザーに確かめてから、Streets のフォロー・リアクション・
+   * 通報の操作として行う。
+   */
+  common: {
+    setFollow: (pubkeys: string[], on: boolean) => Promise<CommonActionResult>;
+    react: (
+      eventId: string,
+      input: ReactionInput,
+    ) => Promise<CommonActionResult>;
+    report: (
+      target:
+        | { type: "pubkey"; pubkey: string }
+        | { type: "event"; id: string; pubkey?: string },
+      reason: ReportReason,
+      text: string,
+    ) => Promise<CommonActionResult>;
+  };
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -248,6 +276,10 @@ const timeoutOf = (options: unknown): number => {
     ? Math.min(requested, NAPPLET_QUERY_TIMEOUT_MS)
     : NAPPLET_QUERY_TIMEOUT_MS;
 };
+
+export type CommonActionResult =
+  | { ok: true; eventId?: string; event?: NostrEvent }
+  | { ok: false; error: string };
 
 type EventResult = { event: NostrEvent; sidecar?: { relayHints: string[] } };
 
@@ -410,6 +442,127 @@ export const createNappletSession = (
           send({ type: "keys.bindings", bindings: [] });
         }
         return;
+    }
+  };
+
+  const handleCommon = (request: Message) => {
+    const signedIn = host.publicKey() !== "";
+    const answerAction = (run: () => Promise<CommonActionResult>) => {
+      // > MUST reject modifying operations when no shell-user signer is connected
+      if (!signedIn) {
+        reply(request, { ok: false, error: "not-signed-in" });
+        return;
+      }
+      run().then(
+        (result) => reply(request, result),
+        () => reply(request, { ok: false, error: "publish-failed" }),
+      );
+    };
+    const npubs = (value: unknown) => {
+      if (!stringList(value) || value.length === 0) return undefined;
+      const pubkeys = value.map((item) => decodeNpub(item));
+      return pubkeys.every((pubkey): pubkey is string => pubkey !== undefined)
+        ? [...new Set(pubkeys)]
+        : undefined;
+    };
+    switch (request.type) {
+      case "common.encodeNip19":
+        reply(request, encodeCommonNip19(request.input));
+        return;
+      case "common.decodeNip19":
+        reply(request, decodeCommonNip19(request.value));
+        return;
+      case "common.getProfile": {
+        const target = profileTarget(request.target);
+        if (!target) {
+          reply(request, { ok: false, error: "invalid-profile-target" });
+          return;
+        }
+        collect(
+          [{ kinds: [0], authors: [target.pubkey], limit: 1 }],
+          target.relays
+            .flatMap((relay) => relayOf(relay) ?? [])
+            .slice(0, NAPPLET_MAX_RELAY_HINTS),
+          NAPPLET_QUERY_TIMEOUT_MS,
+          (events) => {
+            const latest = events.sort(
+              (a, b) => b.event.created_at - a.event.created_at,
+            )[0];
+            reply(request, {
+              ok: true,
+              pubkey: target.pubkey,
+              profile: latest ? commonProfileData(latest.event.content) : null,
+              ...(latest ? { result: latest } : {}),
+            });
+          },
+        );
+        return;
+      }
+      case "common.follows":
+        host.follows().then(
+          (pubkeys) => reply(request, { ok: true, pubkeys }),
+          () =>
+            reply(request, { ok: false, pubkeys: [], error: "relay-timeout" }),
+        );
+        return;
+      case "common.follow":
+      case "common.unfollow": {
+        const pubkeys = npubs(request.pubkeys);
+        if (!pubkeys) {
+          reply(request, { ok: false, error: "invalid-pubkey" });
+          return;
+        }
+        answerAction(() =>
+          host.common.setFollow(pubkeys, request.type === "common.follow"),
+        );
+        return;
+      }
+      case "common.react": {
+        const input = commonReaction(request.reaction, request.customEmojiHref);
+        if (
+          typeof request.targetEventId !== "string" ||
+          !HEX_64.test(request.targetEventId)
+        ) {
+          reply(request, { ok: false, error: "invalid-target" });
+          return;
+        }
+        if (!input) {
+          reply(request, { ok: false, error: "invalid-reaction" });
+          return;
+        }
+        const id = request.targetEventId;
+        answerAction(() => host.common.react(id, input));
+        return;
+      }
+      case "common.report": {
+        if (!isReportReason(request.reason)) {
+          reply(request, { ok: false, error: "invalid-report-reason" });
+          return;
+        }
+        const raw = isRecord(request.target) ? request.target : {};
+        const pubkey =
+          typeof raw.pubkey === "string" ? decodeNpub(raw.pubkey) : undefined;
+        const target =
+          raw.type === "pubkey" && pubkey
+            ? ({ type: "pubkey", pubkey } as const)
+            : raw.type === "event" &&
+                typeof raw.id === "string" &&
+                HEX_64.test(raw.id)
+              ? ({
+                  type: "event",
+                  id: raw.id,
+                  ...(pubkey ? { pubkey } : {}),
+                } as const)
+              : undefined;
+        if (!target) {
+          reply(request, { ok: false, error: "invalid-target" });
+          return;
+        }
+        const reason = request.reason;
+        const text = typeof request.text === "string" ? request.text : "";
+        answerAction(() => host.common.report(target, reason, text));
+        return;
+      }
     }
   };
 
@@ -958,6 +1111,8 @@ export const createNappletSession = (
           return handleLink(message);
         case "keys":
           return handleKeys(message);
+        case "common":
+          return handleCommon(message);
       }
     },
     themeChanged: () => {

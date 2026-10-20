@@ -38,12 +38,15 @@ import {
   on,
   onCleanup,
 } from "solid-js";
+import { useEventActions } from "../../actions";
+import ActionSheet from "../../napplet/ActionSheet";
 import {
   appletColumnFor,
   useAppletIntents,
 } from "../../napplet/applet-intents";
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { useAppletWriter } from "../../napplet/applet-writer";
+import { type ActionPrompt, createCommonHost } from "../../napplet/common-host";
 import IntentSheet, { type IntentSheetProps } from "../../napplet/IntentSheet";
 import LinkSheet, { type LinkSheetProps } from "../../napplet/LinkSheet";
 import NappletFrame from "../../napplet/NappletFrame";
@@ -414,6 +417,25 @@ const Napplet: Component<{
       return { status: "opened" };
     };
 
+  const eventActions = useEventActions();
+  const [confirming, setConfirming] = createSignal<
+    ActionPrompt & { answer: (approved: boolean) => void }
+  >();
+  // 確かめるのは 1 つずつ。答えを待っている間に来た分は、前の答えを待たせる。
+  let confirmQueue: Promise<unknown> = Promise.resolve();
+  const confirm = (prompt: ActionPrompt): Promise<boolean> => {
+    const ask = () =>
+      new Promise<boolean>((answer) =>
+        setConfirming({ ...prompt, answer }),
+      ).then((approved) => {
+        setConfirming(undefined);
+        return approved;
+      });
+    const next = confirmQueue.then(ask, ask);
+    confirmQueue = next;
+    return next;
+  };
+
   const viewer = () => (props.inputs.signedIn ? props.inputs.viewer : "");
   const profile = useProfile(() => viewer() || undefined);
   const mutes = useMutes();
@@ -474,6 +496,13 @@ const Napplet: Component<{
         hostElement?.dispatchEvent(new KeyboardEvent("keydown", init));
         hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
       },
+      common: createCommonHost({
+        actions: eventActions,
+        writer,
+        readLayer: scope.readLayer,
+        confirm,
+        label: `${running.manifest.title ?? running.manifest.identifier ?? "アップレット"} の書き込み`,
+      }),
       openLink: openLinkFor(
         running.manifest.title ?? running.manifest.identifier ?? "アップレット",
       ),
@@ -519,6 +548,22 @@ const Napplet: Component<{
       }
       overlay={
         <>
+          <Show when={confirming()}>
+            {(current) => (
+              <ActionSheet
+                source={
+                  manifest()?.title ?? manifest()?.identifier ?? "アップレット"
+                }
+                title={current().title}
+                confirmLabel={current().confirmLabel}
+                danger={current().danger}
+                onConfirm={() => current().answer(true)}
+                onCancel={() => current().answer(false)}
+              >
+                {current().body?.()}
+              </ActionSheet>
+            )}
+          </Show>
           <Show when={linking()}>
             {(current) => (
               <LinkSheet

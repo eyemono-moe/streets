@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
+import { encodeBech32 } from "../nostr/nip19";
 import type { RelayFilter } from "../relay/relay-connection";
 import type { IntentRequest } from "./intent";
 import {
@@ -46,6 +47,7 @@ const setup = (
   const published: Parameters<NappletHost["publish"]>[0][] = [];
   const links: Parameters<NappletHost["openLink"]>[] = [];
   const keys: Parameters<NappletHost["forwardKey"]>[0][] = [];
+  const actions: unknown[][] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -70,6 +72,20 @@ const setup = (
     },
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     forwardKey: (key) => void keys.push(key),
+    common: {
+      setFollow: async (pubkeys, on) => {
+        actions.push(["follow", pubkeys, on]);
+        return { ok: true };
+      },
+      react: async (id, input) => {
+        actions.push(["react", id, input]);
+        return { ok: true };
+      },
+      report: async (target, reason, text) => {
+        actions.push(["report", target, reason, text]);
+        return { ok: true };
+      },
+    },
     openLink: async (target, label) => {
       links.push([target, label]);
       return { status: "opened" };
@@ -131,6 +147,7 @@ const setup = (
     published,
     links,
     keys,
+    actions,
   };
 };
 
@@ -851,5 +868,99 @@ describe("NAP-KEYS", () => {
         error: "duplicate action ID",
       },
     ]);
+  });
+});
+
+describe("NAP-COMMON", () => {
+  const ALICE = "a".repeat(64);
+
+  // > `getProfile` ... queries latest kind 0, returns the raw profile event as
+  // > `RelayEventResult`, and returns `profile: null` if not found.
+  it("プロフィールは最新の kind:0 を読み、無ければ null を返す", async () => {
+    const { session, sent, opened } = setup(["shell", "common"]);
+    session.receive({ type: "common.getProfile", id: "g1", target: ALICE });
+    expect(opened[0]?.filters).toEqual([
+      { kinds: [0], authors: [ALICE], limit: 1 },
+    ]);
+    const old = {
+      ...note("1".repeat(64)),
+      pubkey: ALICE,
+      kind: 0,
+      created_at: 1,
+      content: '{"name":"old"}',
+    };
+    const latest = {
+      ...old,
+      id: "2".repeat(64),
+      created_at: 2,
+      content: '{"name":"alice"}',
+    };
+    opened[0]?.sink.event(old);
+    opened[0]?.sink.event(latest);
+    opened[0]?.sink.eose();
+    expect(sent.at(-1)).toEqual({
+      type: "common.getProfile.result",
+      id: "g1",
+      ok: true,
+      pubkey: ALICE,
+      profile: { name: "alice" },
+      result: { event: latest },
+    });
+    session.receive({ type: "common.getProfile", id: "g2", target: ALICE });
+    opened[1]?.sink.eose();
+    expect(sent.at(-1)).toMatchObject({ id: "g2", ok: true, profile: null });
+  });
+
+  // > `follow` | Decodes each `npub`, merges new `p` tags into the current NIP-02 kind 3 list
+  it("フォローは npub を hex にして Streets のフォローの操作に渡す", async () => {
+    const { session, sent, actions } = setup(["shell", "common"]);
+    session.receive({
+      type: "common.follow",
+      id: "f1",
+      pubkeys: [encodeBech32("npub", ALICE)],
+    });
+    session.receive({ type: "common.unfollow", id: "f2", pubkeys: ["bad"] });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(actions).toEqual([["follow", [ALICE], true]]);
+    expect(sent).toContainEqual({
+      type: "common.unfollow.result",
+      id: "f2",
+      ok: false,
+      error: "invalid-pubkey",
+    });
+  });
+
+  // > `report` | ... Event reports use `e` with reason plus author `p`
+  it("通報は種類を確かめてから渡し、知らない種類は断る", async () => {
+    const { session, sent, actions } = setup(["shell", "common"]);
+    session.receive({
+      type: "common.report",
+      id: "r1",
+      target: { type: "event", id: "e".repeat(64), pubkey: ALICE },
+      reason: "spam",
+      text: "",
+    });
+    session.receive({
+      type: "common.report",
+      id: "r2",
+      target: { type: "pubkey", pubkey: ALICE },
+      reason: "boring",
+      text: "",
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(actions).toEqual([
+      [
+        "report",
+        { type: "event", id: "e".repeat(64), pubkey: ALICE },
+        "spam",
+        "",
+      ],
+    ]);
+    expect(sent).toContainEqual({
+      type: "common.report.result",
+      id: "r2",
+      ok: false,
+      error: "invalid-report-reason",
+    });
   });
 });
