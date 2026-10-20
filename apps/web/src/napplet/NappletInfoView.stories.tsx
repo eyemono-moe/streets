@@ -34,6 +34,7 @@ const manifest: NappletManifest = {
 type Props = {
   lookup: Parameters<typeof NappletInfoView>[0]["lookup"];
   icon: boolean;
+  installed?: boolean;
   /** カラムの幅（px）。 */
   width: number;
 };
@@ -48,6 +49,9 @@ const InfoStory: Component<Props> = (props) => (
         lookup={props.lookup}
         iconUrl={props.icon ? avatarUrl : undefined}
         supported={new Set(STREETS_NAPPLET_DOMAINS)}
+        installed={props.installed}
+        onInstall={() => {}}
+        onUninstall={() => {}}
       />
     </div>
   </EventSceneProvider>
@@ -56,7 +60,12 @@ const InfoStory: Component<Props> = (props) => (
 const meta = {
   title: "カラム/アップレットの情報",
   component: InfoStory,
-  args: { lookup: { phase: "found", manifest }, icon: true, width: 360 },
+  args: {
+    lookup: { phase: "found", manifest },
+    icon: true,
+    installed: false,
+    width: 360,
+  },
   argTypes: { lookup: { control: false } },
 } satisfies Meta<typeof InfoStory>;
 
@@ -64,6 +73,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const ふつう: Story = {};
+
+export const インストール済み: Story = { args: { installed: true } };
 
 /** アイコンが無い・取れない・照合が通らないときは、汎用の絵にする。 */
 export const アイコンが無い: Story = { args: { icon: false } };

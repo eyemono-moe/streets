@@ -237,6 +237,34 @@ export const nappletManifestSource = (
   ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
+/** インストールしたアップレットのマニフェスト。作者ごとに 1 つのフィルタにまとめる。 */
+export const installedAppletsSource = (
+  applets: readonly {
+    pubkey: string;
+    identifier: string;
+    relays?: readonly string[];
+  }[],
+): NostrSource | undefined => {
+  if (applets.length === 0) return undefined;
+  const byAuthor = new Map<string, string[]>();
+  for (const applet of applets) {
+    byAuthor.set(applet.pubkey, [
+      ...(byAuthor.get(applet.pubkey) ?? []),
+      applet.identifier,
+    ]);
+  }
+  const relays = [...new Set(applets.flatMap((applet) => applet.relays ?? []))];
+  return {
+    type: "nostr",
+    filters: [...byAuthor].map(([pubkey, identifiers]) => ({
+      kinds: [NAPPLET_NAMED_KIND],
+      authors: [pubkey],
+      "#d": identifiers,
+    })),
+    ...(relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
+  };
+};
+
 /**
  * 公開されている名前付きの napplet。作者を決めない問い合わせは Outbox で行き先を
  * 決められないので、napplet がよく公開されるリレーへ明示して聞く。

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { nappletDirectory } from "./directory";
+import { installedDirectory, nappletDirectory } from "./directory";
 
 const HASH = "e".repeat(64);
 const ALICE = "a".repeat(64);
@@ -100,5 +100,36 @@ describe("nappletDirectory", () => {
     };
     const root = { ...manifest(BOB, "root", 200), kind: 15129 };
     expect(nappletDirectory([broken, root], options)).toEqual([]);
+  });
+});
+
+describe("installedDirectory", () => {
+  it("入れた順に並べ、マニフェストが届いていないものも残す", () => {
+    const installed = [
+      { pubkey: BOB, identifier: "missing", installedAt: 300 },
+      { pubkey: ALICE, identifier: "feed", installedAt: 200 },
+    ];
+    const rows = installedDirectory(
+      [manifest(ALICE, "feed", 100), manifest(ALICE, "feed", 300)],
+      installed,
+      { supported: options.supported, followees: new Set() },
+    );
+    expect(rows.map((row) => row.applet.identifier)).toEqual([
+      "missing",
+      "feed",
+    ]);
+    expect(rows[0]?.entry).toBeUndefined();
+    expect(rows[1]?.entry?.manifest.createdAt).toBe(300);
+  });
+
+  it("探す一覧には、インストール済みのものを出さない", () => {
+    const entries = nappletDirectory(
+      [manifest(ALICE, "feed", 100), manifest(BOB, "game", 200)],
+      {
+        ...options,
+        installed: [{ pubkey: ALICE, identifier: "feed", installedAt: 1 }],
+      },
+    );
+    expect(ids(entries)).toEqual(["game"]);
   });
 });

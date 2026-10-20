@@ -5,7 +5,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
-import NappletListView from "./NappletListView";
+import NappletListView, { type InstalledRow } from "./NappletListView";
 
 const alice = createStoryAuthor(530, { name: "フォロー中の作者" });
 const bob = createStoryAuthor(531, { name: "知らない作者" });
@@ -61,7 +61,32 @@ const entries: NappletEntry[] = [
   },
 ];
 
+const installed: InstalledRow[] = [
+  {
+    applet: {
+      pubkey: alice.pubkey,
+      identifier: "profile",
+      installedAt: 1_760_000_000,
+    },
+    entry: {
+      manifest: manifest({
+        identifier: "profile",
+        pubkey: alice.pubkey,
+        title: "Simple Profile",
+        description: "プロフィールを 1 枚で見せます。",
+      }),
+      unsupported: [],
+      followed: true,
+    },
+  },
+  {
+    applet: { pubkey: bob.pubkey, identifier: "gone", installedAt: 1 },
+  },
+];
+
 type Props = {
+  installed: InstalledRow[];
+  installedSettled: boolean;
   entries: NappletEntry[];
   settled: boolean;
   query: string;
@@ -80,6 +105,8 @@ const ListStory: Component<Props> = (props) => {
         style={{ width: `${props.width}px` }}
       >
         <NappletListView
+          installed={props.installed}
+          installedSettled={props.installedSettled}
           entries={props.entries}
           settled={props.settled}
           query={query()}
@@ -90,6 +117,10 @@ const ListStory: Component<Props> = (props) => {
           onShowMore={() => {}}
           iconFor={(item) => (item.icon ? avatarUrl : undefined)}
           onOpen={() => {}}
+          onInfo={() => {}}
+          onInstall={() => {}}
+          onAddToDeck={() => {}}
+          onUninstall={() => {}}
         />
       </div>
     </EventSceneProvider>
@@ -97,10 +128,18 @@ const ListStory: Component<Props> = (props) => {
 };
 
 const meta = {
-  title: "カラム/アップレットを探す",
+  title: "カラム/アップレットの一覧",
   component: ListStory,
-  args: { entries, settled: true, query: "", shown: 30, width: 360 },
-  argTypes: { entries: { control: false } },
+  args: {
+    installed,
+    installedSettled: true,
+    entries,
+    settled: true,
+    query: "",
+    shown: 30,
+    width: 360,
+  },
+  argTypes: { installed: { control: false }, entries: { control: false } },
 } satisfies Meta<typeof ListStory>;
 
 export default meta;
@@ -111,7 +150,12 @@ export const ふつう: Story = {};
 /** 並べる数を超えたら、続きを出すボタンを置く。 */
 export const 続きがある: Story = { args: { shown: 2 } };
 
-export const 読み込み中: Story = { args: { entries: [], settled: false } };
+export const 読み込み中: Story = {
+  args: { installedSettled: false, entries: [], settled: false },
+};
+
+/** まだ何もインストールしていない。 */
+export const インストールしていない: Story = { args: { installed: [] } };
 
 export const 見つからない: Story = {
   args: { entries: [], settled: true, query: "存在しないアップレット" },

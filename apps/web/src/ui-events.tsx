@@ -8,6 +8,10 @@ import type {
   MuteEntry,
   MuteVisibility,
 } from "@streets/core/moderation/mute-list";
+import type {
+  AppletAddress,
+  IntentTarget,
+} from "@streets/core/napplet/library";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ItemVisibility } from "@streets/core/nostr/private-tags";
@@ -182,6 +186,16 @@ export type DeckEvent =
   /** 足す。id は裁定する段が振り直す（重ねた段の id は中身から作ってあり衝突する）。 */
   | { type: "deck/add-column"; column: ColumnDef }
   | { type: "deck/patch-column"; id: string; patch: ColumnPatch }
+  /** アップレットをインストールする。`addToDeck` なら、開いているデッキの右端にも足す。 */
+  | {
+      type: "applets/install";
+      applet: AppletAddress;
+      relays: readonly RelayUrl[];
+      addToDeck: boolean;
+    }
+  | { type: "applets/uninstall"; applet: AppletAddress }
+  /** 役割（archetype）の開く先の既定。`target` を省くと、毎回たずねる形に戻す。 */
+  | { type: "applets/set-default"; archetype: string; target?: IntentTarget }
   | { type: "deck/remove-column"; id: string }
   /** ピクチャーインピクチャーに出す。押した操作の中で届く。 */
   | { type: "deck/pop-out"; id: string }

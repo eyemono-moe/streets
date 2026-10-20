@@ -95,6 +95,10 @@ const NappletInfoView: Component<{
   iconUrl?: string;
   /** Streets が渡せる機能。 */
   supported: ReadonlySet<string>;
+  /** インストール済みか。渡さなければ、インストールの操作を出さない。 */
+  installed?: boolean;
+  onInstall?: (addToDeck: boolean) => void;
+  onUninstall?: () => void;
 }> = (props) => {
   const appWindow = useAppWindow();
   const copyLink = async (manifest: NappletManifest) => {
@@ -158,6 +162,38 @@ const NappletInfoView: Component<{
                 {formatEventTimeFull(new Date(manifest().createdAt * 1000))}{" "}
                 に公開
               </p>
+              <Show when={props.installed !== undefined}>
+                <div class="flex flex-wrap gap-2 pt-1">
+                  <Show
+                    when={props.installed}
+                    fallback={
+                      <>
+                        <Button
+                          variant="primary"
+                          icon="i-material-symbols:add-column-right-outline-rounded"
+                          onClick={() => props.onInstall?.(true)}
+                        >
+                          インストールしてデッキに追加する
+                        </Button>
+                        <Button
+                          icon="i-material-symbols:download-rounded"
+                          onClick={() => props.onInstall?.(false)}
+                        >
+                          インストールする
+                        </Button>
+                      </>
+                    }
+                  >
+                    <Button
+                      variant="danger"
+                      icon="i-material-symbols:do-not-disturb-on-outline-rounded"
+                      onClick={() => props.onUninstall?.()}
+                    >
+                      アンインストールする
+                    </Button>
+                  </Show>
+                </div>
+              </Show>
               <Show when={manifest().legacy}>
                 <p class="c-status-warn text-caption">
                   古い形式で公開されています。いまの形式と違い、どの機能が必須かを区別していません。

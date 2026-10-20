@@ -1,4 +1,5 @@
 import type { NostrEvent } from "../nostr/event";
+import { type InstalledApplet, sameApplet } from "./library";
 import {
   NAPPLET_NAMED_KIND,
   type NappletManifest,
@@ -37,22 +38,7 @@ const matches = (manifest: NappletManifest, words: readonly string[]) => {
   return words.every((word) => text.includes(word));
 };
 
-/**
- * 届いたマニフェストを、napplet ごとに最新の版だけにして並べる。いまは名前付き（35129）
- * だけを開けるので、それだけを出す。読めないマニフェストは出さない。
- *
- * 並びは、フォロー中の人が作ったものを先にし、その中で新しい順。
- */
-export const nappletDirectory = (
-  events: readonly NostrEvent[],
-  options: {
-    query: string;
-    supported: ReadonlySet<string>;
-    /** 必須の機能をすべて Streets が渡せるものだけにする。 */
-    compatibleOnly: boolean;
-    followees: ReadonlySet<string>;
-  },
-): NappletEntry[] => {
+const latestManifests = (events: readonly NostrEvent[]) => {
   const latest = new Map<string, NappletManifest>();
   for (const event of events) {
     if (event.kind !== NAPPLET_NAMED_KIND) continue;
@@ -64,16 +50,51 @@ export const nappletDirectory = (
       latest.set(key, parsed.manifest);
     }
   }
+  return latest;
+};
+
+const entryOf = (
+  manifest: NappletManifest,
+  supported: ReadonlySet<string>,
+  followees: ReadonlySet<string>,
+): NappletEntry => ({
+  manifest,
+  unsupported: manifest.requires.filter((domain) => !supported.has(domain)),
+  followed: followees.has(manifest.pubkey),
+});
+
+/**
+ * 届いたマニフェストを、napplet ごとに最新の版だけにして並べる。いまは名前付き（35129）
+ * だけを開けるので、それだけを出す。読めないマニフェストと、インストール済みのものは
+ * 出さない（インストール済みは別の一覧に並べる）。
+ *
+ * 並びは、フォロー中の人が作ったものを先にし、その中で新しい順。
+ */
+export const nappletDirectory = (
+  events: readonly NostrEvent[],
+  options: {
+    query: string;
+    supported: ReadonlySet<string>;
+    /** 必須の機能をすべて Streets が渡せるものだけにする。 */
+    compatibleOnly: boolean;
+    followees: ReadonlySet<string>;
+    installed?: readonly InstalledApplet[];
+  },
+): NappletEntry[] => {
   const words = options.query.toLowerCase().split(/\s+/).filter(Boolean);
-  return [...latest.values()]
+  const installed = options.installed ?? [];
+  return [...latestManifests(events).values()]
+    .filter(
+      (manifest) =>
+        !installed.some((item) =>
+          sameApplet(item, {
+            pubkey: manifest.pubkey,
+            identifier: manifest.identifier ?? "",
+          }),
+        ),
+    )
     .filter((manifest) => matches(manifest, words))
-    .map((manifest) => ({
-      manifest,
-      unsupported: manifest.requires.filter(
-        (domain) => !options.supported.has(domain),
-      ),
-      followed: options.followees.has(manifest.pubkey),
-    }))
+    .map((manifest) => entryOf(manifest, options.supported, options.followees))
     .filter(
       (entry) => !options.compatibleOnly || entry.unsupported.length === 0,
     )
@@ -82,4 +103,25 @@ export const nappletDirectory = (
         Number(b.followed) - Number(a.followed) ||
         b.manifest.createdAt - a.manifest.createdAt,
     );
+};
+
+/**
+ * インストール済みのアップレットを、入れた順（新しいものが先）に並べる。マニフェストが
+ * まだ届いていないものは `entry` を持たない。
+ */
+export const installedDirectory = (
+  events: readonly NostrEvent[],
+  installed: readonly InstalledApplet[],
+  options: { supported: ReadonlySet<string>; followees: ReadonlySet<string> },
+): { applet: InstalledApplet; entry?: NappletEntry }[] => {
+  const latest = latestManifests(events);
+  return installed.map((applet) => {
+    const manifest = latest.get(`${applet.pubkey}:${applet.identifier}`);
+    return manifest
+      ? {
+          applet,
+          entry: entryOf(manifest, options.supported, options.followees),
+        }
+      : { applet };
+  });
 };
