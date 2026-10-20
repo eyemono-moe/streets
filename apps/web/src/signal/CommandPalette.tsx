@@ -128,7 +128,7 @@ const CommandPalette: Component<{
           id: `address-column:${address.column.id}`,
           title:
             address.kind === NAPPLET_NAMED_KIND
-              ? "アップレットをカラムで開く"
+              ? "アップレットの情報をカラムで開く"
               : "カラムで開く",
           section: "操作",
           keywords: [],

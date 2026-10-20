@@ -99,6 +99,9 @@ const NappletInfoView: Component<{
   installed?: boolean;
   onInstall?: (addToDeck: boolean) => void;
   onUninstall?: () => void;
+  /** インストール済みのものを開く・デッキに足す。 */
+  onOpen?: () => void;
+  onAddToDeck?: () => void;
 }> = (props) => {
   const appWindow = useAppWindow();
   const copyLink = async (manifest: NappletManifest) => {
@@ -184,6 +187,19 @@ const NappletInfoView: Component<{
                       </>
                     }
                   >
+                    <Button
+                      variant="primary"
+                      icon="i-material-symbols:open-in-new-rounded"
+                      onClick={() => props.onOpen?.()}
+                    >
+                      開く
+                    </Button>
+                    <Button
+                      icon="i-material-symbols:add-column-right-outline-rounded"
+                      onClick={() => props.onAddToDeck?.()}
+                    >
+                      デッキに追加する
+                    </Button>
                     <Button
                       variant="danger"
                       icon="i-material-symbols:do-not-disturb-on-outline-rounded"

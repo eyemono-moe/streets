@@ -1,3 +1,4 @@
+import { buildNappletColumn } from "@streets/core/deck/column-presets";
 import { isInstalled } from "@streets/core/napplet/library";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import { type Component } from "solid-js";
@@ -27,6 +28,11 @@ const NappletInfo: Component<{
   const library = useAppletLibrary();
   const { store } = useReadLayer();
   const applet = () => ({ pubkey: props.pubkey, identifier: props.identifier });
+  const installedRelays = () =>
+    library()?.installed.find(
+      (item) =>
+        item.pubkey === props.pubkey && item.identifier === props.identifier,
+    )?.relays ?? [...(props.relays ?? [])];
   return (
     <NappletInfoView
       lookup={lookup()}
@@ -53,6 +59,26 @@ const NappletInfo: Component<{
           addToDeck,
         });
       }}
+      onOpen={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildNappletColumn(
+            props.pubkey,
+            props.identifier,
+            installedRelays(),
+          ),
+        })
+      }
+      onAddToDeck={() =>
+        dispatch({
+          type: "deck/add-column",
+          column: buildNappletColumn(
+            props.pubkey,
+            props.identifier,
+            installedRelays(),
+          ),
+        })
+      }
       onUninstall={() =>
         dispatch({ type: "applets/uninstall", applet: applet() })
       }

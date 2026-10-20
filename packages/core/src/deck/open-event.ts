@@ -16,7 +16,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import {
   buildArticleColumn,
   buildFollowSetColumn,
-  buildNappletColumn,
+  buildNappletInfoColumn,
   buildRelayColumn,
   buildThreadColumn,
 } from "./column-presets";
@@ -35,8 +35,9 @@ const ADDRESS_OPENERS: Partial<
 > = {
   [LONG_FORM_KIND]: (address, relays) =>
     buildArticleColumn(address.pubkey, address.identifier, relays),
+  // 知らないアップレットを、押しただけで動かさない。情報を見てからインストールしてもらう。
   [NAPPLET_NAMED_KIND]: (address, relays) =>
-    buildNappletColumn(address.pubkey, address.identifier, relays),
+    buildNappletInfoColumn(address.pubkey, address.identifier, relays),
   // リストはメンバーの投稿を読むためのもの。名前は届いたら題名に出る。
   [FOLLOW_SET_KIND]: (address) =>
     buildFollowSetColumn(address.pubkey, address.identifier, "リスト"),

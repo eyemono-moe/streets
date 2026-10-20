@@ -37,6 +37,14 @@ describe("columnForEvent", () => {
     });
   });
 
+  it("アップレットは動かさず、情報のカラムで開く", () => {
+    expect(columnForEvent(event(35_129, [["d", "app"]])).source).toEqual({
+      kind: "napplet-info",
+      pubkey: PUBKEY,
+      identifier: "app",
+    });
+  });
+
   it("リレーセットは、入っているリレーのカラムで開く", () => {
     const column = columnForEvent(
       event(30_002, [
