@@ -17,6 +17,7 @@ import { useAppWindow } from "../app-window";
 import ProfileRow from "../profile/ProfileRow";
 import { notifyError } from "../toast";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import { MANIFEST_ERRORS } from "./NappletView";
 
 /** napplet が使う機能を、仕組みを知らない人にも分かる言葉で。知らない機能は名前のまま出す。 */
@@ -99,6 +100,9 @@ const NappletInfoView: Component<{
   installed?: boolean;
   onInstall?: (addToDeck: boolean) => void;
   onUninstall?: () => void;
+  /** 確かめずに通している書き込み。 */
+  grants?: readonly { key: string; label: string }[];
+  onRevoke?: (key: string) => void;
   /** インストール済みのものを開く・デッキに足す。 */
   onOpen?: () => void;
   onAddToDeck?: () => void;
@@ -216,6 +220,26 @@ const NappletInfoView: Component<{
                 </p>
               </Show>
             </div>
+            <Show when={(props.grants?.length ?? 0) > 0}>
+              <Section title="確かめずに書き込めるもの">
+                <ul class="flex flex-col gap-1">
+                  <For each={props.grants}>
+                    {(grant) => (
+                      <li class="flex items-center gap-2">
+                        <span class="c-primary min-w-0 flex-1 text-body">
+                          {grant.label}
+                        </span>
+                        <IconButton
+                          icon="i-material-symbols:do-not-disturb-on-outline-rounded"
+                          label={`「${grant.label}」を毎回確かめるように戻す`}
+                          onClick={() => props.onRevoke?.(grant.key)}
+                        />
+                      </li>
+                    )}
+                  </For>
+                </ul>
+              </Section>
+            </Show>
             <Section title="作った人">
               <div class="overflow-hidden rounded-2 border border-primary">
                 <ProfileRow pubkey={manifest().pubkey} />

@@ -1,3 +1,4 @@
+import type { EventDraft } from "../nostr/build/draft";
 /*
  * ランチャー側の受け答え。napplet 1 つにつき 1 つ作り、届いたメッセージを Streets の
  * 機能（`NappletHost`）につなぐ。iframe と `postMessage` は持たず、送り主の確認は
@@ -11,6 +12,7 @@
  * > Subscription filters SHOULD be validated to prevent resource exhaustion.
  */
 import type { NostrEvent } from "../nostr/event";
+import { relayOf } from "../nostr/event-refs";
 import type { RelayFilter } from "../relay/relay-connection";
 import {
   type IntentAvailability,
@@ -19,6 +21,7 @@ import {
   type IntentResult,
   parseIntentRequest,
 } from "./intent";
+import { type PublishOperation, parsePublishTemplate } from "./publish";
 import {
   NAPPLET_RESOURCE_MAX_BYTES,
   NAPPLET_RESOURCE_MAX_SERVERS,
@@ -92,6 +95,19 @@ export type NappletHost = {
    * アップレット（`NappletSession.incEvent`）。
    */
   inc: { emit: (topic: string, payload: unknown) => void };
+  /**
+   * 頼まれた書き込み。ユーザーに確かめ、Streets が署名して送る。`relays` は自分の
+   * write リレーに加えて送る先。
+   */
+  publish: (request: {
+    operation: PublishOperation;
+    draft: EventDraft;
+    recipient?: string;
+    relays?: readonly string[];
+  }) => Promise<
+    | { ok: true; event: NostrEvent; relays: Record<string, boolean> }
+    | { ok: false; error: string }
+  >;
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -110,6 +126,8 @@ export const NAPPLET_MAX_SUBSCRIPTIONS = 20;
 export const NAPPLET_QUERY_TIMEOUT_MS = 15_000;
 /** napplet が足せるリレーのヒントの数。明示した行き先は接続の予算を超えても開くので絞る。 */
 export const NAPPLET_MAX_RELAY_HINTS = 4;
+
+const HEX_64 = /^[0-9a-f]{64}$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -520,13 +538,51 @@ export const createNappletSession = (
         );
         return;
       }
-      case "relay.publish":
-      case "relay.publishEncrypted":
-        fail(
-          request,
-          "unsupported: this shell does not publish for napplets yet",
-        );
+      case "relay.publish": {
+        const parsed = parsePublishTemplate(request.event, "publish");
+        if (!parsed.ok) return fail(request, parsed.error);
+        void host
+          .publish({ operation: "publish", draft: parsed.draft })
+          .then((result) =>
+            result.ok
+              ? reply(request, { event: result.event })
+              : fail(request, result.error),
+          );
         return;
+      }
+      // 暗号化は NIP-44 だけ。NIP-04 は新しく書かない（NIP-04 自体が NIP-17 を勧めている）。
+      case "relay.publishEncrypted": {
+        if (
+          request.encryption !== undefined &&
+          request.encryption !== "nip44"
+        ) {
+          return fail(request, "unsupported: only nip44 encryption");
+        }
+        if (
+          typeof request.recipient !== "string" ||
+          !HEX_64.test(request.recipient)
+        ) {
+          return fail(request, "invalid: recipient");
+        }
+        const parsed = parsePublishTemplate(request.event, "publishEncrypted");
+        if (!parsed.ok) return fail(request, parsed.error);
+        void host
+          .publish({
+            operation: "publishEncrypted",
+            draft: parsed.draft,
+            recipient: request.recipient,
+          })
+          .then((result) =>
+            result.ok
+              ? reply(request, {
+                  ok: true,
+                  event: result.event,
+                  eventId: result.event.id,
+                })
+              : fail(request, result.error),
+          );
+        return;
+      }
     }
   };
 
@@ -620,12 +676,37 @@ export const createNappletSession = (
         });
         return;
       }
-      case "outbox.publish":
-        reply(request, {
-          ok: false,
-          error: "unsupported: this shell does not publish for napplets yet",
-        });
+      case "outbox.publish": {
+        const parsed = parsePublishTemplate(request.event, "publish");
+        if (!parsed.ok) {
+          reply(request, { ok: false, error: parsed.error });
+          return;
+        }
+        // 添えた行き先は、読むときのヒントと同じく本数を絞って足す。`toInboxes` は、
+        // `p` タグの相手の read リレーへ Streets がもともと送るので、別に扱わない。
+        const options = isRecord(request.options) ? request.options : {};
+        const relays = stringList(options.relays)
+          ? options.relays
+              .flatMap((relay) => relayOf(relay) ?? [])
+              .slice(0, NAPPLET_MAX_RELAY_HINTS)
+          : [];
+        void host
+          .publish({ operation: "publish", draft: parsed.draft, relays })
+          .then((result) =>
+            reply(
+              request,
+              result.ok
+                ? {
+                    ok: true,
+                    event: result.event,
+                    eventId: result.event.id,
+                    relays: result.relays,
+                  }
+                : { ok: false, error: result.error },
+            ),
+          );
         return;
+      }
     }
   };
 

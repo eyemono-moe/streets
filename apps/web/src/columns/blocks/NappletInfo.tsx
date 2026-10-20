@@ -1,5 +1,7 @@
 import { buildNappletColumn } from "@streets/core/deck/column-presets";
-import { isInstalled } from "@streets/core/napplet/library";
+import { grantsOf, isInstalled } from "@streets/core/napplet/library";
+import { parseGrantKey } from "@streets/core/napplet/publish";
+import { kindLabel } from "@streets/core/nostr/kind-support";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import { type Component } from "solid-js";
 import { useAppletLibrary } from "../../napplet/applet-library";
@@ -77,6 +79,33 @@ const NappletInfo: Component<{
             props.identifier,
             installedRelays(),
           ),
+        })
+      }
+      grants={(() => {
+        const current = library();
+        if (!current) return [];
+        return grantsOf(current, applet()).flatMap((key) => {
+          const grant = parseGrantKey(key);
+          if (!grant) return [];
+          const label = kindLabel(grant.kind);
+          const name = label === "イベント" ? `kind:${grant.kind}` : label;
+          return [
+            {
+              key,
+              label:
+                grant.operation === "publishEncrypted"
+                  ? `${name}（暗号化して送る）`
+                  : name,
+            },
+          ];
+        });
+      })()}
+      onRevoke={(key) =>
+        dispatch({
+          type: "applets/set-grant",
+          applet: applet(),
+          key,
+          on: false,
         })
       }
       onUninstall={() =>

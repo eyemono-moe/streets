@@ -43,6 +43,7 @@ const setup = (
   const fetched: { url: string; signal: AbortSignal }[] = [];
   const invoked: IntentRequest[] = [];
   const emitted: { topic: string; payload: unknown }[] = [];
+  const published: Parameters<NappletHost["publish"]>[0][] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -66,6 +67,17 @@ const setup = (
           .map((key) => key.slice(scope.length + 1)),
     },
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
+    publish: async (request) => {
+      published.push(request);
+      if (request.draft.content === "refuse") {
+        return { ok: false, error: "user cancelled" };
+      }
+      return {
+        ok: true,
+        event: { ...note("e".repeat(64)), ...request.draft },
+        relays: { "wss://relay.example/": true },
+      };
+    },
     intent: {
       invoke: async (request) => {
         invoked.push(request);
@@ -102,7 +114,7 @@ const setup = (
     },
   };
   const session = createNappletSession(host, (message) => sent.push(message));
-  return { session, sent, opened, fetched, invoked, emitted };
+  return { session, sent, opened, fetched, invoked, emitted, published };
 };
 
 describe("createNappletSession", () => {
@@ -326,17 +338,6 @@ describe("createNappletSession", () => {
     }
   });
 
-  it("書き込みはまだ受けず、error で返す", () => {
-    const { session, sent } = setup();
-    session.receive({
-      type: "relay.publish",
-      id: "p",
-      event: { kind: 1, content: "", tags: [] },
-    });
-    expect(sent[0]).toMatchObject({ type: "relay.publish.result", id: "p" });
-    expect(sent[0]?.error).toMatch(/^unsupported/);
-  });
-
   it("閉じたら購読をすべて閉じ、それ以降は何も送らない", () => {
     const { session, sent, opened } = setup();
     session.receive({
@@ -447,16 +448,6 @@ describe("NAP-OUTBOX", () => {
         },
       },
     ]);
-  });
-
-  it("書き込みはまだ受けず、ok: false で返す", () => {
-    const { session, sent } = setup();
-    session.receive({ type: "outbox.publish", id: "p", event: { kind: 1 } });
-    expect(sent[0]).toMatchObject({
-      type: "outbox.publish.result",
-      id: "p",
-      ok: false,
-    });
   });
 });
 
@@ -683,5 +674,86 @@ describe("NAP-INC", () => {
       { topic: "napplet:profile/open", payload: { pubkey: "abc123..." } },
     ]);
     expect(sent).toEqual([]);
+  });
+});
+
+describe("書き込み", () => {
+  // @napplet/shim: relay.publish は署名済みのイベントで resolve し、断られたら reject する。
+  it("relay.publish は確かめて署名したイベントを返し、断られたら error を返す", async () => {
+    const { session, sent, published } = setup(["shell", "relay"]);
+    session.receive({
+      type: "relay.publish",
+      id: "p1",
+      event: { kind: 1, content: "hi", tags: [], created_at: 1 },
+    });
+    session.receive({
+      type: "relay.publish",
+      id: "p2",
+      event: { kind: 1, content: "refuse", tags: [] },
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(published[0]).toEqual({
+      operation: "publish",
+      draft: { kind: 1, content: "hi", tags: [] },
+    });
+    expect(sent).toContainEqual(
+      expect.objectContaining({
+        type: "relay.publish.result",
+        id: "p1",
+        event: expect.objectContaining({ kind: 1, content: "hi" }),
+      }),
+    );
+    expect(sent).toContainEqual({
+      type: "relay.publish.result",
+      id: "p2",
+      error: "user cancelled",
+    });
+  });
+
+  it("NIP-04 での暗号化と、宛先の無い暗号化は断る", () => {
+    const { session, sent, published } = setup(["shell", "relay"]);
+    const event = { kind: 4, content: "secret", tags: [] };
+    session.receive({
+      type: "relay.publishEncrypted",
+      id: "e1",
+      event,
+      recipient: "b".repeat(64),
+      encryption: "nip04",
+    });
+    session.receive({ type: "relay.publishEncrypted", id: "e2", event });
+    expect(published).toEqual([]);
+    expect(sent.map((message) => message.error)).toEqual([
+      "unsupported: only nip44 encryption",
+      "invalid: recipient",
+    ]);
+  });
+
+  // NAP-OUTBOX: 結果は reject せず `{ ok, event, eventId, relays, error }` で返す。
+  it("outbox.publish は行き先ごとの結果を返し、添えたリレーは絞って足す", async () => {
+    const { session, sent, published } = setup(["shell", "outbox"]);
+    session.receive({
+      type: "outbox.publish",
+      id: "o1",
+      event: { kind: 1, content: "hi", tags: [] },
+      options: {
+        relays: [
+          "wss://a.example/",
+          "not a relay",
+          "wss://b.example/",
+          "wss://c.example/",
+          "wss://d.example/",
+          "wss://e.example/",
+        ],
+      },
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(published[0]?.relays).toHaveLength(4);
+    expect(sent[0]).toMatchObject({
+      type: "outbox.publish.result",
+      id: "o1",
+      ok: true,
+      eventId: "e".repeat(64),
+      relays: { "wss://relay.example/": true },
+    });
   });
 });

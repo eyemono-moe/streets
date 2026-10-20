@@ -194,6 +194,13 @@ export type DeckEvent =
       addToDeck: boolean;
     }
   | { type: "applets/uninstall"; applet: AppletAddress }
+  /** 確かめずに通す書き込みを足す・外す。`key` は書き方と kind（`grantKey`）。 */
+  | {
+      type: "applets/set-grant";
+      applet: AppletAddress;
+      key: string;
+      on: boolean;
+    }
   /** 役割（archetype）の開く先の既定。`target` を省くと、毎回たずねる形に戻す。 */
   | { type: "applets/set-default"; archetype: string; target?: IntentTarget }
   | { type: "deck/remove-column"; id: string }

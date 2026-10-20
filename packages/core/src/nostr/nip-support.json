@@ -379,9 +379,10 @@
       "packages/core/src/napplet/prelude.ts",
       "packages/core/src/napplet/resource.ts",
       "packages/core/src/napplet/intent.ts",
+      "packages/core/src/napplet/publish.ts",
       "apps/web/src/columns/blocks/Napplet.tsx"
     ],
-    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data）・intent・inc（話題で送り合うものだけ。1 対 1 の channel は渡さない）と、relay・outbox の読み取りだけで、書き込み・config は渡さない。onDelivery を使わず inc.on の話題で依頼を受けるアップレットには、依頼をその話題で渡す。intent の受け手は、インストールしたアップレットと、Streets のカラム（profile・note・article の open）"
+    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data）・intent・inc（話題で送り合うものだけ。1 対 1 の channel は渡さない）・relay・outbox を渡す。書き込み（relay.publish・publishEncrypted・outbox.publish）は毎回カラムの中で確かめてから Streets が署名する。暗号化は NIP-44 だけで、認証の kind（22242・24133・24242・27235）と、暗号文を運ぶ kind のそのままの書き込みには署名しない。NIP-46 では、接続のときに求めた kind 以外は署名できない。config は渡さない。onDelivery を使わず inc.on の話題で依頼を受けるアップレットには、依頼をその話題で渡す。intent の受け手は、インストールしたアップレットと、Streets のカラム（profile・note・article の open）"
   },
   {
     "nip": "65",

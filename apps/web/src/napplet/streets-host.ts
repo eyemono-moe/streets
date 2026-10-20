@@ -177,6 +177,7 @@ export type StreetsHostInputs = {
   theme: () => NappletTheme;
   intent: NappletHost["intent"];
   inc: NappletHost["inc"];
+  publish: NappletHost["publish"];
 };
 
 export const createStreetsNappletHost = (
@@ -192,6 +193,7 @@ export const createStreetsNappletHost = (
   storage: createNappletStorage(inputs.manifest, inputs.instance),
   intent: inputs.intent,
   inc: inputs.inc,
+  publish: inputs.publish,
   subscribe: subscribeThroughReadLayer(inputs.readLayer),
   fetchResource: (url, servers, signal) =>
     fetchNappletResource(url, {

@@ -69,6 +69,7 @@ const storyHost = (): NappletHost => {
     },
     writeRelays: () => undefined,
     inc: { emit: () => {} },
+    publish: async () => ({ ok: false, error: "user cancelled" }),
     intent: {
       invoke: async () => ({ ok: false, error: "no handler" }),
       available: (archetype) => ({

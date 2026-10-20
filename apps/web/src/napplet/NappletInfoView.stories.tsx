@@ -36,6 +36,7 @@ type Props = {
   lookup: Parameters<typeof NappletInfoView>[0]["lookup"];
   icon: boolean;
   installed?: boolean;
+  grants?: { key: string; label: string }[];
   /** カラムの幅（px）。 */
   width: number;
 };
@@ -51,6 +52,8 @@ const InfoStory: Component<Props> = (props) => (
         iconUrl={props.icon ? avatarUrl : undefined}
         supported={new Set(STREETS_NAPPLET_DOMAINS)}
         installed={props.installed}
+        grants={props.grants}
+        onRevoke={() => {}}
         onInstall={() => {}}
         onUninstall={() => {}}
       />
@@ -76,6 +79,20 @@ type Story = StoryObj<typeof meta>;
 export const ふつう: Story = {};
 
 export const インストール済み: Story = { args: { installed: true } };
+
+/** 「今後は確認しない」で通している書き込みがある。⊖ で毎回確かめる形に戻す。 */
+export const 確かめずに書き込める: Story = {
+  args: {
+    installed: true,
+    grants: [
+      { key: "publish:1", label: "短いテキスト投稿" },
+      {
+        key: "publishEncrypted:30078",
+        label: "アプリの設定（暗号化して送る）",
+      },
+    ],
+  },
+};
 
 /** アイコンが無い・取れない・照合が通らないときは、汎用の絵にする。 */
 export const アイコンが無い: Story = { args: { icon: false } };

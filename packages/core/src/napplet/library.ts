@@ -31,6 +31,11 @@ export type AppletLibrary = {
   version: 1;
   installed: InstalledApplet[];
   defaults: Record<string, IntentTarget>;
+  /**
+   * 確かめずに通してよい書き込み。鍵はアップレットの住所（`<pubkey>:<identifier>`）、
+   * 値は書き方と kind（`grantKey`）。
+   */
+  grants?: Record<string, string[]>;
 };
 
 export const emptyAppletLibrary = (): AppletLibrary => ({
@@ -51,6 +56,7 @@ const librarySchema = v.object({
       installedAt: v.number(),
     }),
   ),
+  grants: v.optional(v.record(v.string(), v.array(v.string()))),
   defaults: v.record(
     v.string(),
     v.variant("type", [
@@ -114,6 +120,37 @@ export const installApplet = (
   };
 };
 
+const appletKey = (applet: AppletAddress) =>
+  `${applet.pubkey}:${applet.identifier}`;
+
+export const grantsOf = (
+  library: AppletLibrary,
+  applet: AppletAddress,
+): string[] => library.grants?.[appletKey(applet)] ?? [];
+
+export const hasGrant = (
+  library: AppletLibrary,
+  applet: AppletAddress,
+  key: string,
+): boolean => grantsOf(library, applet).includes(key);
+
+/** 確かめずに通す書き込みを足す（`on`）・外す。 */
+export const setGrant = (
+  library: AppletLibrary,
+  applet: AppletAddress,
+  key: string,
+  on: boolean,
+): AppletLibrary => {
+  const current = grantsOf(library, applet);
+  if (current.includes(key) === on) return library;
+  const next = on ? [...current, key] : current.filter((item) => item !== key);
+  const { [appletKey(applet)]: _, ...rest } = library.grants ?? {};
+  return {
+    ...library,
+    grants: next.length > 0 ? { ...rest, [appletKey(applet)]: next } : rest,
+  };
+};
+
 /** 外したものを既定にしていた役割は、既定を消して毎回たずねる形に戻す。 */
 export const uninstallApplet = (
   library: AppletLibrary,
@@ -123,6 +160,15 @@ export const uninstallApplet = (
   return {
     ...library,
     installed: library.installed.filter((item) => !sameApplet(item, applet)),
+    ...(library.grants
+      ? {
+          grants: Object.fromEntries(
+            Object.entries(library.grants).filter(
+              ([key]) => key !== appletKey(applet),
+            ),
+          ),
+        }
+      : {}),
     defaults: Object.fromEntries(
       Object.entries(library.defaults).filter(
         ([, target]) =>

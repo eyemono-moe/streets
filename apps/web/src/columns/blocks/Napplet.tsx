@@ -13,13 +13,20 @@ import {
 import {
   type AppletAddress,
   emptyAppletLibrary,
+  hasGrant,
 } from "@streets/core/napplet/library";
 import type { NappletManifest } from "@streets/core/napplet/manifest";
+import {
+  grantKey,
+  overwritesState,
+  rememberable,
+} from "@streets/core/napplet/publish";
 import type {
   NappletHost,
   NappletSession,
 } from "@streets/core/napplet/session";
 import { prepareNappletSrcdoc } from "@streets/core/napplet/srcdoc";
+import { kindLabel } from "@streets/core/nostr/kind-support";
 import {
   type Component,
   Show,
@@ -35,6 +42,7 @@ import {
   useAppletIntents,
 } from "../../napplet/applet-intents";
 import { useAppletLibrary } from "../../napplet/applet-library";
+import { useAppletWriter } from "../../napplet/applet-writer";
 import IntentSheet, { type IntentSheetProps } from "../../napplet/IntentSheet";
 import NappletFrame from "../../napplet/NappletFrame";
 import NappletView, { type NappletPhase } from "../../napplet/NappletView";
@@ -43,6 +51,7 @@ import {
   createStreetsNappletHost,
 } from "../../napplet/streets-host";
 import { currentNappletTheme } from "../../napplet/theme-colors";
+import WriteSheet, { type WriteSheetProps } from "../../napplet/WriteSheet";
 import { useProfile } from "../../note/use-profile";
 import { useMutes } from "../../settings/MuteMediator";
 import { useDispatch } from "../../ui-events";
@@ -272,6 +281,94 @@ const Napplet: Component<{
     },
   });
 
+  const writer = useAppletWriter();
+  const [writing, setWriting] = createSignal<
+    Omit<WriteSheetProps, "onApprove" | "onCancel"> & {
+      answer: (approved: { remember: boolean } | undefined) => void;
+    }
+  >();
+  // 書き込みは 1 つずつ確かめる。確かめている間に次が来たら、前の答えを待たせる。
+  let writeQueue: Promise<unknown> = Promise.resolve();
+  const publishFor =
+    (sourceTitle: string): NappletHost["publish"] =>
+    (request) => {
+      const run = async (): Promise<
+        Awaited<ReturnType<NappletHost["publish"]>>
+      > => {
+        if (!writer) return { ok: false, error: "denied: not signed in" };
+        const { draft, operation } = request;
+        const key = grantKey(operation, draft.kind);
+        const granted =
+          rememberable(draft.kind) &&
+          hasGrant(library() ?? emptyAppletLibrary(), self, key);
+        if (!granted) {
+          const label = kindLabel(draft.kind);
+          const approved = await new Promise<{ remember: boolean } | undefined>(
+            (answer) =>
+              setWriting({
+                source: sourceTitle,
+                kind: draft.kind,
+                kindLabel:
+                  label === "イベント"
+                    ? `kind:${draft.kind} のイベント`
+                    : label,
+                content: draft.content,
+                mentions: [
+                  ...new Set(
+                    draft.tags.flatMap((tag) =>
+                      tag[0] === "p" && tag[1] ? [tag[1]] : [],
+                    ),
+                  ),
+                ],
+                tagCount: draft.tags.length,
+                ...(request.recipient ? { recipient: request.recipient } : {}),
+                overwrites: overwritesState(draft.kind),
+                rememberable: rememberable(draft.kind),
+                answer,
+              }),
+          );
+          setWriting(undefined);
+          if (!approved) return { ok: false, error: "denied: user cancelled" };
+          if (approved.remember) {
+            dispatch({
+              type: "applets/set-grant",
+              applet: self,
+              key,
+              on: true,
+            });
+          }
+        }
+        try {
+          const content =
+            operation === "publishEncrypted" && request.recipient
+              ? await (writer.encrypt?.(request.recipient, draft.content) ??
+                  Promise.reject(new Error("encryption unavailable")))
+              : draft.content;
+          const result = await writer.publish(
+            { ...draft, content },
+            request.relays ?? [],
+            `${sourceTitle} の書き込み`,
+          );
+          return {
+            ok: true,
+            event: result.event,
+            relays: Object.fromEntries([
+              ...result.accepted.map((relay) => [relay, true] as const),
+              ...result.rejected.map(({ relay }) => [relay, false] as const),
+            ]),
+          };
+        } catch (cause) {
+          return {
+            ok: false,
+            error: cause instanceof Error ? cause.message : String(cause),
+          };
+        }
+      };
+      const next = writeQueue.then(run, run);
+      writeQueue = next;
+      return next;
+    };
+
   const viewer = () => (props.inputs.signedIn ? props.inputs.viewer : "");
   const profile = useProfile(() => viewer() || undefined);
   const mutes = useMutes();
@@ -317,6 +414,9 @@ const Napplet: Component<{
         themeSource
           ? currentNappletTheme(themeSource)
           : currentNappletTheme(document.body),
+      publish: publishFor(
+        running.manifest.title ?? running.manifest.identifier ?? "アップレット",
+      ),
       inc: {
         emit: (topic, payload) => {
           if (endpoint) intents?.emit(endpoint.id, topic, payload);
@@ -355,20 +455,31 @@ const Napplet: Component<{
         </Show>
       }
       overlay={
-        <Show when={asking()}>
-          {(current) => (
-            <IntentSheet
-              {...current()}
-              onPick={(id, always) =>
-                current().answer({ type: "handler", id, always })
-              }
-              onInstall={(always) =>
-                current().answer({ type: "install", always })
-              }
-              onCancel={() => current().answer(undefined)}
-            />
-          )}
-        </Show>
+        <>
+          <Show when={writing()}>
+            {(current) => (
+              <WriteSheet
+                {...current()}
+                onApprove={(remember) => current().answer({ remember })}
+                onCancel={() => current().answer(undefined)}
+              />
+            )}
+          </Show>
+          <Show when={asking()}>
+            {(current) => (
+              <IntentSheet
+                {...current()}
+                onPick={(id, always) =>
+                  current().answer({ type: "handler", id, always })
+                }
+                onInstall={(always) =>
+                  current().answer({ type: "install", always })
+                }
+                onCancel={() => current().answer(undefined)}
+              />
+            )}
+          </Show>
+        </>
       }
     />
   );
