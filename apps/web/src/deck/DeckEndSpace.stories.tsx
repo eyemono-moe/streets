@@ -34,7 +34,15 @@ const columns: ColumnDef[] = [
   },
 ];
 
-const RightEnd = (props: { settingsOpen?: boolean }) => {
+/** 同じ 4 本を繰り返して、カラムの多いデッキにする。 */
+const repeated = (count: number): ColumnDef[] =>
+  Array.from({ length: count }, (_, index) => {
+    const column = columns[index % columns.length] as ColumnDef;
+    return { ...column, id: `${column.id}-${index}` };
+  });
+
+const RightEnd = (props: { settingsOpen?: boolean; count?: number }) => {
+  const shown = () => (props.count ? repeated(props.count) : columns);
   let strip: HTMLDivElement | undefined;
   const toaster = createAppToaster(true);
   onMount(() => {
@@ -55,7 +63,7 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
         <div class="flex h-dvh w-dvw">
           <Sidebar
             pubkey={viewer.pubkey}
-            columns={columns}
+            columns={shown()}
             panel={undefined}
             numbers
             onLogout={() => {}}
@@ -63,14 +71,15 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
           />
           <div class="flex min-w-0 flex-1 flex-col">
             <DeckStrip ref={strip} class="min-h-0 flex-1">
-              <For each={columns}>
+              <For each={shown()}>
                 {(column) => (
                   <>
                     <div class="h-full w-95 shrink-0 border-primary border-r bg-primary">
                       <ColumnHeader
                         column={column}
                         open={
-                          props.settingsOpen === true && column.id === "friend"
+                          props.settingsOpen === true &&
+                          column.id.startsWith("friend")
                         }
                         grip
                         onTitle={() => {}}
@@ -80,7 +89,9 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
                     <Collapsible.Root
                       lazyMount
                       unmountOnExit
-                      open={props.settingsOpen && column.id === "friend"}
+                      open={
+                        props.settingsOpen && column.id.startsWith("friend")
+                      }
                       class="bg-secondary"
                     >
                       <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
@@ -118,3 +129,6 @@ type Story = StoryObj<typeof meta>;
 export const トーストを出した右端: Story = {};
 
 export const 設定を開いた右端: Story = { args: { settingsOpen: true } };
+
+/** カラムが多くても、右端の余白は見えている幅で決まり、カラムの数では伸びない。 */
+export const カラムが多い右端: Story = { args: { count: 16 } };
