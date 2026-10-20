@@ -7,16 +7,17 @@ import { parseEventAddress } from "@streets/core/nostr/address";
 import { parseContent } from "@streets/core/nostr/content";
 import type { UserStatus } from "@streets/core/nostr/user-status";
 import { type Component, For, Match, Show, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import { ContentTokens } from "../note/NoteText";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import Marquee from "../ui/Marquee";
 import { useUserStatuses } from "./use-user-statuses";
 
-const LABEL: Record<UserStatus["type"], string> = {
-  general: "ステータス",
-  music: "聴いている曲",
-};
+const label = (type: UserStatus["type"]) =>
+  type === "general"
+    ? t("status.view.kind.general")
+    : t("status.view.kind.music");
 
 /** 音の波の 3 本の棒（x と高さ）。下端をそろえ、幅 6.5・高さ 6 に収まる。 */
 const WAVE_BARS = [
@@ -88,7 +89,7 @@ const StatusLink: Component<{ status: UserStatus }> = (props) => {
             target="_blank"
             rel="noopener noreferrer"
             class="c-secondary hover:c-primary i-material-symbols:open-in-new-rounded size-3.5 shrink-0"
-            aria-label="ステータスのリンクを開く"
+            aria-label={t("status.view.openLink")}
             title={(link() as { url: string }).url}
           />
         )}
@@ -98,7 +99,7 @@ const StatusLink: Component<{ status: UserStatus }> = (props) => {
           <button
             type="button"
             class="c-secondary hover:c-primary flex shrink-0 cursor-pointer bg-transparent p-0"
-            aria-label="ステータスの指す先を開く"
+            aria-label={t("status.view.openTarget")}
             onClick={() => dispatch({ type: "stack/open", column: column() })}
           >
             <span
@@ -152,7 +153,7 @@ export const UserStatusBubble: Component<{
         <Show when={general()}>
           {(status) => (
             <p class="c-primary relative flex items-center gap-1.5 break-words">
-              <span class="sr-only">{LABEL.general}：</span>
+              <span class="sr-only">{label("general")}：</span>
               <span class="min-w-0 flex-1">
                 <StatusText status={status()} />
               </span>
@@ -161,7 +162,7 @@ export const UserStatusBubble: Component<{
                 {(edit) => (
                   <IconButton
                     icon="i-material-symbols:edit-outline-rounded"
-                    label="ステータスを直す"
+                    label={t("status.view.edit")}
                     size="sm"
                     onClick={() => edit()()}
                   />
@@ -182,7 +183,7 @@ export const UserStatusBubble: Component<{
                 viewBox="0 0 6.5 6"
                 class="c-secondary h-2.5 w-2.75 shrink-0 fill-current"
                 role="img"
-                aria-label={LABEL.music}
+                aria-label={label("music")}
               >
                 <WaveBars x={0} y={0} animate />
               </svg>

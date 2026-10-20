@@ -1,5 +1,6 @@
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import type { EventActions } from "./actions";
+import { t } from "./i18n/locale";
 
 /**
  * ログインの要る操作の手前で呼ぶ。続けてよければ true。ログインしていなければ
@@ -24,7 +25,7 @@ export const useLoginGate = (): LoginGate => useContext(LoginGateContext);
 /** 書き込みの手前で止め損ねたとき。止める場所の書き忘れなので、トーストに出す。 */
 class LoginRequiredError extends Error {
   constructor() {
-    super("ログインが必要です");
+    super(t("app.errors.loginRequired"));
   }
 }
 
