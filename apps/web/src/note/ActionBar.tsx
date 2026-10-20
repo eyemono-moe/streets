@@ -15,6 +15,7 @@ import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import { menuContentClass, menuItemClass } from "../ui/menu";
 import { Portal } from "../ui/Portal";
@@ -118,7 +119,7 @@ const ActionBar: Component<{
         const views: Record<EventActionId, () => JSX.Element> = {
           reply: () => (
             <Action
-              label="返信"
+              label={t("note.eventActions.reply")}
               icon={EVENT_ACTION_META.reply.icon}
               count={engagement().replies}
               onClick={() =>
@@ -137,7 +138,9 @@ const ActionBar: Component<{
             >
               <Menu.Trigger
                 aria-label={
-                  engagement().viewerReposted ? "リポスト済み" : "リポスト"
+                  engagement().viewerReposted
+                    ? t("note.eventActions.reposted")
+                    : t("note.eventActions.repostAction")
                 }
                 aria-pressed={engagement().viewerReposted}
                 class="flex cursor-pointer items-center gap-1 bg-transparent text-caption"
@@ -172,8 +175,8 @@ const ActionBar: Component<{
                       />
                       <span>
                         {engagement().viewerReposted
-                          ? "リポスト済み"
-                          : "リポスト"}
+                          ? t("note.eventActions.reposted")
+                          : t("note.eventActions.repostAction")}
                       </span>
                     </Menu.Item>
                     <Menu.Item value="quote" class={menuItemClass}>
@@ -181,7 +184,7 @@ const ActionBar: Component<{
                         class="i-material-symbols:format-quote-rounded size-4 shrink-0"
                         aria-hidden="true"
                       />
-                      <span>引用</span>
+                      <span>{t("note.eventActions.quote")}</span>
                     </Menu.Item>
                   </Menu.Content>
                 </Menu.Positioner>
@@ -190,7 +193,13 @@ const ActionBar: Component<{
           ),
           like: () => (
             <Action
-              label={`${reactionLabel(defaultReaction())}${engagement().viewerReacted ? "（済み）" : ""}`}
+              label={
+                engagement().viewerReacted
+                  ? t("note.eventActions.reacted", {
+                      label: reactionLabel(defaultReaction()),
+                    })
+                  : reactionLabel(defaultReaction())
+              }
               mark={
                 <ReactionButtonMark
                   input={defaultReaction()}
@@ -210,7 +219,7 @@ const ActionBar: Component<{
                 <button
                   {...triggerProps()}
                   type="button"
-                  aria-label="リアクション"
+                  aria-label={t("note.eventActions.reaction")}
                   class="c-secondary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
                 >
                   <span
@@ -223,7 +232,11 @@ const ActionBar: Component<{
           ),
           zap: () => (
             <Action
-              label={zappable() ? "Zap する" : "この人は Zap を受け取れません"}
+              label={
+                zappable()
+                  ? t("note.eventActions.zapAction")
+                  : t("note.eventActions.zapUnavailable")
+              }
               icon={EVENT_ACTION_META.zap.icon}
               disabled={!zappable()}
               onClick={() =>

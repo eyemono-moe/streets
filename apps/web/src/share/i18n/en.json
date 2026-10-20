@@ -1,0 +1,6 @@
+{
+  "receiveFailed": {
+    "title": "Couldn't receive the shared content",
+    "description": "Please try sharing it again."
+  }
+}

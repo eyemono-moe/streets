@@ -1,6 +1,8 @@
 import type { NewerPaging } from "@streets/core/read/newer-page";
 import { type Component, Match, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
+import type { NewerNoun } from "../ui/VirtualList";
 import { watchEdge } from "./edge-watch";
 
 /** 端のどれくらい手前で次を取りに行くか。`OlderLoader` と同じく 1 画面ぶんほど先。 */
@@ -16,10 +18,9 @@ const NewerLoader: Component<{
   onReach: () => void;
   /** 一覧のどちらの端に置くか。新しいものが下に来る一覧（チャット）では下。 */
   edge?: "top" | "bottom";
-  /** 何を取るか（「投稿」「発言」など）。 */
-  noun?: string;
+  noun?: Extract<NewerNoun, "post" | "message">;
 }> = (props) => {
-  const noun = () => props.noun ?? "投稿";
+  const noun = () => props.noun ?? "post";
   let sentinel: HTMLDivElement | undefined;
   watchEdge({
     sentinel: () => sentinel,
@@ -38,15 +39,15 @@ const NewerLoader: Component<{
     >
       <Switch>
         <Match when={props.paging === "loading"}>
-          新しい{noun()}を読み込み中…
+          {t(`deck.newerLoader.loading.${noun()}`)}
         </Match>
         <Match when={props.paging === "caught-up"}>
-          最新の{noun()}に追いつきました
+          {t(`deck.newerLoader.caughtUp.${noun()}`)}
         </Match>
         <Match when={props.paging === "failed"}>
-          <span>新しい{noun()}を読み込めませんでした</span>
+          <span>{t(`deck.newerLoader.failed.${noun()}`)}</span>
           <Button size="sm" onClick={() => props.onReach()}>
-            もう一度読み込む
+            {t("deck.newerLoader.retry")}
           </Button>
         </Match>
       </Switch>

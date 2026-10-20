@@ -1,0 +1,19 @@
+{
+  "noUploadServer": "No upload server is set up for images",
+  "crop": {
+    "title": "Crop {{ name }}",
+    "animatedNotice": "Cropping stops the motion and turns it into a still image",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "resetAll": "Reset to full image",
+    "resetFrame": "Reset frame",
+    "cancel": "Cancel",
+    "done": "Done"
+  },
+  "imageUrl": {
+    "uploadFailed": "Couldn't upload the image",
+    "uploadUnavailable": "Can't upload images",
+    "uploading": "Uploading…",
+    "choose": "Choose image"
+  }
+}

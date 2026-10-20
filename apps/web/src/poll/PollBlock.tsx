@@ -9,6 +9,7 @@ import {
 } from "solid-js";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import { t } from "../i18n/locale";
 import type { EventSize } from "../note/Event";
 import { Notice } from "../note/EventFrame";
 import { useReadLayer } from "../read-layer";
@@ -51,10 +52,7 @@ const PollBlock: Component<{ event: NostrEvent; size: EventSize }> = (
   const sending = useSending(() => vote([]));
 
   return (
-    <Show
-      when={poll()}
-      fallback={<Notice>選択肢の無い投票は表示できません</Notice>}
-    >
+    <Show when={poll()} fallback={<Notice>{t("poll.unavailable")}</Notice>}>
       {(poll) => (
         <PollView
           poll={poll()}

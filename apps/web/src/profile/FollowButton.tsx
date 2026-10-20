@@ -1,6 +1,7 @@
 import { type Component, Match, Show, Switch, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 
@@ -58,16 +59,20 @@ const FollowButton: Component<{
       >
         <Switch>
           <Match when={sending()}>
-            <Label>送信中…</Label>
+            <Label>{t("profile.follow.sending")}</Label>
           </Match>
           <Match when={unfollowing()}>
-            <Label icon="i-material-symbols:close-rounded">フォロー解除</Label>
+            <Label icon="i-material-symbols:close-rounded">
+              {t("profile.follow.unfollow")}
+            </Label>
           </Match>
           <Match when={following()}>
-            <Label icon="i-material-symbols:check-rounded">フォロー中</Label>
+            <Label icon="i-material-symbols:check-rounded">
+              {t("profile.follow.following")}
+            </Label>
           </Match>
           <Match when={true}>
-            <Label>フォロー</Label>
+            <Label>{t("profile.follow.follow")}</Label>
           </Match>
         </Switch>
       </Button>

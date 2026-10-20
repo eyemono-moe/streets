@@ -2,6 +2,7 @@ import { ImageCropper, useImageCropper } from "@ark-ui/solid/image-cropper";
 import { isAnimatedImage } from "@streets/core/media/animation";
 import type { CropRect } from "@streets/core/view/compose";
 import { type Component, For, Show, createSignal, onMount } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import {
   DialogClose,
@@ -99,26 +100,30 @@ const Editor: Component<{
             class="i-material-symbols:info-outline-rounded size-4 shrink-0"
             aria-hidden="true"
           />
-          切り抜くと、動きは止まって 1 枚の絵になります
+          {t("media.crop.animatedNotice")}
         </p>
       </Show>
 
       <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
         <IconButton
           size="md"
-          label="縮小"
+          label={t("media.crop.zoomOut")}
           icon="i-material-symbols:zoom-out-rounded"
           onClick={() => cropper().zoomBy(-0.1)}
         />
         <IconButton
           size="md"
-          label="拡大"
+          label={t("media.crop.zoomIn")}
           icon="i-material-symbols:zoom-in-rounded"
           onClick={() => cropper().zoomBy(0.1)}
         />
         <IconButton
           size="md"
-          label={props.aspectRatio === undefined ? "全体に戻す" : "枠を戻す"}
+          label={
+            props.aspectRatio === undefined
+              ? t("media.crop.resetAll")
+              : t("media.crop.resetFrame")
+          }
           icon="i-material-symbols:restart-alt-rounded"
           onClick={() => {
             cropper().reset();
@@ -128,10 +133,10 @@ const Editor: Component<{
         />
         <span class="flex-1" />
         <Button variant="secondary" onClick={() => props.onClose()}>
-          やめる
+          {t("media.crop.cancel")}
         </Button>
         <Button variant="primary" onClick={done}>
-          決定
+          {t("media.crop.done")}
         </Button>
       </div>
     </>
@@ -196,7 +201,7 @@ const CropDialog: Component<{
         <DialogContent class="w-full max-w-140 rounded-3 border border-primary">
           <div class="flex h-12 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="min-w-0 flex-1 truncate font-600 text-body">
-              {props.name} を切り抜く
+              {t("media.crop.title", { name: props.name })}
             </DialogTitle>
             <DialogClose />
           </div>

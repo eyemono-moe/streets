@@ -1,5 +1,6 @@
 import { sharedText } from "@streets/core/view/shared-text";
 import { createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import { notifyWarning } from "../toast";
 import {
   SHARE_CACHE,
@@ -20,9 +21,11 @@ export { pendingShare };
 
 export const clearPendingShare = () => setPendingShare(undefined);
 
-const RECEIVE_FAILED = "共有された内容を受け取れませんでした";
 const notifyReceiveFailed = () =>
-  notifyWarning(RECEIVE_FAILED, "もう一度、共有し直してください。");
+  notifyWarning(
+    t("share.receiveFailed.title"),
+    t("share.receiveFailed.description"),
+  );
 
 const text = (form: FormData, name: string) => {
   const value = form.get(name);

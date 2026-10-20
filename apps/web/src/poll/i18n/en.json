@@ -1,0 +1,16 @@
+{
+  "unavailable": "This poll has no options, so it can't be shown",
+  "summary": {
+    "counting": "Counting…",
+    "voters": {
+      "one": "{{ count }} person voted",
+      "other": "{{ count }} people voted"
+    },
+    "multiple": "Choose any",
+    "single": "Choose one"
+  },
+  "myVote": "Your vote",
+  "fallbackQuestion": "Poll",
+  "sending": "Sending…",
+  "vote": "Vote"
+}

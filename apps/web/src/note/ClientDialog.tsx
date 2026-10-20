@@ -10,6 +10,7 @@ import type { Profile } from "@streets/core/nostr/profile";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { fallbackRelays } from "../fallback-relay-setting";
+import { t } from "../i18n/locale";
 import { useReadLayer } from "../read-layer";
 import Avatar from "../ui/Avatar";
 import { ButtonLink } from "../ui/Button";
@@ -78,7 +79,7 @@ export const ClientDialogView: Component<{
         <DialogContent class="w-full max-w-110 rounded-3 border border-primary">
           <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
             <DialogTitle class="break-anywhere min-w-0 flex-1 font-600 text-body">
-              この投稿に使われたアプリ
+              {t("note.client.title")}
             </DialogTitle>
             <DialogClose />
           </div>
@@ -96,16 +97,18 @@ export const ClientDialogView: Component<{
             </div>
             <Switch>
               <Match when={props.state.phase === "loading"}>
-                <p class="c-secondary text-caption">読み込み中…</p>
+                <p class="c-secondary text-caption">
+                  {t("note.client.loading")}
+                </p>
               </Match>
               <Match when={props.state.phase === "name-only"}>
                 <p class="c-secondary text-caption">
-                  このアプリの説明は、投稿に書かれていません。
+                  {t("note.client.noDescription")}
                 </p>
               </Match>
               <Match when={props.state.phase === "failed"}>
                 <p class="c-secondary text-caption">
-                  このアプリの説明を取得できませんでした。
+                  {t("note.client.descriptionFailed")}
                 </p>
               </Match>
               <Match when={ready()}>
@@ -120,7 +123,7 @@ export const ClientDialogView: Component<{
                     </Show>
                     <Show when={!state().openUrl && !state().website}>
                       <p class="c-secondary text-caption">
-                        このアプリの開き方は書かれていません。
+                        {t("note.client.noOpenWay")}
                       </p>
                     </Show>
                   </>
@@ -132,14 +135,17 @@ export const ClientDialogView: Component<{
             <div class="flex shrink-0 flex-col gap-2 px-4 pb-4">
               <Show when={ready()?.website}>
                 {(url) => (
-                  <Destination url={url()} label="ウェブサイトを開く" />
+                  <Destination
+                    url={url()}
+                    label={t("note.client.openWebsite")}
+                  />
                 )}
               </Show>
               <Show when={ready()?.openUrl}>
                 {(url) => (
                   <Destination
                     url={url()}
-                    label="このアプリで投稿を開く"
+                    label={t("note.client.openInApp")}
                     primary
                   />
                 )}

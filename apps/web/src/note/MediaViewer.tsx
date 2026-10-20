@@ -4,6 +4,7 @@ import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NoteMedia, layoutNote } from "@streets/core/view/note-layout";
 import { type Component, For, Show, createEffect, createMemo } from "solid-js";
+import { t } from "../i18n/locale";
 import { createMediaAttempts } from "../media/media-attempts";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
@@ -44,8 +45,9 @@ const ViewerSlide: Component<{
         keyed
         fallback={
           <p class="c-white text-body">
-            {props.media.type === "image" ? "画像" : "動画"}
-            を読み込めませんでした
+            {props.media.type === "image"
+              ? t("note.viewer.imageFailed")
+              : t("note.viewer.videoFailed")}
           </p>
         }
       >
@@ -113,7 +115,7 @@ const ViewerOrigin: Component<{ event: NostrEvent; onOpen: () => void }> = (
           });
         }}
       >
-        投稿を開く
+        {t("note.viewer.openPost")}
       </Button>
     </div>
   );
@@ -144,7 +146,7 @@ const MediaViewer: Component<{
     <DialogRoot open={props.index !== undefined} onClose={props.onClose}>
       <DialogPortal class="p-0" backdropClass="bg-ui-950/90">
         <ArkDialog.Content
-          aria-label="添付の拡大表示"
+          aria-label={t("note.viewer.label")}
           class="motion-fade fixed inset-0 outline-none"
           onKeyDown={(event) => {
             // 並びに焦点があるときはカルーセルが自分で送る。焦点が閉じるボタンなどに
@@ -189,7 +191,7 @@ const MediaViewer: Component<{
                     size="lg"
                     circle
                     icon="i-material-symbols:chevron-left-rounded"
-                    label="前へ"
+                    label={t("note.viewer.previous")}
                     class="-translate-y-1/2 absolute top-1/2 left-3 ml-[env(safe-area-inset-left)] disabled:invisible"
                   />
                 )}
@@ -202,7 +204,7 @@ const MediaViewer: Component<{
                     size="lg"
                     circle
                     icon="i-material-symbols:chevron-right-rounded"
-                    label="次へ"
+                    label={t("note.viewer.next")}
                     class="-translate-y-1/2 absolute top-1/2 right-3 mr-[env(safe-area-inset-right)] disabled:invisible"
                   />
                 )}
@@ -218,7 +220,7 @@ const MediaViewer: Component<{
                   size="md"
                   circle
                   icon="i-material-symbols:close-rounded"
-                  label="閉じる"
+                  label={t("note.viewer.close")}
                   class="pointer-events-auto"
                 />
               )}
@@ -236,7 +238,9 @@ const MediaViewer: Component<{
               icon="i-material-symbols:open-in-new-rounded"
               class="pointer-events-auto"
             >
-              元の{current()?.type === "video" ? "動画" : "画像"}を開く
+              {current()?.type === "video"
+                ? t("note.viewer.openOriginalVideo")
+                : t("note.viewer.openOriginalImage")}
             </ButtonLink>
           </div>
           <Show when={props.origin?.(page())}>

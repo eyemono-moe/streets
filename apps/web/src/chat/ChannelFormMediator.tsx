@@ -11,6 +11,7 @@ import {
 import { type ParentComponent, Show, createEffect, onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type { EventActions } from "../actions";
+import { t } from "../i18n/locale";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
@@ -57,7 +58,7 @@ export const ChannelFormMediator: ParentComponent<{
       await props.actions
         .setFavoriteChannel(id, true)
         .catch((cause) =>
-          notifyError(cause, "お気に入りに入れられませんでした"),
+          notifyError(cause, t("chat.form.errors.favoriteFailed")),
         );
     }
   };
@@ -72,8 +73,8 @@ export const ChannelFormMediator: ParentComponent<{
         notifyError(
           cause,
           form.mode === "create"
-            ? "チャンネルを作れませんでした"
-            : "チャンネルの情報を保存できませんでした",
+            ? t("chat.form.errors.createFailed")
+            : t("chat.form.errors.saveFailed"),
         );
       },
     );

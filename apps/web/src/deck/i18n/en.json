@@ -1,0 +1,17 @@
+{
+  "newerLoader": {
+    "loading": {
+      "post": "Loading new posts…",
+      "message": "Loading new messages…"
+    },
+    "caughtUp": {
+      "post": "You're all caught up",
+      "message": "You're all caught up"
+    },
+    "failed": {
+      "post": "Couldn't load new posts",
+      "message": "Couldn't load new messages"
+    },
+    "retry": "Try again"
+  }
+}

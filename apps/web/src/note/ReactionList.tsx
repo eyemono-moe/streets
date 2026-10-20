@@ -19,6 +19,7 @@ import {
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import ReactionPicker from "../emoji/ReactionPicker";
+import { plural, t } from "../i18n/locale";
 import { useReadLayer } from "../read-layer";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
@@ -89,7 +90,11 @@ export const ReactionChip: Component<{
     <button
       type="button"
       title={titleOf(props.content)}
-      aria-label={`${titleOf(props.content)} ${props.count} 件${mine() ? "（リアクション済み）" : ""}`}
+      aria-label={plural(
+        mine() ? "note.reactions.countMine" : "note.reactions.count",
+        props.count,
+        { title: titleOf(props.content) },
+      )}
       aria-pressed={props.onClick ? mine() : undefined}
       class="flex h-6 w-fit max-w-full shrink-0 items-center gap-1 rounded-1.5 px-1 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
       classList={{
@@ -149,7 +154,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
       <div class="flex items-start gap-1.5">
         <button
           type="button"
-          aria-label="誰が付けたかを表示"
+          aria-label={t("note.reactions.showReactors")}
           aria-expanded={expanded()}
           class="c-secondary flex h-6 shrink-0 cursor-pointer items-center bg-transparent"
           onClick={() => setExpanded((current) => !current)}
@@ -199,7 +204,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
                 <button
                   {...triggerProps()}
                   type="button"
-                  aria-label="リアクションを選ぶ"
+                  aria-label={t("note.reactions.pick")}
                   class="c-secondary flex h-6 w-fit cursor-pointer items-center rounded-1.5 border border-control bg-primary px-1 hover:bg-secondary"
                 >
                   <span
