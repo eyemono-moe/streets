@@ -1,11 +1,15 @@
+import type { Nip78Document } from "@streets/core/solid/create-nip78-document";
 import { type Component, Match, Switch } from "solid-js";
-import type { DeckStore } from "./deck-store";
 
 /**
- * デッキの同期でユーザーが動ける異常だけを出す。保存中や同期済みは出さない
+ * アカウントへの同期でユーザーが動ける異常だけを出す。保存中や同期済みは出さない
  * （画面の上に常駐する情報にはしない）。
  */
-const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
+const DeckSyncNotice: Component<{
+  store: Nip78Document<unknown>;
+  /** 何を同期しているか。 */
+  subject?: string;
+}> = (props) => (
   <Switch>
     <Match when={props.store.state().phase === "error" && props.store.state()}>
       {(state) => (
@@ -14,7 +18,7 @@ const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
           class="flex items-center gap-2 bg-secondary px-3 py-2 text-caption"
         >
           <span class="min-w-0 flex-1">
-            デッキを保存できませんでした：
+            {props.subject ?? "デッキ"}を保存できませんでした：
             {state().phase === "error" && "message" in state()
               ? (state() as { message: string }).message
               : ""}
@@ -35,7 +39,8 @@ const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
         class="flex items-center gap-2 bg-secondary px-3 py-2 text-caption"
       >
         <span class="min-w-0 flex-1">
-          別の端末でデッキが変わりました。どちらを残しますか？
+          別の端末で{props.subject ?? "デッキ"}
+          が変わりました。どちらを残しますか？
         </span>
         <button
           type="button"

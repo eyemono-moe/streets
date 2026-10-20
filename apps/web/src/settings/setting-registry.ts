@@ -10,6 +10,7 @@ export type SettingPage =
   | "keyboard"
   | "display"
   | "privacy"
+  | "applets"
   | "stats";
 
 export const pageNames: Record<SettingPage, string> = {
@@ -22,6 +23,7 @@ export const pageNames: Record<SettingPage, string> = {
   keyboard: "キーボード",
   display: "表示",
   privacy: "プライバシー",
+  applets: "アップレット",
   stats: "統計",
 };
 
@@ -212,6 +214,15 @@ export const settings = {
     "エラー報告",
     "計測",
   ]),
+  intentDefaults: {
+    ...setting("開く先の既定", "applets", [
+      "既定のアプリ",
+      "アプリで開く",
+      "napplet",
+      "NAP-INTENT",
+    ]),
+    description: "人や投稿を、どのアップレットで開くか",
+  },
 } as const;
 
 export type SettingId = keyof typeof settings;

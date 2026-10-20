@@ -16,6 +16,7 @@ import { useAppWindow } from "../app-window";
 import { defaultReaction } from "../default-reaction-setting";
 import { lazyPart } from "../lazy-part";
 import { useLoginGate } from "../login-gate";
+import { useAppletIntents } from "../napplet/applet-intents";
 import { useReadLayer } from "../read-layer";
 import { useMutes } from "../settings/MuteMediator";
 import { notifyError, notifySuccess } from "../toast";
@@ -210,9 +211,24 @@ export const createEventDialogs = (event: () => NostrEvent) => {
     quote: "引用",
     broadcast: "ほかのリレーへの送り直し",
   };
+  const dispatch = useDispatch();
+  const intents = useAppletIntents();
   const openDialog = (dialog: EventDialog | undefined) => {
     const what = dialog && NEEDS_ACCOUNT[dialog];
     if (what && !gate(what)) return;
+    // 投稿欄の既定がアップレットなら、返信・引用はそのアップレットで書く。
+    if (dialog === "reply" || dialog === "quote") {
+      const routed = intents?.routeCompose({ type: dialog, event: event() });
+      if (routed) {
+        dispatch({
+          type: "stack/open",
+          ...routed,
+          from: event().id,
+          direct: true,
+        });
+        return;
+      }
+    }
     setOpen(dialog);
   };
   const close = () => setOpen(undefined);

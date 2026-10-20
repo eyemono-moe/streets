@@ -2,6 +2,9 @@ import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, type JSX, Match, Show, Switch } from "solid-js";
 import { isMultiColumn } from "./deck-layout-setting";
 import { pipOpen } from "./deck/pip-window";
+import AppletNoticeToast, {
+  type AppletNoticeMeta,
+} from "./napplet/AppletNoticeToast";
 import SignerWaitToast, { type SignerWaitToastMeta } from "./SignerWaitToast";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
@@ -205,6 +208,22 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
             {(write) => (
               <div class="min-w-0 flex-1">
                 <WriteProgressToast meta={write()} />
+              </div>
+            )}
+          </Match>
+          <Match
+            when={
+              (toast().meta as Partial<AppletNoticeMeta> | undefined)
+                ?.appletNotice
+            }
+          >
+            {(notice) => (
+              <div class="min-w-0 flex-1">
+                <AppletNoticeToast
+                  meta={notice()}
+                  title={toast().title}
+                  description={toast().description}
+                />
               </div>
             )}
           </Match>

@@ -56,6 +56,13 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     keywords: ["チャット"],
   },
   {
+    kind: "napplets",
+    label: "アップレット",
+    description: "Nostr で配られている小さなアプリを探して開く",
+    icon: "i-material-symbols:widgets-outline-rounded",
+    keywords: ["アプリ", "ミニアプリ", "NIP-5D", "napp"],
+  },
+  {
     kind: "bookmarks",
     label: "ブックマーク",
     description: "保存したノート",

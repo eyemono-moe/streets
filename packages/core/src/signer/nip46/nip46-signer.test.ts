@@ -30,8 +30,13 @@ const signed = (overrides: Partial<UnsignedEvent> = {}) => {
 };
 
 describe("Nip46Signer", () => {
-  it("要求権限のない kind はリモート署名器へ送らない", async () => {
-    const request = vi.fn();
+  // NIP-46: connect の params は `[<remote-signer-pubkey>, <optional_secret>, <optional_requested_permissions>]`。
+  // 権限は申し出で、求めていない kind も署名器がその場で聞ける。断られたら、
+  // 権限が足りないと分かる形で返す。
+  it("要求権限のない kind も署名器へ送り、断られたら権限の不足として返す", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(new Nip46SignerRefusedError("permission denied"));
     const signer = createNip46Signer(
       { request },
       pubkey,
@@ -39,8 +44,8 @@ describe("Nip46Signer", () => {
     );
     await expect(
       signer.signEvent({ ...template, kind: 99999 }),
-    ).rejects.toThrow("missing NIP-46 permission: sign_event:99999");
-    expect(request).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(Nip46PermissionMissingError);
+    expect(request).toHaveBeenCalledOnce();
   });
 
   it("pubkeyを除いたtemplateを送り、同じ内容の署名済みeventを返す", async () => {
