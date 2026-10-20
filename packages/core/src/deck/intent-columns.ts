@@ -7,6 +7,7 @@
  * 公開されているアップレットの書き方がそろっていないので、読むときは名前の揺れ
  * （`pubkey`・`npub`、`id`・`event` など）と、hex・NIP-19 の両方を受け付ける。
  */
+import { type NostrEvent, isNostrEvent, verifyEvent } from "../nostr/event";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import { decodeNip19, encodeNaddr } from "../nostr/nip19";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -85,6 +86,16 @@ const articleOf = (payload: unknown) => {
   return undefined;
 };
 
+/** 作者の長文記事を並べるカラム。 */
+const authorArticlesColumn = (pubkey: string): ColumnDef => ({
+  id: `articles:${pubkey}`,
+  title: "長文記事",
+  source: {
+    kind: "literal",
+    filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey] }],
+  },
+});
+
 /** 依頼を Streets のカラムにする。開けない依頼や、読めない中身なら undefined。 */
 export const streetsIntentColumn = (
   convention: string,
@@ -98,6 +109,11 @@ export const streetsIntentColumn = (
     case "napplet:note/open": {
       const id = eventIdOf(payload);
       return id ? buildThreadColumn(id) : undefined;
+    }
+    // 公開されているアップレット（Noris・Chronofeed）は `{ pubkey, npub, relays }` を送る。
+    case "napplet:article/author": {
+      const pubkey = pubkeyOf(payload);
+      return pubkey ? authorArticlesColumn(pubkey) : undefined;
     }
     case "napplet:article/open": {
       const article = articleOf(payload);
@@ -155,4 +171,28 @@ export const intentForColumn = (
     default:
       return undefined;
   }
+};
+
+export type ComposeRequest = {
+  content: string;
+  target?: { type: "reply" | "quote"; event: NostrEvent };
+};
+
+/**
+ * `napplet:composer/open` の中身を、Streets の投稿欄に入れるものにする。公開されている
+ * アップレット（Composer・Chronofeed）は `{ content, replyTo?, quote? }` を送り、
+ * `replyTo`・`quote` には投稿そのものを入れる。
+ *
+ * 宛先の投稿は署名を確かめる。アップレットが作った偽の投稿に返信させない。
+ */
+export const composeRequestOf = (payload: unknown): ComposeRequest => {
+  const record = isRecord(payload) ? payload : {};
+  const content = typeof record.content === "string" ? record.content : "";
+  const signed = (value: unknown) =>
+    isNostrEvent(value) && verifyEvent(value) ? value : undefined;
+  const replyTo = signed(record.replyTo);
+  if (replyTo) return { content, target: { type: "reply", event: replyTo } };
+  const quote = signed(record.quote);
+  if (quote) return { content, target: { type: "quote", event: quote } };
+  return { content };
 };

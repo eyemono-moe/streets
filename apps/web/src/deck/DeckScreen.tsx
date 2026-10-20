@@ -857,6 +857,25 @@ const DeckScreen: Component<{
       case "column-part/set-open":
         setColumnPartOpen(event.column, event.part, event.open);
         return true;
+      case "compose/open-with": {
+        if (!gate("投稿")) return true;
+        if (event.target) {
+          setDraftDialog({
+            id: crypto.randomUUID(),
+            content: event.content,
+            savedAt: Date.now(),
+            kept: false,
+            target: event.target,
+          });
+          return true;
+        }
+        // 投稿欄がもう開いていれば、書きかけを上書きしない。
+        if (ui.panel !== "compose") {
+          sharedForPanel = { content: event.content, files: [] };
+          applyUi({ type: "deck/open-panel", panel: "compose" });
+        }
+        return true;
+      }
       case "compose/draft-open": {
         const draft = composeDrafts().find((other) => other.id === event.id);
         if (draft?.target) setDraftDialog(draft);

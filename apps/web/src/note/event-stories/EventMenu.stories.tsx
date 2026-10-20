@@ -28,6 +28,7 @@ const storyIntents: AppletIntents = {
   take: () => [],
   pending: () => 0,
   route: (column) => column,
+  routeCompose: () => undefined,
   handlersFor: () => [{ id: "35129:story:viewer", title: "Nostr Viewer" }],
   openIn: () => undefined,
   join: () => ({ id: "story", leave: () => {} }),

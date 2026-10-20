@@ -40,6 +40,7 @@ import type { ChannelFormEvent } from "@streets/core/view/channel-form";
 import type { ChatReplyEvent } from "@streets/core/view/chat";
 import type { ChatMuteEvent } from "@streets/core/view/chat-mute";
 import type { ComposeEvent } from "@streets/core/view/compose";
+import type { ComposeTarget } from "@streets/core/view/compose-drafts";
 import type { StatusFormEvent } from "@streets/core/view/status-form";
 import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
 import {
@@ -186,6 +187,11 @@ export type DeckEvent =
   /** 足す。id は裁定する段が振り直す（重ねた段の id は中身から作ってあり衝突する）。 */
   | { type: "deck/add-column"; column: ColumnDef }
   | { type: "deck/patch-column"; id: string; patch: ColumnPatch }
+  /**
+   * 本文を入れて投稿欄を開く。`target` があれば返信・引用のダイアログで開く。
+   * アップレットからの依頼（`napplet:composer/open`）に使う。
+   */
+  | { type: "compose/open-with"; content: string; target?: ComposeTarget }
   /** アップレットをインストールする。`addToDeck` なら、開いているデッキの右端にも足す。 */
   | {
       type: "applets/install";

@@ -563,22 +563,44 @@ function installNapplet(domains: readonly string[]): void {
         waitingDeliveries.push(delivery);
       }
     });
-    const invoke = (uri: string, options?: InvokeOptions) => {
-      const normalized = normalize(uri, options);
-      return request(
+    const send = (uri: string, options?: InvokeOptions) =>
+      request(
         "intent.invoke",
-        { request: normalized },
+        { request: normalize(uri, options) },
         (message) => message.result,
         false,
       );
+    // NAP-INTENT の前の版の書き方 `open(archetype, payload, { convention })`。公開されている
+    // アップレット（Noris・Chronofeed など）がまだ使っているので、URI の形に直して受ける。
+    const legacy = (
+      archetype: unknown,
+      payload: unknown,
+      options: unknown,
+    ): [string, InvokeOptions] | undefined => {
+      if (typeof archetype !== "string" || archetype.startsWith("napplet:")) {
+        return undefined;
+      }
+      const convention =
+        typeof options === "object" &&
+        options !== null &&
+        typeof (options as { convention?: unknown }).convention === "string"
+          ? (options as { convention: string }).convention
+          : `napplet:${archetype}/open`;
+      return [convention, payload === undefined ? {} : { payload }];
+    };
+    const invoke = (first: string, second?: unknown, third?: unknown) => {
+      const old = legacy(first, second, third);
+      return old ? send(...old) : send(first, second as InvokeOptions);
     };
     napplet.intent = {
       invoke,
-      open: (uri: string, options?: InvokeOptions) => {
-        if (normalize(uri, options).action !== "open") {
+      open: (first: string, second?: unknown, third?: unknown) => {
+        const old = legacy(first, second, third);
+        if (old) return send(...old);
+        if (normalize(first, second as InvokeOptions).action !== "open") {
           throw new Error("intent.open requires the open URI action");
         }
-        return invoke(uri, options);
+        return send(first, second as InvokeOptions);
       },
       available: (archetype: string) =>
         request(

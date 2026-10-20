@@ -1,4 +1,7 @@
-import { streetsIntentColumn } from "@streets/core/deck/intent-columns";
+import {
+  composeRequestOf,
+  streetsIntentColumn,
+} from "@streets/core/deck/intent-columns";
 import { tempColumnFor } from "@streets/core/deck/temp-column";
 import { fetchNappletArtifact } from "@streets/core/napplet/artifact";
 import { catalogSnapshot } from "@streets/core/napplet/catalog";
@@ -56,7 +59,10 @@ import {
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { useAppletWriter } from "../../napplet/applet-writer";
 import { type ActionPrompt, createCommonHost } from "../../napplet/common-host";
-import IntentSheet, { type IntentSheetProps } from "../../napplet/IntentSheet";
+import IntentSheet, {
+  streetsHandlerLabel,
+  type IntentSheetProps,
+} from "../../napplet/IntentSheet";
 import LinkSheet, { type LinkSheetProps } from "../../napplet/LinkSheet";
 import { createListsHost } from "../../napplet/lists-host";
 import NappletFrame from "../../napplet/NappletFrame";
@@ -197,6 +203,13 @@ const Napplet: Component<{
       convention: request.convention,
     };
     if (handler.type === "streets") {
+      if (request.convention === "napplet:composer/open") {
+        dispatch({
+          type: "compose/open-with",
+          ...composeRequestOf(request.payload),
+        });
+        return { ...accepted, handler: STREETS_HANDLER_ID };
+      }
       const column = streetsIntentColumn(request.convention, request.payload);
       if (!column) return { ok: false, error: "invoke rejected" };
       dispatch({ type: "stack/open", column, direct: true });
@@ -263,7 +276,9 @@ const Napplet: Component<{
           candidates: candidates.map((handler) => ({
             id: handler.id,
             title:
-              handler.type === "streets" ? "Streets のカラム" : handler.title,
+              handler.type === "streets"
+                ? streetsHandlerLabel(request.archetype)
+                : handler.title,
             streets: handler.type === "streets",
           })),
           ...(resolution.type === "choose" && resolution.suggested

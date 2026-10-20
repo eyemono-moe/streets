@@ -694,6 +694,7 @@ describe("NAP-INTENT", () => {
         action: "open",
         convention: "napplet:profile/open",
         handler: "streets",
+        handled: true,
       },
     });
   });

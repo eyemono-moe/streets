@@ -913,7 +913,11 @@ export const createNappletSession = (
           return;
         }
         host.intent.invoke(parsed.request).then(
-          (result) => reply(request, { result }),
+          // `handled` は NAP-INTENT の前の版の欄。Myco が返し、Noris などがまだ見ている。
+          (result) =>
+            reply(request, {
+              result: result.ok ? { ...result, handled: true } : result,
+            }),
           () =>
             reply(request, { result: { ok: false, error: "invoke rejected" } }),
         );

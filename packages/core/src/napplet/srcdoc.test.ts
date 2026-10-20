@@ -409,4 +409,25 @@ describe("nappletPrelude", () => {
       },
     ]);
   });
+
+  // 前の版の書き方: open(archetype, payload, { convention })（Noris・Chronofeed が使う）。
+  it("前の版の open(役割, 中身, { convention }) も、URI の形に直して送る", () => {
+    const { win, sent } = run(["intent"]);
+    void (
+      win.napplet.intent.open as unknown as (
+        archetype: string,
+        payload: unknown,
+        options: unknown,
+      ) => Promise<unknown>
+    )("article", { pubkey: "abc" }, { convention: "napplet:article/author" });
+    expect(sent.at(-1)).toMatchObject({
+      type: "intent.invoke",
+      request: {
+        archetype: "article",
+        action: "author",
+        convention: "napplet:article/author",
+        payload: { pubkey: "abc" },
+      },
+    });
+  });
 });

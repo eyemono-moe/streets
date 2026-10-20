@@ -9,6 +9,8 @@ const ARCHETYPE_LABELS: Record<string, string> = {
   profile: "プロフィール",
   note: "投稿",
   article: "長文の記事",
+  composer: "投稿欄",
+  highlight: "ハイライト",
   feed: "フィード",
   dm: "ダイレクトメッセージ",
   map: "地図",
@@ -17,10 +19,14 @@ const ARCHETYPE_LABELS: Record<string, string> = {
 export const archetypeLabel = (archetype: string): string =>
   ARCHETYPE_LABELS[archetype] ?? archetype;
 
+/** その役割を Streets で受けるときの呼び名。投稿欄はカラムではない。 */
+export const streetsHandlerLabel = (archetype: string): string =>
+  archetype === "composer" ? "Streets の投稿欄" : "Streets のカラム";
+
 export type IntentSheetCandidate = {
   id: string;
   title: string;
-  /** Streets のカラムで開くもの。 */
+  /** Streets（カラムや投稿欄）で開くもの。 */
   streets: boolean;
 };
 
@@ -83,7 +89,7 @@ const IntentSheet: Component<IntentSheetProps> = (props) => {
               title={candidate.title}
               description={
                 candidate.streets
-                  ? "Streets のカラムで開く"
+                  ? `${streetsHandlerLabel(props.archetype)}で開く`
                   : "インストール済みのアップレットで開く"
               }
               onClick={() => props.onPick(candidate.id, always())}

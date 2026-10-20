@@ -153,6 +153,11 @@ export const STREETS_CONTRACTS: readonly IntentContract[] = [
   { convention: "napplet:profile/open", params: ["pubkey"] },
   { convention: "napplet:note/open", params: ["id"] },
   { convention: "napplet:article/open", params: ["naddr"] },
+  { convention: "napplet:article/author", params: ["pubkey"] },
+  {
+    convention: "napplet:composer/open",
+    params: ["content", "replyTo", "quote"],
+  },
 ];
 
 /**

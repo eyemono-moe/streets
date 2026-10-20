@@ -22,6 +22,7 @@ import type { NappletSession } from "@streets/core/napplet/session";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { ComposeTarget } from "@streets/core/view/compose-drafts";
 import {
   type Accessor,
   createContext,
@@ -54,6 +55,11 @@ export type AppletIntents = {
    * する。投稿のメニューの「○○ で開く」に使う。
    */
   handlersFor: (column: ColumnDef) => { id: string; title: string }[];
+  /**
+   * Streets の返信・引用を、投稿欄の既定のアップレット（`napplet:composer/open`）で
+   * 開く。既定がアップレットでなければ undefined（Streets のダイアログで書く）。
+   */
+  routeCompose: (target: ComposeTarget) => ColumnDef | undefined;
   /** `handlersFor` の 1 つで開くカラムを作り、依頼を預ける。 */
   openIn: (handlerId: string, column: ColumnDef) => ColumnDef | undefined;
   /**
@@ -168,6 +174,36 @@ export const createAppletIntents = (options: {
     });
     return opened;
   };
+  const COMPOSER = "napplet:composer/open";
+  const routeCompose = (target: ComposeTarget): ColumnDef | undefined => {
+    const preferred = options.library()?.defaults.composer;
+    if (preferred?.type !== "applet") return undefined;
+    const handler = catalog().find(
+      (item) =>
+        item.type === "applet" &&
+        sameApplet(item.applet, preferred) &&
+        item.archetypes.includes("composer") &&
+        item.contracts.some((contract) => contract.convention === COMPOSER),
+    );
+    if (handler?.type !== "applet") return undefined;
+    const known = installed().find((item) => sameApplet(item, handler.applet));
+    const opened = appletColumnFor({
+      ...handler.applet,
+      relays: known?.relays,
+    });
+    deliver(opened.id, {
+      sender: STREETS_HANDLER_ID,
+      archetype: "composer",
+      action: "open",
+      convention: COMPOSER,
+      // Composer・Chronofeed と同じ形（宛先は投稿そのもの）。
+      payload: {
+        content: "",
+        [target.type === "reply" ? "replyTo" : "quote"]: target.event,
+      },
+    });
+    return opened;
+  };
   const route = (column: ColumnDef): ColumnDef => {
     const intent = intentForColumn(column);
     const target = intent && options.library()?.defaults[intent.archetype];
@@ -206,6 +242,7 @@ export const createAppletIntents = (options: {
     take,
     pending,
     route,
+    routeCompose,
     handlersFor: (column) =>
       appletHandlers(column).map((item) => ({
         id: item.id,

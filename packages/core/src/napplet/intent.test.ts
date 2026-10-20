@@ -208,6 +208,7 @@ describe("intentCatalog と intentAvailability", () => {
     );
     expect(handlers.map((h) => h.archetype).sort()).toEqual([
       "article",
+      "composer",
       "note",
       "profile",
     ]);

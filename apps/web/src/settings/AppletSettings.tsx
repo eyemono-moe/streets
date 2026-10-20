@@ -3,6 +3,7 @@ import { emptyAppletLibrary } from "@streets/core/napplet/library";
 import type { Component } from "solid-js";
 import { useAppletIntents } from "../napplet/applet-intents";
 import { useAppletLibrary } from "../napplet/applet-library";
+import { streetsHandlerLabel } from "../napplet/IntentSheet";
 import { useDispatch } from "../ui-events";
 import AppletSettingsView, { type IntentRole } from "./AppletSettingsView";
 
@@ -19,7 +20,9 @@ const AppletSettings: Component = () => {
         options: availability.candidates.map((candidate) => ({
           value: candidate.id,
           title:
-            candidate.id === "streets" ? "Streets のカラム" : candidate.title,
+            candidate.id === "streets"
+              ? streetsHandlerLabel(availability.archetype)
+              : candidate.title,
         })),
         current: availability.candidates.find((c) => c.isDefault)?.id,
       }),
