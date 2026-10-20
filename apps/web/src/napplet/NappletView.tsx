@@ -13,15 +13,16 @@ export type NappletPhase =
   | { phase: "ready" };
 
 export const MANIFEST_ERRORS: Record<NappletManifestError, string> = {
-  "not-napplet": "napplet ではないイベントです。",
+  "not-napplet": "アップレットではないイベントです。",
   "legacy-multi-file":
-    "この napplet は古い形式で、複数のファイルに分かれているため開けません。",
-  "missing-hash": "napplet の本体を指す情報（x タグ）がありません。",
+    "このアップレットは古い形式で、複数のファイルに分かれているため開けません。",
+  "missing-hash": "アップレットの本体を指す情報（x タグ）がありません。",
   "multiple-hashes":
-    "napplet の本体を指す情報（x タグ）が複数あり、どれを動かすか決められません。",
-  "invalid-hash": "napplet の本体を指す情報（x タグ）の形が正しくありません。",
-  "missing-description": "napplet の説明がありません。",
-  "missing-identifier": "napplet の名前（d タグ）がありません。",
+    "アップレットの本体を指す情報（x タグ）が複数あり、どれを動かすか決められません。",
+  "invalid-hash":
+    "アップレットの本体を指す情報（x タグ）の形が正しくありません。",
+  "missing-description": "アップレットの説明がありません。",
+  "missing-identifier": "アップレットの名前（d タグ）がありません。",
 };
 
 const ARTIFACT_ERRORS: Record<
@@ -29,11 +30,11 @@ const ARTIFACT_ERRORS: Record<
   string
 > = {
   unavailable:
-    "napplet の本体を取得できませんでした。置き場所のサーバーが止まっているかもしれません。",
+    "アップレットの本体を取得できませんでした。置き場所のサーバーが止まっているかもしれません。",
   "hash-mismatch":
-    "取得した napplet の本体が、作者が公開したものと一致しません。安全のため動かしません。",
+    "取得したアップレットの本体が、作者が公開したものと一致しません。安全のため動かしません。",
   "no-server":
-    "napplet の本体の置き場所（server タグ）が書かれていないため、取得できません。",
+    "アップレットの本体の置き場所（server タグ）が書かれていないため、取得できません。",
 };
 
 const Notice: Component<{ children: JSX.Element; tone?: "warn" }> = (props) => (
@@ -61,10 +62,10 @@ const NappletView: Component<{
   <div class="flex h-full min-h-0 flex-col">
     <Switch>
       <Match when={props.state.phase === "manifest-loading"}>
-        <Notice>napplet の情報を取得中…</Notice>
+        <Notice>アップレットの情報を取得中…</Notice>
       </Match>
       <Match when={props.state.phase === "manifest-missing"}>
-        <Notice>napplet が見つかりませんでした。</Notice>
+        <Notice>アップレットが見つかりませんでした。</Notice>
       </Match>
       <Match
         when={
@@ -76,7 +77,7 @@ const NappletView: Component<{
         )}
       </Match>
       <Match when={props.state.phase === "artifact-loading"}>
-        <Notice>napplet を取得中…</Notice>
+        <Notice>アップレットを取得中…</Notice>
       </Match>
       <Match
         when={props.state.phase === "artifact-failed" ? props.state : undefined}

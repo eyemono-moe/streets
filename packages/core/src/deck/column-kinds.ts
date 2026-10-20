@@ -499,7 +499,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     foldsMuted: false,
   },
   "napplet-list": {
-    title: () => ({ text: "napplet" }),
+    title: () => ({ text: "アップレット" }),
     kinds: () => [],
   },
   "napplet-info": {

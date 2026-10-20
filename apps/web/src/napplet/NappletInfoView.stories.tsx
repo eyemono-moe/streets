@@ -8,7 +8,7 @@ import NappletInfoView from "./NappletInfoView";
 import { STREETS_NAPPLET_DOMAINS } from "./streets-host";
 
 const author = createStoryAuthor(520, {
-  name: "napplet の作者",
+  name: "アップレットの作者",
   picture: avatarUrl,
 });
 
@@ -54,7 +54,7 @@ const InfoStory: Component<Props> = (props) => (
 );
 
 const meta = {
-  title: "カラム/napplet の情報",
+  title: "カラム/アップレットの情報",
   component: InfoStory,
   args: { lookup: { phase: "found", manifest }, icon: true, width: 360 },
   argTypes: { lookup: { control: false } },
@@ -93,8 +93,8 @@ export const 長い説明と知らない機能: Story = {
       phase: "found",
       manifest: {
         ...manifest,
-        title: "とても長い名前の napplet で、カラムの幅に収まらないもの",
-        description: "説明がとても長い napplet。".repeat(12),
+        title: "とても長い名前のアップレットで、カラムの幅に収まらないもの",
+        description: "説明がとても長いアップレット。".repeat(12),
         requires: ["mesh", "upload", "cvm", "future-domain"],
       },
     },

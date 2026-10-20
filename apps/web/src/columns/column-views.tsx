@@ -191,7 +191,7 @@ const NappletInfoButton: Component<{
   return (
     <IconButton
       icon="i-material-symbols:info-outline-rounded"
-      label="napplet の情報"
+      label="アップレットの情報"
       onClick={() =>
         dispatch({
           type: "stack/open",
@@ -735,7 +735,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   napplet: {
     meta: () => ({
       icon: "i-material-symbols:widgets-outline-rounded",
-      subtitle: "napplet",
+      subtitle: "アップレット",
     }),
     HeaderActions: (props) => (
       <NappletInfoButton
@@ -770,7 +770,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "napplet-info": {
     meta: () => ({
       icon: "i-material-symbols:info-outline-rounded",
-      subtitle: "napplet の情報",
+      subtitle: "アップレットの情報",
     }),
     Content: (props) => (
       <NappletInfo

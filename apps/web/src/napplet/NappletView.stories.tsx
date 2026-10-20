@@ -8,9 +8,9 @@ import NappletView, { type NappletPhase } from "./NappletView";
 import { STREETS_NAPPLET_DOMAINS } from "./streets-host";
 import { currentNappletTheme } from "./theme-colors";
 
-const author = createStoryAuthor(510, { name: "napplet の作者" });
+const author = createStoryAuthor(510, { name: "アップレットの作者" });
 const notes = [1, 2, 3].map((index) =>
-  author.note(`napplet の中に流れる投稿 ${index}`),
+  author.note(`アップレットの中に流れる投稿 ${index}`),
 );
 
 /**
@@ -57,7 +57,7 @@ const storyHost = (): NappletHost => {
     domains: STREETS_NAPPLET_DOMAINS,
     publicKey: () => author.pubkey,
     relays: () => ({}),
-    profile: async () => ({ name: "napplet の作者" }),
+    profile: async () => ({ name: "アップレットの作者" }),
     follows: async () => [],
     mutes: async () => [],
     theme: () => currentNappletTheme(document.body),
@@ -107,7 +107,7 @@ const ViewStory: Component<Props> = (props) => (
 );
 
 const meta = {
-  title: "カラム/napplet",
+  title: "カラム/アップレット",
   component: ViewStory,
   args: { state: { phase: "ready" }, unsupported: [], width: 360 },
   argTypes: { state: { control: false } },

@@ -28,8 +28,8 @@ const DOMAIN_LABELS: Record<string, string> = {
   relay: "投稿を読み書きする",
   outbox: "人ごとのリレーで投稿を読み書きする",
   resource: "画像などを取得する",
-  inc: "ほかの napplet とやりとりする",
-  intent: "ほかの napplet を開く",
+  inc: "ほかのアップレットとやりとりする",
+  intent: "ほかのアップレットを開く",
   link: "外部のリンクを開く",
   config: "設定を持つ",
   upload: "ファイルをアップロードする",
@@ -104,7 +104,7 @@ const NappletInfoView: Component<{
       eventKind: NAPPLET_NAMED_KIND,
     });
     try {
-      if (!naddr) throw new Error("napplet の住所を作れませんでした");
+      if (!naddr) throw new Error("アップレットの住所を作れませんでした");
       await appWindow.navigator.clipboard.writeText(`nostr:${naddr}`);
     } catch (cause) {
       notifyError(cause, "リンクをコピーできませんでした");
@@ -117,7 +117,7 @@ const NappletInfoView: Component<{
       </Match>
       <Match when={props.lookup.phase === "missing"}>
         <p class="c-secondary p-4 text-caption">
-          napplet の情報が見つかりませんでした。
+          アップレットの情報が見つかりませんでした。
         </p>
       </Match>
       <Match when={props.lookup.phase === "invalid" ? props.lookup : undefined}>
@@ -149,7 +149,7 @@ const NappletInfoView: Component<{
               <h3 class="c-primary break-anywhere font-700 text-h3">
                 {manifest().title ??
                   manifest().identifier ??
-                  "名前の無い napplet"}
+                  "名前の無いアップレット"}
               </h3>
               <p class="c-primary break-anywhere whitespace-pre-wrap text-body">
                 {manifest().description}

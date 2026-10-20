@@ -35,7 +35,7 @@ const NappletRow: Component<{
         <span class="c-primary truncate font-600 text-body">
           {props.entry.manifest.title ??
             props.entry.manifest.identifier ??
-            "名前の無い napplet"}
+            "名前の無いアップレット"}
         </span>
         <span class="c-secondary line-clamp-2 break-anywhere text-caption">
           {props.entry.manifest.description}
@@ -74,7 +74,7 @@ const NappletListView: Component<{
 }> = (props) => (
   <div class="flex flex-col gap-3 p-3">
     <SearchInput
-      label="napplet を探す"
+      label="アップレットを探す"
       placeholder="名前や説明で探す"
       value={props.query}
       onValueChange={props.onQuery}
@@ -113,8 +113,8 @@ const NappletListView: Component<{
       <Match when={props.settled}>
         <p class="c-secondary text-caption">
           {props.query.trim()
-            ? "条件に合う napplet が見つかりませんでした。"
-            : "napplet が見つかりませんでした。"}
+            ? "条件に合うアップレットが見つかりませんでした。"
+            : "アップレットが見つかりませんでした。"}
         </p>
       </Match>
       <Match when={true}>

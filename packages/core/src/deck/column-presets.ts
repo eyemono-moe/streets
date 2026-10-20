@@ -90,7 +90,7 @@ export const buildNappletColumn = (
   relays: readonly RelayUrl[] = [],
 ): ColumnDef => ({
   id: `napplet:${pubkey}:${identifier}`,
-  title: "napplet",
+  title: "アップレット",
   source: {
     kind: "napplet",
     pubkey,
@@ -105,7 +105,7 @@ export const buildNappletInfoColumn = (
   relays: readonly RelayUrl[] = [],
 ): ColumnDef => ({
   id: `napplet-info:${pubkey}:${identifier}`,
-  title: "napplet の情報",
+  title: "アップレットの情報",
   source: {
     kind: "napplet-info",
     pubkey,
@@ -247,7 +247,7 @@ export const buildColumn = (
       return { id, title: "チャンネル", source: { kind: "channel-list" } };
 
     case "napplets":
-      return { id, title: "napplet", source: { kind: "napplet-list" } };
+      return { id, title: "アップレット", source: { kind: "napplet-list" } };
 
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、

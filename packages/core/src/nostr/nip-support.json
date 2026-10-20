@@ -357,7 +357,7 @@
   {
     "nip": "5D",
     "status": "一部",
-    "summary": "napplet（Nostr で配る小さなアプリ）をカラムで動かす",
+    "summary": "アップレット（napplet。Nostr で配る小さなアプリ）をカラムで動かす",
     "kinds": [5129, 15129, 35129],
     "tags": [
       "d",

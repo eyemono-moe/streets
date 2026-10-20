@@ -18,7 +18,7 @@ const manifest = (
   pubkey: bob.pubkey,
   createdAt: 1_760_000_000,
   artifactHash: "e".repeat(64),
-  description: "napplet の説明。",
+  description: "アップレットの説明。",
   servers: [],
   requires: [],
   optional: [],
@@ -53,8 +53,8 @@ const entries: NappletEntry[] = [
   {
     manifest: manifest({
       identifier: "long",
-      title: "とても長い名前の napplet で、カラムの幅に収まらないもの",
-      description: "説明がとても長い napplet。".repeat(10),
+      title: "とても長い名前のアップレットで、カラムの幅に収まらないもの",
+      description: "説明がとても長いアップレット。".repeat(10),
     }),
     unsupported: [],
     followed: false,
@@ -97,7 +97,7 @@ const ListStory: Component<Props> = (props) => {
 };
 
 const meta = {
-  title: "カラム/napplet を探す",
+  title: "カラム/アップレットを探す",
   component: ListStory,
   args: { entries, settled: true, query: "", shown: 30, width: 360 },
   argTypes: { entries: { control: false } },
@@ -114,7 +114,7 @@ export const 続きがある: Story = { args: { shown: 2 } };
 export const 読み込み中: Story = { args: { entries: [], settled: false } };
 
 export const 見つからない: Story = {
-  args: { entries: [], settled: true, query: "存在しない napplet" },
+  args: { entries: [], settled: true, query: "存在しないアップレット" },
 };
 
 export const 狭いカラム: Story = { args: { width: 240 } };
