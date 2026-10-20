@@ -1,4 +1,5 @@
 import type { Component } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Switch from "../ui/Switch";
 import SettingsSection from "./SettingsSection";
@@ -18,10 +19,10 @@ const PrivacySettings: Component<{
       <SettingsSection
         id="clientTag"
         scope="account"
-        description="投稿に、Streets から投稿したことを示す印を付けます。ほかのアプリでは「Streets から投稿」のように表示され、どのアプリを使っているかを誰でも見られるようになります。一度送った投稿からは、あとから外せません。"
+        description={t("settings.privacy.clientTag.description")}
       >
         <Switch
-          label="投稿に Streets から投稿したことを示す"
+          label={t("settings.privacy.clientTag.switch")}
           checked={props.clientTag}
           onChange={(on) => dispatch({ type: "deck/set-client-tag", on })}
         />
@@ -32,10 +33,10 @@ const PrivacySettings: Component<{
         scope="account"
         changed={!props.notifyQuoted}
         onReset={() => dispatch({ type: "deck/set-notify-quoted", on: true })}
-        description="投稿を引用したとき、引用した投稿を書いた人に通知が届くようにします。オフにすると、引用したことは相手に知らされません。引用ボタンを使ったときも、本文に投稿へのリンクを貼ったときも同じです。本文で名前を書いて呼びかけた人には、オフでも通知が届きます。"
+        description={t("settings.privacy.notifyQuoted.description")}
       >
         <Switch
-          label="引用した投稿を書いた人に通知する"
+          label={t("settings.privacy.notifyQuoted.switch")}
           checked={props.notifyQuoted}
           onChange={(on) => dispatch({ type: "deck/set-notify-quoted", on })}
         />
@@ -44,10 +45,10 @@ const PrivacySettings: Component<{
       <SettingsSection
         id="errorReport"
         scope="device"
-        description="不具合が起きたときのエラーの内容と、画面の読み込みや操作にかかった時間を、端末・ブラウザの情報とあわせて開発元へ送信します。署名やログインで失敗したときは、ログインの方法（拡張機能の種類、署名器とやりとりするリレー）も送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。"
+        description={t("settings.privacy.errorReport.description")}
       >
         <Switch
-          label="不具合と動作の速さの報告を送信する"
+          label={t("settings.privacy.errorReport.switch")}
           checked={props.errorReport}
           onChange={(on) => dispatch({ type: "deck/set-error-report", on })}
         />

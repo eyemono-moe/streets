@@ -1,0 +1,232 @@
+{
+  "pages": {
+    "account": "アカウント",
+    "relays": "リレー",
+    "media": "画像",
+    "search": "検索",
+    "emoji": "絵文字",
+    "mute": "ミュート",
+    "keyboard": "キーボード",
+    "display": "表示",
+    "privacy": "プライバシー",
+    "stats": "統計"
+  },
+  "items": {
+    "profile": {
+      "title": "プロフィール",
+      "keywords": []
+    },
+    "profileDisplayName": {
+      "title": "表示名",
+      "keywords": ["プロフィール名", "名前"]
+    },
+    "profileName": {
+      "title": "ユーザー名",
+      "keywords": ["ハンドル"]
+    },
+    "profileAbout": {
+      "title": "自己紹介",
+      "description": "ほかの人に見えるプロフィールの文章",
+      "keywords": ["プロフィール文", "bio"]
+    },
+    "profilePicture": {
+      "title": "アイコン画像",
+      "description": "プロフィールに表示する画像",
+      "keywords": ["プロフィール画像", "アバター"]
+    },
+    "profileBanner": {
+      "title": "ヘッダー画像",
+      "keywords": ["バナー画像"]
+    },
+    "profileNip05": {
+      "title": "ドメインでの本人確認（NIP-05）",
+      "keywords": ["認証", "ドメイン"]
+    },
+    "profileWebsite": {
+      "title": "Web サイト",
+      "keywords": ["URL", "ホームページ"]
+    },
+    "profileLud16": {
+      "title": "Zap の受け取り先（ライトニングアドレス）",
+      "keywords": ["投げ銭", "ウォレット"]
+    },
+    "accountId": {
+      "title": "あなたの ID",
+      "keywords": ["公開鍵", "npub"]
+    },
+    "relays": {
+      "title": "使うリレー",
+      "keywords": ["接続先", "投稿先", "読むリレー"]
+    },
+    "blockedRelays": {
+      "title": "繋がないリレー",
+      "keywords": ["ブロック", "接続拒否"]
+    },
+    "relayRecommendations": {
+      "title": "おすすめのリレー",
+      "keywords": []
+    },
+    "readRouting": {
+      "title": "投稿を読むリレー",
+      "keywords": ["読み取り", "ルーティング"]
+    },
+    "readRedundancy": {
+      "title": "投稿を探すリレーの数",
+      "keywords": ["1 人あたり", "取りこぼし", "冗長"]
+    },
+    "fallbackRelays": {
+      "title": "既定のリレー",
+      "keywords": ["フォールバック", "fallback"]
+    },
+    "relayPlan": {
+      "title": "いま使っているリレー",
+      "keywords": []
+    },
+    "relayTraffic": {
+      "title": "リレーとの通信量",
+      "keywords": []
+    },
+    "imageDisplay": {
+      "title": "画像の表示",
+      "description": "画像を画面に合う大きさに縮め、メモリの使用を減らす",
+      "keywords": ["画像を縮める", "メモリ"]
+    },
+    "imageUpload": {
+      "title": "画像のアップロード先",
+      "description": "投稿に付ける画像を置くサーバー",
+      "keywords": ["Blossom", "サーバー"]
+    },
+    "searchHistory": {
+      "title": "検索履歴",
+      "description": "探した条件を、検索パネルからすぐ探し直せるように残す",
+      "keywords": ["履歴", "最近の検索"]
+    },
+    "searchRelays": {
+      "title": "検索するリレー",
+      "keywords": ["検索先"]
+    },
+    "reactionEmoji": {
+      "title": "いいねボタンの絵文字",
+      "keywords": ["リアクション"]
+    },
+    "emojiList": {
+      "title": "自分の絵文字リスト",
+      "keywords": []
+    },
+    "emojiFind": {
+      "title": "絵文字セットを探す",
+      "keywords": []
+    },
+    "emojiManage": {
+      "title": "もっと絵文字を管理する",
+      "keywords": []
+    },
+    "muteAdd": {
+      "title": "ミュートを足す",
+      "keywords": ["非表示"]
+    },
+    "muteList": {
+      "title": "ミュートしているもの",
+      "keywords": ["非表示", "解除"]
+    },
+    "shortcuts": {
+      "title": "ショートカットキー",
+      "keywords": ["キー割り当て"]
+    },
+    "columnDigits": {
+      "title": "数字キーでのカラム移動",
+      "keywords": ["カラム切替"]
+    },
+    "theme": {
+      "title": "カラーテーマ",
+      "description": "画面を明るい色にするか暗い色にするか選ぶ",
+      "keywords": ["ダークモード", "ライトモード"]
+    },
+    "contrast": {
+      "title": "コントラスト",
+      "description": "文字と背景の明るさの差を選ぶ",
+      "keywords": ["文字", "背景", "見やすさ", "濃さ"]
+    },
+    "accent": {
+      "title": "アクセントカラー",
+      "keywords": ["色", "テーマ"]
+    },
+    "preview": {
+      "title": "プレビュー",
+      "keywords": []
+    },
+    "deckLayout": {
+      "title": "カラムの並べ方",
+      "description": "カラムを横に並べるか一列ずつ切り替えるかを選ぶ",
+      "keywords": ["レイアウト", "1列", "複数列"]
+    },
+    "swipeMode": {
+      "title": "スワイプでカラムを切り替える",
+      "description": "1 列ずつのときに左右へ払うと何が起きるかを選ぶ",
+      "keywords": ["スワイプ", "左右", "一周", "ループ", "メニュー"]
+    },
+    "columnWidth": {
+      "title": "カラムの幅",
+      "description": "横に並べたカラムを画面の幅いっぱいに広げる",
+      "keywords": ["column width", "横幅", "広げる"]
+    },
+    "contentWarning": {
+      "title": "閲覧注意の投稿",
+      "keywords": ["センシティブ", "警告"]
+    },
+    "chatOrder": {
+      "title": "チャットの並び順",
+      "description": "チャットで新しい発言を下に足すか上に足すかを選ぶ",
+      "keywords": [
+        "パブリックチャット",
+        "チャンネル",
+        "新しい発言",
+        "上から",
+        "下から"
+      ]
+    },
+    "timeFormat": {
+      "title": "投稿の時刻",
+      "description": "投稿の時刻を絶対時間で出すか相対時間で出すかを選ぶ",
+      "keywords": ["相対時間", "絶対時間", "経過時間", "何分前", "日時"]
+    },
+    "writeProgress": {
+      "title": "ローディング表示",
+      "keywords": ["保存の進み具合", "アップロード"]
+    },
+    "actionLayout": {
+      "title": "アクション欄",
+      "keywords": ["投稿の操作", "並べ替え"]
+    },
+    "clientTag": {
+      "title": "使用しているアプリの表示",
+      "keywords": ["client tag", "クライアント"]
+    },
+    "notifyQuoted": {
+      "title": "引用した相手への通知",
+      "keywords": ["引用", "quote", "メンション", "p tag"]
+    },
+    "errorReport": {
+      "title": "不具合と動作の速さの報告",
+      "keywords": ["エラー報告", "計測"]
+    }
+  },
+  "section": {
+    "reset": "既定に戻す",
+    "resetLabel": "{{title}}を既定に戻す"
+  },
+  "privacy": {
+    "clientTag": {
+      "description": "投稿に、Streets から投稿したことを示す印を付けます。ほかのアプリでは「Streets から投稿」のように表示され、どのアプリを使っているかを誰でも見られるようになります。一度送った投稿からは、あとから外せません。",
+      "switch": "投稿に Streets から投稿したことを示す"
+    },
+    "notifyQuoted": {
+      "description": "投稿を引用したとき、引用した投稿を書いた人に通知が届くようにします。オフにすると、引用したことは相手に知らされません。引用ボタンを使ったときも、本文に投稿へのリンクを貼ったときも同じです。本文で名前を書いて呼びかけた人には、オフでも通知が届きます。",
+      "switch": "引用した投稿を書いた人に通知する"
+    },
+    "errorReport": {
+      "description": "不具合が起きたときのエラーの内容と、画面の読み込みや操作にかかった時間を、端末・ブラウザの情報とあわせて開発元へ送信します。署名やログインで失敗したときは、ログインの方法（拡張機能の種類、署名器とやりとりするリレー）も送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。",
+      "switch": "不具合と動作の速さの報告を送信する"
+    }
+  }
+}

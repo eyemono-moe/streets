@@ -2,6 +2,7 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayTraffic } from "@streets/core/relay/relay-traffic";
 import { TanStackDevtools } from "@tanstack/solid-devtools";
 import type { Component } from "solid-js";
+import LocalePanel from "./LocalePanel";
 import ReadLayerPanel from "./ReadLayerPanel";
 import RelayTrafficPanel from "./RelayTrafficPanel";
 
@@ -18,6 +19,7 @@ const AppDevtools: Component<{
           render: <ReadLayerPanel readLayer={props.readLayer} />,
           defaultOpen: true,
         },
+        { name: "Language", render: <LocalePanel /> },
         ...(props.relayTraffic
           ? [
               {
