@@ -1,3 +1,4 @@
+import type { IntentDelivery } from "../napplet/intent";
 import type { ColumnDef } from "./deck";
 
 /**
@@ -30,6 +31,8 @@ export type ColumnStackEvent =
        * ユーザーがその場で選んだときに付ける。
        */
       direct?: boolean;
+      /** 開くアップレットに渡す依頼（NAP-INTENT）。開いたカラムの中の、その段が受け取る。 */
+      delivery?: IntentDelivery;
     }
   /** 開いている一番上の段を閉じる。 */
   | { type: "stack/back" }

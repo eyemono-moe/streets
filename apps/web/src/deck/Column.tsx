@@ -22,6 +22,10 @@ import {
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
 import { useAppletIntents } from "../napplet/applet-intents";
+import {
+  ColumnDeliveriesProvider,
+  createColumnDeliveries,
+} from "../napplet/column-deliveries";
 import { measureUntilPaint } from "../telemetry";
 import { Mediates, type UiEvent } from "../ui-events";
 import { Portal } from "../ui/Portal";
@@ -63,6 +67,7 @@ export type ColumnProps = {
 const Column: Component<ColumnProps> = (props) => {
   const [stack, setStack] = createStore<ColumnStackState>(emptyColumnStack());
   const intents = useAppletIntents();
+  const deliveries = createColumnDeliveries();
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
       case "stack/open":
@@ -73,10 +78,17 @@ const Column: Component<ColumnProps> = (props) => {
         }
         const wasOpen = stack.layers.length > 0;
         // 人・投稿・記事は、開く先の既定がアップレットならそちらで開く。
-        const opened =
-          event.type === "stack/open" && !event.direct && intents
-            ? { ...event, column: intents.route(event.column) }
-            : event;
+        let opened = event;
+        if (event.type === "stack/open") {
+          const routed =
+            !event.direct && intents ? intents.route(event.column) : event;
+          const delivery = event.delivery ?? routed.delivery;
+          const source = routed.column.source;
+          if (delivery && source.kind === "napplet") {
+            deliveries.push(source, delivery);
+          }
+          opened = { ...event, column: routed.column };
+        }
         setStack(
           reconcile(
             columnStackTransition(
@@ -282,29 +294,31 @@ const Column: Component<ColumnProps> = (props) => {
   return props.stacked ? (
     inner()
   ) : (
-    <Mediates handle={handle}>
-      {/* 開き直すと窓が替わる。Portal の出し先は作るときに決まるので、窓ごとに作り直す。 */}
-      <Show when={poppedOut()} keyed fallback={inner()}>
-        {(win) => (
-          <>
-            <PoppedOutColumn
-              column={props.column}
-              grip={props.grip}
-              header={props.chrome !== false}
-            />
-            <Portal mount={win.document.body}>
-              <AppWindowProvider window={win}>
-                <div class="h-dvh">
-                  <PipFrame shown={shownColumn(stack, props.column)}>
-                    {inner()}
-                  </PipFrame>
-                </div>
-              </AppWindowProvider>
-            </Portal>
-          </>
-        )}
-      </Show>
-    </Mediates>
+    <ColumnDeliveriesProvider value={deliveries}>
+      <Mediates handle={handle}>
+        {/* 開き直すと窓が替わる。Portal の出し先は作るときに決まるので、窓ごとに作り直す。 */}
+        <Show when={poppedOut()} keyed fallback={inner()}>
+          {(win) => (
+            <>
+              <PoppedOutColumn
+                column={props.column}
+                grip={props.grip}
+                header={props.chrome !== false}
+              />
+              <Portal mount={win.document.body}>
+                <AppWindowProvider window={win}>
+                  <div class="h-dvh">
+                    <PipFrame shown={shownColumn(stack, props.column)}>
+                      {inner()}
+                    </PipFrame>
+                  </div>
+                </AppWindowProvider>
+              </Portal>
+            </>
+          )}
+        </Show>
+      </Mediates>
+    </ColumnDeliveriesProvider>
   );
 };
 

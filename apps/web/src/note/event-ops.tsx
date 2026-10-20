@@ -218,11 +218,11 @@ export const createEventDialogs = (event: () => NostrEvent) => {
     if (what && !gate(what)) return;
     // 投稿欄の既定がアップレットなら、返信・引用はそのアップレットで書く。
     if (dialog === "reply" || dialog === "quote") {
-      const column = intents?.routeCompose({ type: dialog, event: event() });
-      if (column) {
+      const routed = intents?.routeCompose({ type: dialog, event: event() });
+      if (routed) {
         dispatch({
           type: "stack/open",
-          column,
+          ...routed,
           from: event().id,
           direct: true,
         });

@@ -35,21 +35,19 @@ import {
 } from "solid-js";
 import { subscribeThroughReadLayer } from "./streets-host";
 
+/** 開くカラムと、アップレットで開くなら渡す依頼。`stack/open` にそのまま載せる。 */
+export type Routed = { column: ColumnDef; delivery?: IntentDelivery };
+
 export type AppletIntents = {
   /** インストール済みのアップレットと、届いたマニフェスト。 */
   installed: Accessor<{ applet: AppletAddress; manifest?: NappletManifest }[]>;
   /** 受け手の候補。インストール済みでマニフェストの届いたアップレットと、Streets。 */
   catalog: Accessor<IntentHandler[]>;
-  /** 依頼を受け手のカラムに預ける。カラムの id ごとに、開いたら取り出す。 */
-  deliver: (columnId: string, delivery: IntentDelivery) => void;
-  /** そのカラムに預けた依頼を取り出す。届くたびに `pending` が変わる。 */
-  take: (columnId: string) => IntentDelivery[];
-  pending: Accessor<number>;
   /**
    * Streets の中で開こうとしたカラムを、既定のアップレットに回す。既定がアップレットで
    * なければ、そのまま返す。
    */
-  route: (column: ColumnDef) => ColumnDef;
+  route: (column: ColumnDef) => Routed;
   /**
    * Streets のカラムで開くはずのものを、受け付けるインストール済みのアップレットの一覧に
    * する。投稿のメニューの「○○ で開く」に使う。
@@ -59,9 +57,9 @@ export type AppletIntents = {
    * Streets の返信・引用を、投稿欄の既定のアップレット（`napplet:composer/open`）で
    * 開く。既定がアップレットでなければ undefined（Streets のダイアログで書く）。
    */
-  routeCompose: (target: ComposeTarget) => ColumnDef | undefined;
-  /** `handlersFor` の 1 つで開くカラムを作り、依頼を預ける。 */
-  openIn: (handlerId: string, column: ColumnDef) => ColumnDef | undefined;
+  routeCompose: (target: ComposeTarget) => Routed | undefined;
+  /** `handlersFor` の 1 つで開くカラムと、渡す依頼。 */
+  openIn: (handlerId: string, column: ColumnDef) => Routed | undefined;
   /**
    * 動いているアップレット（NAP-INC の endpoint）を登録する。id は動いている間だけ
    * 使い、同じアップレットを 2 つ開いても重ならない。外すときは返した関数を呼ぶ。
@@ -128,18 +126,6 @@ export const createAppletIntents = (options: {
   );
   const catalog = createMemo(() => intentCatalog(installedWithManifests()));
 
-  const queued = new Map<string, IntentDelivery[]>();
-  const [pending, setPending] = createSignal(0);
-  const deliver = (columnId: string, delivery: IntentDelivery) => {
-    queued.set(columnId, [...(queued.get(columnId) ?? []), delivery]);
-    setPending((count) => count + 1);
-  };
-  const take = (columnId: string) => {
-    const deliveries = queued.get(columnId) ?? [];
-    queued.delete(columnId);
-    return deliveries;
-  };
-
   const appletHandlers = (column: ColumnDef) => {
     const intent = intentForColumn(column);
     if (!intent) return [];
@@ -151,10 +137,7 @@ export const createAppletIntents = (options: {
         : [],
     );
   };
-  const openIn = (
-    handlerId: string,
-    column: ColumnDef,
-  ): ColumnDef | undefined => {
+  const openIn = (handlerId: string, column: ColumnDef): Routed | undefined => {
     const intent = intentForColumn(column);
     const handler = appletHandlers(column).find(
       (item) => item.id === handlerId,
@@ -165,17 +148,19 @@ export const createAppletIntents = (options: {
       ...handler.applet,
       relays: known?.relays,
     });
-    deliver(opened.id, {
-      sender: STREETS_HANDLER_ID,
-      archetype: intent.archetype,
-      action: intent.convention.split("/").at(-1) ?? "open",
-      convention: intent.convention,
-      payload: intent.payload,
-    });
-    return opened;
+    return {
+      column: opened,
+      delivery: {
+        sender: STREETS_HANDLER_ID,
+        archetype: intent.archetype,
+        action: intent.convention.split("/").at(-1) ?? "open",
+        convention: intent.convention,
+        payload: intent.payload,
+      },
+    };
   };
   const COMPOSER = "napplet:composer/open";
-  const routeCompose = (target: ComposeTarget): ColumnDef | undefined => {
+  const routeCompose = (target: ComposeTarget): Routed | undefined => {
     const preferred = options.library()?.defaults.composer;
     if (preferred?.type !== "applet") return undefined;
     const handler = catalog().find(
@@ -191,27 +176,29 @@ export const createAppletIntents = (options: {
       ...handler.applet,
       relays: known?.relays,
     });
-    deliver(opened.id, {
-      sender: STREETS_HANDLER_ID,
-      archetype: "composer",
-      action: "open",
-      convention: COMPOSER,
-      // Composer・Chronofeed と同じ形（宛先は投稿そのもの）。
-      payload: {
-        content: "",
-        [target.type === "reply" ? "replyTo" : "quote"]: target.event,
+    return {
+      column: opened,
+      delivery: {
+        sender: STREETS_HANDLER_ID,
+        archetype: "composer",
+        action: "open",
+        convention: COMPOSER,
+        // Composer・Chronofeed と同じ形（宛先は投稿そのもの）。
+        payload: {
+          content: "",
+          [target.type === "reply" ? "replyTo" : "quote"]: target.event,
+        },
       },
-    });
-    return opened;
+    };
   };
-  const route = (column: ColumnDef): ColumnDef => {
+  const route = (column: ColumnDef): Routed => {
     const intent = intentForColumn(column);
     const target = intent && options.library()?.defaults[intent.archetype];
-    if (target?.type !== "applet") return column;
+    if (target?.type !== "applet") return { column };
     const handler = appletHandlers(column).find((item) =>
       sameApplet(item.applet, target),
     );
-    return (handler && openIn(handler.id, column)) ?? column;
+    return (handler && openIn(handler.id, column)) ?? { column };
   };
 
   const endpoints = new Map<string, Pick<NappletSession, "incEvent">>();
@@ -238,9 +225,6 @@ export const createAppletIntents = (options: {
     join,
     emit,
     catalog,
-    deliver,
-    take,
-    pending,
     route,
     routeCompose,
     handlersFor: (column) =>

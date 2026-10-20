@@ -58,6 +58,7 @@ import {
 } from "../../napplet/applet-intents";
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { useAppletWriter } from "../../napplet/applet-writer";
+import { useColumnDeliveries } from "../../napplet/column-deliveries";
 import { type ActionPrompt, createCommonHost } from "../../napplet/common-host";
 import IntentSheet, {
   streetsHandlerLabel,
@@ -165,13 +166,12 @@ const Napplet: Component<{
     ),
   );
   // 預けられた依頼は、napplet が動いていれば届ける（起動前なら session が待たせる）。
+  const deliveries = useColumnDeliveries();
   createEffect(() => {
-    intents?.pending();
+    deliveries?.pending();
     const current = session();
-    if (!current || !intents) return;
-    for (const delivery of intents.take(scope.column().id)) {
-      current.deliver(delivery);
-    }
+    if (!current || !deliveries) return;
+    for (const delivery of deliveries.take(self)) current.deliver(delivery);
   });
   // NAP-INTENT: > The runtime SHOULD emit `intent.changed` when catalog or default-handler
   // > state changes.
@@ -221,14 +221,18 @@ const Napplet: Component<{
         item.pubkey === applet.pubkey && item.identifier === applet.identifier,
     );
     const column = appletColumnFor({ ...applet, relays: known?.relays });
-    intents?.deliver(column.id, {
-      sender: appletHandlerId(self),
-      archetype: request.archetype,
-      action: request.action,
-      convention: request.convention,
-      ...(request.payload !== undefined ? { payload: request.payload } : {}),
+    dispatch({
+      type: "stack/open",
+      column,
+      direct: true,
+      delivery: {
+        sender: appletHandlerId(self),
+        archetype: request.archetype,
+        action: request.action,
+        convention: request.convention,
+        ...(request.payload !== undefined ? { payload: request.payload } : {}),
+      },
     });
-    dispatch({ type: "stack/open", column, direct: true });
     return { ...accepted, handler: appletHandlerId(applet) };
   };
 

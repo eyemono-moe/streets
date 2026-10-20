@@ -365,7 +365,7 @@ const EventMenu: Component<{
     if (opened) {
       dispatch({
         type: "stack/open",
-        column: opened,
+        ...opened,
         from: props.event.id,
         direct: true,
       });

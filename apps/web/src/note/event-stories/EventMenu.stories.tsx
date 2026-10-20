@@ -24,10 +24,7 @@ import { alice, plain, profiles, scene, viewer } from "./event-story";
 const storyIntents: AppletIntents = {
   installed: () => [],
   catalog: () => [],
-  deliver: () => {},
-  take: () => [],
-  pending: () => 0,
-  route: (column) => column,
+  route: (column) => ({ column }),
   routeCompose: () => undefined,
   handlersFor: () => [{ id: "35129:story:viewer", title: "Nostr Viewer" }],
   openIn: () => undefined,
