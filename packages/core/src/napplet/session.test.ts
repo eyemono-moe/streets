@@ -72,6 +72,7 @@ const setup = (
     },
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     forwardKey: (key) => void keys.push(key),
+    catalog: () => ({ napplets: [], handlers: [] }),
     common: {
       setFollow: async (pubkeys, on) => {
         actions.push(["follow", pubkeys, on]);
@@ -962,5 +963,21 @@ describe("NAP-COMMON", () => {
       ok: false,
       error: "invalid-report-reason",
     });
+  });
+});
+
+describe("NAP-CATALOG", () => {
+  // > The shell MUST respond to every request with a result carrying the same `id`.
+  // > An empty `napplets` list is a successful result
+  it("一覧を同じ id で返す", () => {
+    const { session, sent } = setup(["shell", "catalog"]);
+    session.receive({ type: "catalog.get", id: "c1" });
+    expect(sent).toEqual([
+      {
+        type: "catalog.get.result",
+        id: "c1",
+        snapshot: { napplets: [], handlers: [] },
+      },
+    ]);
   });
 });

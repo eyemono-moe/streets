@@ -35,6 +35,8 @@ import {
 import { subscribeThroughReadLayer } from "./streets-host";
 
 export type AppletIntents = {
+  /** インストール済みのアップレットと、届いたマニフェスト。 */
+  installed: Accessor<{ applet: AppletAddress; manifest?: NappletManifest }[]>;
   /** 受け手の候補。インストール済みでマニフェストの届いたアップレットと、Streets。 */
   catalog: Accessor<IntentHandler[]>;
   /** 依頼を受け手のカラムに預ける。カラムの id ごとに、開いたら取り出す。 */
@@ -112,14 +114,13 @@ export const createAppletIntents = (options: {
       onCleanup(close);
     }),
   );
-  const catalog = createMemo(() =>
-    intentCatalog(
-      installed().map((applet) => ({
-        applet,
-        manifest: manifests().get(keyOf(applet)),
-      })),
-    ),
+  const installedWithManifests = createMemo(() =>
+    installed().map((applet) => ({
+      applet: { pubkey: applet.pubkey, identifier: applet.identifier },
+      manifest: manifests().get(keyOf(applet)),
+    })),
   );
+  const catalog = createMemo(() => intentCatalog(installedWithManifests()));
 
   const queued = new Map<string, IntentDelivery[]>();
   const [pending, setPending] = createSignal(0);
@@ -197,6 +198,7 @@ export const createAppletIntents = (options: {
   };
 
   return {
+    installed: installedWithManifests,
     join,
     emit,
     catalog,

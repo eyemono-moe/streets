@@ -22,6 +22,7 @@ import { alice, plain, profiles, scene, viewer } from "./event-story";
 
 // 投稿も人も開けるアップレットが 1 つ入っている、という見立て。
 const storyIntents: AppletIntents = {
+  installed: () => [],
   catalog: () => [],
   deliver: () => {},
   take: () => [],

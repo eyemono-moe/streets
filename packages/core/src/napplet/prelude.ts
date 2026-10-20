@@ -703,6 +703,12 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("catalog")) {
+    napplet.catalog = {
+      get: () => request("catalog.get", {}, (message) => message.snapshot),
+    };
+  }
+
   if (exposed.has("common")) {
     // 結果は `ok` と `error` の欄で返し、reject しない（@napplet/shim と同じ）。
     const result = (message: Message) => {

@@ -394,9 +394,10 @@
       "packages/core/src/napplet/publish.ts",
       "packages/core/src/napplet/link.ts",
       "apps/web/src/columns/blocks/Napplet.tsx",
-      "packages/core/src/napplet/common.ts"
+      "packages/core/src/napplet/common.ts",
+      "packages/core/src/napplet/catalog.ts"
     ],
-    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data）・intent・inc（話題で送り合うものだけ。1 対 1 の channel は渡さない）・relay・outbox・link（http(s) は新しいタブ、nostr: は Streets のカラム。押されずに開くときは確かめる）・keys（押したキーを Streets のショートカットへ送る。操作の登録は受け付けるが、キーは割り当てない）・common（NIP-19・プロフィール・フォロー・リアクション・通報。書き込みは確かめてから行う）を渡す。書き込み（relay.publish・publishEncrypted・outbox.publish）は毎回カラムの中で確かめてから Streets が署名する。暗号化は NIP-44 だけで、認証の kind（22242・24133・24242・27235）と、暗号文を運ぶ kind のそのままの書き込みには署名しない。config は渡さない。onDelivery を使わず inc.on の話題で依頼を受けるアップレットには、依頼をその話題で渡す。intent の受け手は、インストールしたアップレットと、Streets のカラム（profile・note・article の open）"
+    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data）・intent・inc（話題で送り合うものだけ。1 対 1 の channel は渡さない）・relay・outbox・link（http(s) は新しいタブ、nostr: は Streets のカラム。押されずに開くときは確かめる）・keys（押したキーを Streets のショートカットへ送る。操作の登録は受け付けるが、キーは割り当てない）・common（NIP-19・プロフィール・フォロー・リアクション・通報。書き込みは確かめてから行う）・catalog（インストールしたアップレットだけ）を渡す。書き込み（relay.publish・publishEncrypted・outbox.publish）は毎回カラムの中で確かめてから Streets が署名する。暗号化は NIP-44 だけで、認証の kind（22242・24133・24242・27235）と、暗号文を運ぶ kind のそのままの書き込みには署名しない。config は渡さない。onDelivery を使わず inc.on の話題で依頼を受けるアップレットには、依頼をその話題で渡す。intent の受け手は、インストールしたアップレットと、Streets のカラム（profile・note・article の open）"
   },
   {
     "nip": "65",

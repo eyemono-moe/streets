@@ -1,10 +1,12 @@
 import { streetsIntentColumn } from "@streets/core/deck/intent-columns";
 import { tempColumnFor } from "@streets/core/deck/temp-column";
 import { fetchNappletArtifact } from "@streets/core/napplet/artifact";
+import { catalogSnapshot } from "@streets/core/napplet/catalog";
 import {
   type IntentHandler,
   type IntentRequest,
   type IntentResult,
+  STREETS_CONTRACTS,
   STREETS_HANDLER_ID,
   appletHandlerId,
   intentAvailability,
@@ -16,7 +18,10 @@ import {
   emptyAppletLibrary,
   hasGrant,
 } from "@streets/core/napplet/library";
-import type { NappletManifest } from "@streets/core/napplet/manifest";
+import {
+  INTENT_CONVENTION,
+  type NappletManifest,
+} from "@streets/core/napplet/manifest";
 import {
   grantKey,
   overwritesState,
@@ -496,6 +501,17 @@ const Napplet: Component<{
         hostElement?.dispatchEvent(new KeyboardEvent("keydown", init));
         hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
       },
+      catalog: () =>
+        catalogSnapshot(
+          intents?.installed() ?? [],
+          library() ?? emptyAppletLibrary(),
+          new Set(
+            STREETS_CONTRACTS.flatMap(
+              (contract) =>
+                INTENT_CONVENTION.exec(contract.convention)?.[1] ?? [],
+            ),
+          ),
+        ),
       common: createCommonHost({
         actions: eventActions,
         writer,

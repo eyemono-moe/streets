@@ -17,6 +17,7 @@ import { decodeNpub } from "../nostr/nip19";
 import type { ReactionInput } from "../nostr/reaction";
 import { type ReportReason, isReportReason } from "../nostr/report";
 import type { RelayFilter } from "../relay/relay-connection";
+import type { CatalogSnapshot } from "./catalog";
 import {
   commonProfileData,
   commonReaction,
@@ -155,6 +156,8 @@ export type NappletHost = {
       text: string,
     ) => Promise<CommonActionResult>;
   };
+  /** NAP-CATALOG。いまのアップレットの一覧。 */
+  catalog: () => CatalogSnapshot;
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -1113,6 +1116,11 @@ export const createNappletSession = (
           return handleKeys(message);
         case "common":
           return handleCommon(message);
+        case "catalog":
+          if (message.type === "catalog.get") {
+            reply(message, { snapshot: host.catalog() });
+          }
+          return;
       }
     },
     themeChanged: () => {

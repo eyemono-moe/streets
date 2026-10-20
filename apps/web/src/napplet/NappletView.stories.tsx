@@ -72,6 +72,7 @@ const storyHost = (): NappletHost => {
     publish: async () => ({ ok: false, error: "user cancelled" }),
     openLink: async () => ({ status: "denied", error: "user-denied" }),
     forwardKey: () => {},
+    catalog: () => ({ napplets: [], handlers: [] }),
     common: {
       setFollow: async () => ({ ok: false, error: "user-denied" }),
       react: async () => ({ ok: false, error: "user-denied" }),
