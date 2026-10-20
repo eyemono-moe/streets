@@ -73,6 +73,11 @@ const storyHost = (): NappletHost => {
     openLink: async () => ({ status: "denied", error: "user-denied" }),
     forwardKey: () => {},
     catalog: () => ({ napplets: [], handlers: [] }),
+    upload: {
+      info: () => ({ rails: [] }),
+      upload: async () => ({ error: "no server configured" }),
+      status: () => undefined,
+    },
     notify: {
       send: async () => ({ error: "permission denied" }),
       dismiss: () => {},

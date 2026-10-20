@@ -703,6 +703,23 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  if (exposed.has("upload")) {
+    napplet.upload = {
+      info: () => request("upload.info", {}, (message) => message.info),
+      // 中身は Blob のまま渡す（base64 にしない）。postMessage が複製して運ぶ。
+      upload: (upload: Record<string, unknown>) =>
+        request(
+          "upload.upload",
+          { request: upload },
+          (message) => message.result,
+        ),
+      status: (uploadId: string) =>
+        request("upload.status", { uploadId }, (message) => message.status),
+      onStatus: (handler: (status: unknown) => void) =>
+        onPush("upload.status.changed", (message) => handler(message.status)),
+    };
+  }
+
   if (exposed.has("notify")) {
     let controls: unknown;
     const controlsHandlers = new Set<(controls: unknown) => void>();

@@ -102,6 +102,9 @@ export const parsePublishTemplate = (
   };
 };
 
+/** アップロード（NAP-UPLOAD）を確かめずに通すと許したことを覚える鍵。 */
+export const UPLOAD_GRANT = "upload";
+
 /** 知らせ（NAP-NOTIFY）を出してよいと許したことを覚える鍵。 */
 export const NOTIFY_GRANT = "notify";
 

@@ -166,6 +166,16 @@ export type NappletHost = {
     dismiss: (notificationId: string) => void;
     requestPermission: () => Promise<boolean>;
   };
+  /**
+   * NAP-UPLOAD。Streets のアップロード先へ上げる。上げてよいかはユーザーに確かめる。
+   */
+  upload: {
+    info: () => UploadInfo;
+    upload: (
+      request: UploadRequest,
+    ) => Promise<UploadResult | { error: string }>;
+    status: (uploadId: string) => UploadResult | undefined;
+  };
   /** NAP-CATALOG。いまのアップレットの一覧。 */
   catalog: () => CatalogSnapshot;
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
@@ -288,6 +298,35 @@ const timeoutOf = (options: unknown): number => {
   return typeof requested === "number" && requested > 0
     ? Math.min(requested, NAPPLET_QUERY_TIMEOUT_MS)
     : NAPPLET_QUERY_TIMEOUT_MS;
+};
+
+export type UploadInfo = {
+  rails: { rail: string; enabled: boolean; returns?: string[] }[];
+  maxBytes?: number;
+};
+
+export type UploadRequest = {
+  data: Blob;
+  rail?: string;
+  mimeType?: string;
+  filename?: string;
+  caption?: string;
+};
+
+export type UploadResult = {
+  ok: boolean;
+  uploadId: string;
+  status: "complete" | "failed" | "cancelled";
+  rail: string;
+  url?: string;
+  sha256?: string;
+  size?: number;
+  mimeType?: string;
+  dimensions?: { width: number; height: number };
+  blurhash?: string;
+  nip94?: string[][];
+  error?: string;
+  updatedAt: number;
 };
 
 export type NotifyPriority = "low" | "normal" | "high" | "urgent";
@@ -610,6 +649,56 @@ export const createNappletSession = (
         const reason = request.reason;
         const text = typeof request.text === "string" ? request.text : "";
         answerAction(() => host.common.report(target, reason, text));
+        return;
+      }
+    }
+  };
+
+  const handleUpload = (request: Message) => {
+    switch (request.type) {
+      case "upload.info":
+        reply(request, { info: host.upload.info() });
+        return;
+      case "upload.upload": {
+        const raw = isRecord(request.request) ? request.request : {};
+        // > `request.data` is a `Blob` or `ArrayBuffer` and crosses the boundary by structured clone
+        const data =
+          raw.data instanceof Blob
+            ? raw.data
+            : raw.data instanceof ArrayBuffer
+              ? new Blob([raw.data])
+              : undefined;
+        if (!data) {
+          reply(request, { error: "invalid upload" });
+          return;
+        }
+        const text = (value: unknown) =>
+          typeof value === "string" ? value : undefined;
+        const upload: UploadRequest = { data };
+        const rail = text(raw.rail);
+        const mimeType = text(raw.mimeType);
+        const filename = text(raw.filename);
+        const caption = text(raw.caption);
+        if (rail) upload.rail = rail;
+        if (mimeType) upload.mimeType = mimeType;
+        if (filename) upload.filename = filename;
+        if (caption) upload.caption = caption;
+        host.upload.upload(upload).then(
+          (result) =>
+            reply(
+              request,
+              "error" in result && !("ok" in result) ? result : { result },
+            ),
+          () => reply(request, { error: "upload failed" }),
+        );
+        return;
+      }
+      case "upload.status": {
+        const status =
+          typeof request.uploadId === "string"
+            ? host.upload.status(request.uploadId)
+            : undefined;
+        reply(request, status ? { status } : { error: "unknown upload" });
         return;
       }
     }
@@ -1227,6 +1316,8 @@ export const createNappletSession = (
           return handleCommon(message);
         case "notify":
           return handleNotify(message);
+        case "upload":
+          return handleUpload(message);
         case "catalog":
           if (message.type === "catalog.get") {
             reply(message, { snapshot: host.catalog() });

@@ -49,6 +49,7 @@ const setup = (
   const keys: Parameters<NappletHost["forwardKey"]>[0][] = [];
   const actions: unknown[][] = [];
   const notices: Parameters<NappletHost["notify"]["send"]>[0][] = [];
+  const uploads: Parameters<NappletHost["upload"]["upload"]>[0][] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -74,6 +75,22 @@ const setup = (
     inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     forwardKey: (key) => void keys.push(key),
     catalog: () => ({ napplets: [], handlers: [] }),
+    upload: {
+      info: () => ({ rails: [{ rail: "blossom", enabled: true }] }),
+      upload: async (request) => {
+        uploads.push(request);
+        if (request.rail === "nip96") return { error: "unsupported rail" };
+        return {
+          ok: true,
+          uploadId: "upload-1",
+          status: "complete",
+          rail: "blossom",
+          url: "https://blossom.example.com/x.pdf",
+          updatedAt: 1,
+        };
+      },
+      status: () => undefined,
+    },
     notify: {
       send: async (notification) => {
         notices.push(notification);
@@ -159,6 +176,7 @@ const setup = (
     keys,
     actions,
     notices,
+    uploads,
   };
 };
 
@@ -1058,6 +1076,57 @@ describe("NAP-NOTIFY", () => {
       type: "notify.permission.result",
       id: "p1",
       granted: true,
+    });
+  });
+});
+
+describe("NAP-UPLOAD", () => {
+  // NAP-UPLOAD の「Upload a blob to Blossom」の例。
+  // > `request.data` is a `Blob` or `ArrayBuffer` and crosses the boundary by structured clone
+  it("Blob をそのまま受け取り、結果を同じ id で返す", async () => {
+    const { session, sent, uploads } = setup(["shell", "upload"]);
+    const data = new Blob(["%PDF"], { type: "application/pdf" });
+    session.receive({
+      type: "upload.upload",
+      id: "u2",
+      request: { rail: "blossom", data, filename: "notes.pdf" },
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(uploads[0]).toEqual({
+      data,
+      rail: "blossom",
+      filename: "notes.pdf",
+    });
+    expect(sent[0]).toMatchObject({
+      type: "upload.upload.result",
+      id: "u2",
+      result: { ok: true, status: "complete", rail: "blossom" },
+    });
+  });
+
+  // > The shell SHOULD return a top-level `error` when no upload was created.
+  it("上げられなかったときは、結果ではなく error を返す", async () => {
+    const { session, sent } = setup(["shell", "upload"]);
+    session.receive({
+      type: "upload.upload",
+      id: "u3",
+      request: { rail: "nip96", data: new ArrayBuffer(4) },
+    });
+    session.receive({
+      type: "upload.upload",
+      id: "u4",
+      request: { data: "x" },
+    });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent).toContainEqual({
+      type: "upload.upload.result",
+      id: "u3",
+      error: "unsupported rail",
+    });
+    expect(sent).toContainEqual({
+      type: "upload.upload.result",
+      id: "u4",
+      error: "invalid upload",
     });
   });
 });

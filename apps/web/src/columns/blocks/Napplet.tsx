@@ -24,6 +24,7 @@ import {
 } from "@streets/core/napplet/manifest";
 import {
   NOTIFY_GRANT,
+  UPLOAD_GRANT,
   grantKey,
   overwritesState,
   rememberable,
@@ -45,6 +46,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { useEventActions } from "../../actions";
+import { useUploader } from "../../media/uploader";
 import ActionSheet from "../../napplet/ActionSheet";
 import {
   appletColumnFor,
@@ -63,6 +65,8 @@ import {
   createStreetsNappletHost,
 } from "../../napplet/streets-host";
 import { currentNappletTheme } from "../../napplet/theme-colors";
+import { createUploadHost } from "../../napplet/upload-host";
+import UploadSheet, { type UploadPrompt } from "../../napplet/UploadSheet";
 import WriteSheet, { type WriteSheetProps } from "../../napplet/WriteSheet";
 import { useProfile } from "../../note/use-profile";
 import { useMutes } from "../../settings/MuteMediator";
@@ -425,6 +429,12 @@ const Napplet: Component<{
     };
 
   const eventActions = useEventActions();
+  const uploader = useUploader();
+  const [uploading, setUploading] = createSignal<
+    UploadPrompt & {
+      answer: (approved: { remember: boolean } | undefined) => void;
+    }
+  >();
   const [confirming, setConfirming] = createSignal<
     ActionPrompt & { answer: (approved: boolean) => void }
   >();
@@ -482,6 +492,22 @@ const Napplet: Component<{
       report: (event) => session()?.notifyEvent(event),
     });
     onCleanup(notices.dispose);
+    const uploads = createUploadHost({
+      uploader: () => uploader,
+      granted: () =>
+        hasGrant(library() ?? emptyAppletLibrary(), self, UPLOAD_GRANT),
+      grant: () =>
+        dispatch({
+          type: "applets/set-grant",
+          applet: self,
+          key: UPLOAD_GRANT,
+          on: true,
+        }),
+      ask: (prompt) =>
+        new Promise<{ remember: boolean } | undefined>((answer) =>
+          setUploading({ ...prompt, answer }),
+        ).finally(() => setUploading(undefined)),
+    });
     let themeSource: Element | undefined;
     const host = createStreetsNappletHost({
       manifest: running.manifest,
@@ -531,6 +557,7 @@ const Napplet: Component<{
         hostElement?.dispatchEvent(new KeyboardEvent("keyup", init));
       },
       notify: notices.host,
+      upload: uploads,
       catalog: () =>
         catalogSnapshot(
           intents?.installed() ?? [],
@@ -594,6 +621,18 @@ const Napplet: Component<{
       }
       overlay={
         <>
+          <Show when={uploading()}>
+            {(current) => (
+              <UploadSheet
+                {...current()}
+                source={
+                  manifest()?.title ?? manifest()?.identifier ?? "アップレット"
+                }
+                onApprove={(remember) => current().answer({ remember })}
+                onCancel={() => current().answer(undefined)}
+              />
+            )}
+          </Show>
           <Show when={confirming()}>
             {(current) => (
               <ActionSheet
