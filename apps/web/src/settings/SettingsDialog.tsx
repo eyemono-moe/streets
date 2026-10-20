@@ -23,6 +23,7 @@ import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
 import SearchInput from "../ui/SearchInput";
 import AccountSettings from "./AccountSettings";
+import AppletSettings from "./AppletSettings";
 import DisplaySettings from "./DisplaySettings";
 import EmojiSettings from "./EmojiSettings";
 import KeyboardSettings from "./KeyboardSettings";
@@ -213,6 +214,13 @@ const SettingsDialog: Component<{
           errorReport={props.errorReport}
         />
       ),
+    },
+    {
+      value: "applets",
+      label: pageNames.applets,
+      icon: "i-material-symbols:widgets-outline-rounded",
+      title: pageNames.applets,
+      content: () => <AppletSettings />,
     },
     {
       value: "stats",

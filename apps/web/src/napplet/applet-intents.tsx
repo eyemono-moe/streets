@@ -46,6 +46,13 @@ export type AppletIntents = {
    * なければ、そのまま返す。
    */
   route: (column: ColumnDef) => ColumnDef;
+  /**
+   * Streets のカラムで開くはずのものを、受け付けるインストール済みのアップレットの一覧に
+   * する。投稿のメニューの「○○ で開く」に使う。
+   */
+  handlersFor: (column: ColumnDef) => { id: string; title: string }[];
+  /** `handlersFor` の 1 つで開くカラムを作り、依頼を預ける。 */
+  openIn: (handlerId: string, column: ColumnDef) => ColumnDef | undefined;
 };
 
 const keyOf = (applet: AppletAddress) =>
@@ -115,30 +122,63 @@ export const createAppletIntents = (options: {
     return deliveries;
   };
 
-  const route = (column: ColumnDef): ColumnDef => {
+  const appletHandlers = (column: ColumnDef) => {
     const intent = intentForColumn(column);
-    const target = intent && options.library()?.defaults[intent.archetype];
-    if (!intent || target?.type !== "applet") return column;
-    const handler = catalog().find(
-      (item) =>
-        item.type === "applet" &&
-        sameApplet(item.applet, target) &&
-        item.contracts.some((c) => c.convention === intent.convention),
+    if (!intent) return [];
+    return catalog().flatMap((item) =>
+      item.type === "applet" &&
+      item.archetypes.includes(intent.archetype) &&
+      item.contracts.some((c) => c.convention === intent.convention)
+        ? [item]
+        : [],
     );
-    if (handler?.type !== "applet") return column;
-    const known = installed().find((item) => sameApplet(item, target));
-    const opened = appletColumnFor({ ...target, relays: known?.relays });
+  };
+  const openIn = (
+    handlerId: string,
+    column: ColumnDef,
+  ): ColumnDef | undefined => {
+    const intent = intentForColumn(column);
+    const handler = appletHandlers(column).find(
+      (item) => item.id === handlerId,
+    );
+    if (!intent || !handler) return undefined;
+    const known = installed().find((item) => sameApplet(item, handler.applet));
+    const opened = appletColumnFor({
+      ...handler.applet,
+      relays: known?.relays,
+    });
     deliver(opened.id, {
       sender: STREETS_HANDLER_ID,
       archetype: intent.archetype,
-      action: "open",
+      action: intent.convention.split("/").at(-1) ?? "open",
       convention: intent.convention,
       payload: intent.payload,
     });
     return opened;
   };
+  const route = (column: ColumnDef): ColumnDef => {
+    const intent = intentForColumn(column);
+    const target = intent && options.library()?.defaults[intent.archetype];
+    if (target?.type !== "applet") return column;
+    const handler = appletHandlers(column).find((item) =>
+      sameApplet(item.applet, target),
+    );
+    return (handler && openIn(handler.id, column)) ?? column;
+  };
 
-  return { catalog, deliver, take, pending, route };
+  return {
+    catalog,
+    deliver,
+    take,
+    pending,
+    route,
+    handlersFor: (column) =>
+      appletHandlers(column).map((item) => ({
+        id: item.id,
+        title: item.title,
+      })),
+    openIn,
+  };
 };
 
 const AppletIntentsContext = createContext<AppletIntents>();
