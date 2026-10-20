@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { Component } from "solid-js";
 import { useColumnTitle } from "../deck/ColumnTitle";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 
@@ -11,15 +12,14 @@ const NeedsAccount: Component<{ column: ColumnDef }> = (props) => {
   return (
     <div class="flex flex-col items-start gap-3 p-4">
       <p class="c-secondary text-caption">
-        「{title()}
-        」は、ログインしている人の投稿を表示するカラムです。ログインすると見られます。
+        {t("columns.needsAccount.description", { title: title() })}
       </p>
       <Button
         size="sm"
         icon="i-material-symbols:login-rounded"
         onClick={() => dispatch({ type: "deck/login" })}
       >
-        ログインする
+        {t("columns.needsAccount.login")}
       </Button>
     </div>
   );

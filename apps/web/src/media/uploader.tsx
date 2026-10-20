@@ -15,11 +15,12 @@ import {
   createContext,
   useContext,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { uploadMetadata } from "./metadata";
 
 export class NoUploadServerError extends Error {
   constructor() {
-    super("画像のアップロード先が設定されていません");
+    super(t("media.noUploadServer"));
     this.name = "NoUploadServerError";
   }
 }

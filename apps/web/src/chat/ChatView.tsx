@@ -17,8 +17,9 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import NewerNotice from "../columns/NewerNotice";
+import NewerNotice, { type Newer } from "../columns/NewerNotice";
 import NewerLoader from "../deck/NewerLoader";
+import { locale, plural, t } from "../i18n/locale";
 import type { EventSize } from "../note/Event";
 import Button from "../ui/Button";
 import { holdsScroll } from "../ui/scroll-hold";
@@ -44,9 +45,9 @@ const dayLabel = (at: number): string => {
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (same(date, today)) return "今日";
-  if (same(date, yesterday)) return "昨日";
-  return date.toLocaleDateString("ja-JP", {
+  if (same(date, today)) return t("chat.view.today");
+  if (same(date, yesterday)) return t("chat.view.yesterday");
+  return date.toLocaleDateString(locale(), {
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
     month: "long",
     day: "numeric",
@@ -140,7 +141,7 @@ const NewerEdge: Component<{
         paging={paging()}
         onReach={() => props.onReach?.()}
         edge={props.edge}
-        noun="発言"
+        noun="message"
       />
     )}
   </Show>
@@ -156,17 +157,19 @@ const PagingStatus: Component<{
   <div ref={props.ref} class="c-secondary px-3 py-3 text-center text-caption">
     <Switch>
       <Match when={props.paging === "waiting" && props.hasRows}>
-        ほかのリレーから届くのを待っています…
+        {t("chat.view.paging.waiting")}
       </Match>
-      <Match when={props.paging === "loading"}>古い発言を読み込み中…</Match>
+      <Match when={props.paging === "loading"}>
+        {t("chat.view.paging.loading")}
+      </Match>
       <Match when={props.paging === "exhausted" && props.hasRows}>
-        これより前の発言はありません
+        {t("chat.view.paging.exhausted")}
       </Match>
       <Match when={props.paging === "failed"}>
         <div class="flex flex-col items-center gap-2">
-          <p>古い発言を読み込めませんでした</p>
+          <p>{t("chat.view.paging.failed")}</p>
           <Button size="sm" onClick={() => props.onLoadOlder()}>
-            もう一度読み込む
+            {t("chat.view.paging.retry")}
           </Button>
         </div>
       </Match>
@@ -180,10 +183,10 @@ const NoRows: Component<{ settled: boolean; unreachable?: boolean }> = (
 ) => (
   <p class="c-secondary p-4 text-center text-caption">
     {!props.settled
-      ? "読み込み中…"
+      ? t("chat.view.empty.loading")
       : props.unreachable
-        ? "繋がらないリレーがあり、発言を読み込めませんでした。時間をおいて開き直してください。"
-        : "まだ発言がありません。最初のひとことをどうぞ。"}
+        ? t("chat.view.empty.unreachable")
+        : t("chat.view.empty.none")}
   </p>
 );
 
@@ -370,7 +373,7 @@ const NewestLastRows: Component<RowsProps> = (props) => {
           onClick={toBottom}
         >
           {/* 消えていく間に 0 件と出さない。 */}
-          新しい発言 {lastUnseen()} 件
+          {plural("chat.view.newMessages", lastUnseen())}
         </Button>
       </Presence>
     </div>
@@ -391,11 +394,11 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
     latest = report?.latest;
     setNewer(report?.items ?? []);
   };
-  const notice = () => {
+  const notice = (): Newer | undefined => {
     const items = newer();
     if (items.length === 0) return undefined;
     return {
-      noun: "発言",
+      noun: "message",
       count: items.length,
       authors: items.flatMap((item) => (item.author ? [item.author] : [])),
     };
@@ -443,7 +446,7 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
               estimateSize={64}
               followsStart={props.newerPaging === undefined}
               newer={{
-                noun: "発言",
+                noun: "message",
                 authorOf: (row) =>
                   row.type === "message" ? row.event.pubkey : undefined,
                 pending: props.pending,

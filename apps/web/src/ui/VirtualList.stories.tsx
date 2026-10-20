@@ -196,7 +196,7 @@ const HoldExample = () => {
           <VirtualList
             items={liveItems()}
             itemKey={(item) => item.id}
-            newer={{ noun: "投稿", authorOf: () => undefined }}
+            newer={{ noun: "post", authorOf: () => undefined }}
           >
             {(item) => <MenuRow text={item.text} />}
           </VirtualList>
@@ -205,7 +205,7 @@ const HoldExample = () => {
       <NewerNotice
         newer={
           newer() > 0
-            ? { count: newer(), noun: "投稿", authors: [] }
+            ? { count: newer(), noun: "post", authors: [] }
             : undefined
         }
         onClick={() => scroller?.scrollTo({ top: 0 })}

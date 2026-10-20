@@ -1,0 +1,233 @@
+{
+  "actionNotice": {
+    "others": {
+      "one": "ほか {{ count }} 人",
+      "other": "ほか {{ count }} 人"
+    },
+    "reposted": "がリポスト",
+    "liked": "がいいね",
+    "reactedBefore": "が",
+    "reactedAfter": "でリアクション",
+    "noTarget": "対象のノートが指定されていません"
+  },
+  "avatar": {
+    "openColumn": "この人のカラムを開く"
+  },
+  "broadcast": {
+    "title": "ほかのリレーにも送る",
+    "intro": "この投稿を、中身を変えずにほかのリレーへ送ります。一部のリレーにしか無く、ほかの人から見えないときに使います。",
+    "destination": "送り先",
+    "targets": {
+      "mine": "自分",
+      "author": "投稿した人",
+      "custom": "選ぶ"
+    },
+    "descriptions": {
+      "mine": "自分が書き込みに使っているリレーへ送ります。",
+      "author": "投稿した人が書き込みに使っているリレーと、返信先など投稿の中で名前を挙げた人に届くリレーへ送ります。ほかの人がこの投稿を探しに行くところです。",
+      "custom": "候補から選ぶか、URL を入れたリレーへ送ります。"
+    },
+    "unknownDestination": "送り先のリレーが分かりません。",
+    "cancel": "キャンセル",
+    "send": "送る",
+    "sendToMany": "{{ count }} 本に送る"
+  },
+  "channel": {
+    "metadataChanged": "チャンネルの情報を書き換えました",
+    "loading": "チャンネルを読み込み中…",
+    "unnamed": "名前の無いチャンネル",
+    "noAbout": "説明がありません",
+    "open": "開く",
+    "message": "チャンネルでの発言",
+    "messageIn": "{{ name }} での発言"
+  },
+  "client": {
+    "title": "この投稿に使われたアプリ",
+    "loading": "読み込み中…",
+    "noDescription": "このアプリの説明は、投稿に書かれていません。",
+    "descriptionFailed": "このアプリの説明を取得できませんでした。",
+    "noOpenWay": "このアプリの開き方は書かれていません。",
+    "openWebsite": "ウェブサイトを開く",
+    "openInApp": "このアプリで投稿を開く"
+  },
+  "compose": {
+    "completion": "入れる候補",
+    "body": "ノートの本文",
+    "placeholder": "いま何してる？",
+    "characters": {
+      "one": "{{ count }} 文字",
+      "other": "{{ count }} 文字"
+    },
+    "submit": "投稿",
+    "preview": "プレビュー"
+  },
+  "composeParts": {
+    "unsupported": "{{ label }}（未対応）",
+    "video": "動画",
+    "crop": "{{ name }} を切り抜く",
+    "videoNotCroppable": "動画は切り抜けません",
+    "uploading": "アップロード中",
+    "remove": "{{ name }} を外す",
+    "moveEarlier": "{{ name }} を前へ",
+    "moveLater": "{{ name }} を後ろへ",
+    "noServer": "画像を添えるには、設定の「画像」でアップロード先を決めてください",
+    "cannotAttach": "画像を添えられません",
+    "noUploader": "画像のアップロード先が設定されていません",
+    "attach": "画像を添える",
+    "warningOff": "閲覧注意を外す",
+    "warningOn": "閲覧注意にする",
+    "keepDraft": "下書きに入れる",
+    "warningReason": "閲覧注意の理由",
+    "warningReasonOptional": "閲覧注意の理由（任意）",
+    "sending": "送信中…"
+  },
+  "content": {
+    "readMore": "続きを読む",
+    "showMore": "さらに表示"
+  },
+  "contentWarning": {
+    "label": "閲覧注意",
+    "withReason": "閲覧注意：{{ reason }}",
+    "show": "表示する"
+  },
+  "details": {
+    "title": "詳細",
+    "seenOn": "受け取ったリレー",
+    "noRelays": "このイベントを配信したリレーは記録されていません。",
+    "jsonCopied": "JSON をコピーしました",
+    "jsonCopyFailed": "JSON をコピーできませんでした",
+    "copyJson": "JSON をコピー"
+  },
+  "drafts": {
+    "replyBefore": "",
+    "replyAfter": "への返信",
+    "quoteBefore": "",
+    "quoteAfter": "の投稿を引用",
+    "contentWarning": "閲覧注意",
+    "autoSaved": "・自動保存",
+    "remove": "この下書きを消す",
+    "title": "下書き",
+    "attachedNotice": "画像や動画は下書きに残せないため、添えている間は投稿の下書きを開けません"
+  },
+  "embed": {
+    "playYoutubeTitled": "YouTube で再生: {{ title }}",
+    "playYoutube": "YouTube で再生",
+    "youtubeVideo": "YouTube の動画",
+    "xPost": "X の投稿",
+    "showX": "X の埋め込みで表示"
+  },
+  "event": {
+    "loading": "読み込み中…",
+    "replyTo": "返信先",
+    "reposted": "がリポスト",
+    "repostSourceMissing": "リポスト元が指定されていません",
+    "repostSourceUnavailable": "リポスト元を読み込めませんでした",
+    "unsupported": "未対応のイベントです（kind:{{ kind }}）",
+    "unavailable": "読み込めませんでした",
+    "broken": "この投稿を表示できませんでした",
+    "brokenWithKind": "この投稿を表示できませんでした（kind:{{ kind }}）"
+  },
+  "eventActions": {
+    "reply": "返信",
+    "repost": "リポスト・引用",
+    "like": "いいね",
+    "react": "絵文字でリアクション",
+    "zap": "Zap",
+    "bookmark": "ブックマーク",
+    "pin": "プロフィールにピン留め",
+    "activity": "アクティビティを見る",
+    "timeslip": "この時点へタイムスリップ",
+    "copyLink": "リンクをコピー",
+    "details": "詳細（JSON・リレー）",
+    "muteEvent": "このイベントをミュート",
+    "broadcast": "ほかのリレーにも送る",
+    "reactWith": "{{ emoji }} でリアクション",
+    "linkCopied": "リンクをコピーしました",
+    "linkCopyFailed": "リンクをコピーできませんでした",
+    "unmuteEvent": "このイベントのミュートを解除",
+    "unbookmark": "ブックマークを外す",
+    "bookmarkUnavailable": "この発言はブックマークできません",
+    "unpin": "ピン留めを外す",
+    "pinUnavailable": "この投稿はピン留めできません",
+    "gate": {
+      "reply": "返信",
+      "quote": "引用",
+      "broadcast": "ほかのリレーへの送り直し"
+    },
+    "reposted": "リポスト済み",
+    "repostAction": "リポスト",
+    "quote": "引用",
+    "reacted": "{{ label }}（済み）",
+    "reaction": "リアクション",
+    "zapAction": "Zap する",
+    "zapUnavailable": "この人は Zap を受け取れません"
+  },
+  "eventMenu": {
+    "authorRelays": "リレー設定",
+    "addToList": "リストに追加",
+    "unmuteAuthor": "ミュートを解除",
+    "muteAuthor": "ミュート",
+    "unfollow": "フォローを解除",
+    "follow": "フォロー",
+    "muteMore": "ミュート…",
+    "postedFrom": "{{ client }} から投稿",
+    "label": "この投稿の操作",
+    "thisEvent": "このイベント"
+  },
+  "linkCard": {
+    "loading": "リンクの情報を読み込んでいます"
+  },
+  "media": {
+    "open": "画像を開く",
+    "enlarge": "拡大して見る"
+  },
+  "muted": {
+    "label": "ミュートしている投稿",
+    "show": "表示する"
+  },
+  "quote": {
+    "title": "引用する",
+    "body": "引用の本文",
+    "placeholder": "コメントを追加",
+    "submit": "引用"
+  },
+  "quoteChip": {
+    "ownerBefore": "",
+    "ownerAfter": "さんの{{ kind }}"
+  },
+  "reactions": {
+    "count": {
+      "one": "{{ title }} {{ count }} 件",
+      "other": "{{ title }} {{ count }} 件"
+    },
+    "countMine": {
+      "one": "{{ title }} {{ count }} 件（リアクション済み）",
+      "other": "{{ title }} {{ count }} 件（リアクション済み）"
+    },
+    "showReactors": "誰が付けたかを表示",
+    "pick": "リアクションを選ぶ"
+  },
+  "reply": {
+    "title": "返信する",
+    "titleArticle": "記事にコメントする",
+    "untitledArticle": "題名の無い記事",
+    "body": "返信の本文",
+    "placeholder": "返信を書く",
+    "submit": "返信"
+  },
+  "targetCompose": {
+    "replyFailed": "返信できませんでした",
+    "quoteFailed": "引用できませんでした"
+  },
+  "viewer": {
+    "imageFailed": "画像を読み込めませんでした",
+    "videoFailed": "動画を読み込めませんでした",
+    "openPost": "投稿を開く",
+    "label": "添付の拡大表示",
+    "previous": "前へ",
+    "next": "次へ",
+    "close": "閉じる",
+    "openOriginalVideo": "元の動画を開く",
+    "openOriginalImage": "元の画像を開く"
+  }
+}

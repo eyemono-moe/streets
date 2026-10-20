@@ -118,6 +118,7 @@ const FollowSetListView: Component<{
       </Show>
       <ColumnTabs
         label="リストの一覧"
+        name="follow-sets"
         scroll="column"
         tabs={tabs()}
         defaultValue={props.initialTab ?? "own"}

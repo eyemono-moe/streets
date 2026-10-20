@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
+import type { NewerNoun } from "../ui/VirtualList";
 import NewerNotice from "./NewerNotice";
 
 const authors = Array.from({ length: 5 }, (_, index) =>
@@ -16,7 +17,7 @@ const [first, second, third] = authors.map((author) => author.pubkey);
 
 type Props = {
   count: number;
-  noun: string;
+  noun: NewerNoun;
   authors: string[];
   /** カラムの幅（px）。 */
   width: number;
@@ -49,7 +50,7 @@ const meta = {
   component: NoticeStory,
   args: {
     count: 5,
-    noun: "投稿",
+    noun: "post",
     authors: authors.map((author) => author.pubkey),
     width: 360,
     shown: true,
@@ -84,7 +85,11 @@ export const 人が分からない: Story = {
 };
 
 export const 通知: Story = {
-  args: { count: 3, noun: "通知", authors: [third ?? "", second ?? ""] },
+  args: {
+    count: 3,
+    noun: "notification",
+    authors: [third ?? "", second ?? ""],
+  },
 };
 
 export const 狭いカラム: Story = {
@@ -99,7 +104,7 @@ const Toggling: Component = () => {
   return (
     <NoticeStory
       count={5}
-      noun="投稿"
+      noun="post"
       authors={authors.map((author) => author.pubkey)}
       width={360}
       shown={shown()}

@@ -5,6 +5,7 @@ import {
   notificationRows,
 } from "@streets/core/view/notification-rows";
 import { type Component, For, type ParentComponent } from "solid-js";
+import { t } from "../../i18n/locale";
 import FollowSetListView from "../../lists/FollowSetListView";
 import Event from "../../note/Event";
 import { ReadLayerProvider } from "../../read-layer";
@@ -43,7 +44,7 @@ const SampleFrame: ParentComponent<
       </div>
       <div class="absolute inset-x-0 top-[42%] flex flex-col items-center gap-3 px-6 text-center">
         <span class="c-secondary rounded-full border border-control px-2.5 py-0.5 text-caption">
-          見本
+          {t("columns.sample.label")}
         </span>
         <p class="font-600 text-body leading-relaxed">{props.heading}</p>
         <p class="c-secondary text-caption leading-relaxed">{props.body}</p>
@@ -52,7 +53,7 @@ const SampleFrame: ParentComponent<
           icon="i-material-symbols:login-rounded"
           onClick={() => dispatch({ type: "deck/login" })}
         >
-          ログインする
+          {t("columns.sample.login")}
         </Button>
       </div>
     </div>

@@ -6,6 +6,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { reportError } from "../telemetry";
 import {
   NewerItemsProvider,
@@ -116,8 +117,12 @@ const ColumnBody: ParentComponent<{
             role="alert"
             class="c-secondary bg-secondary px-3 py-2 text-caption"
           >
-            {alert.message}
-            {alert.action ? `。${alert.action}` : ""}
+            {alert.action
+              ? t("columns.body.alertWithAction", {
+                  message: alert.message,
+                  action: alert.action,
+                })
+              : alert.message}
           </p>
         )}
       </For>
@@ -154,13 +159,13 @@ const ColumnBody: ParentComponent<{
                   reportError(error, "column-render");
                   return (
                     <div class="c-secondary flex flex-col items-start gap-2 p-4 text-caption">
-                      <p>このカラムを表示できませんでした。</p>
+                      <p>{t("columns.body.broken")}</p>
                       <button
                         type="button"
                         class="c-primary cursor-pointer rounded-full border border-control bg-primary px-3 py-1 font-600 hover:bg-secondary"
                         onClick={reset}
                       >
-                        もう一度表示する
+                        {t("columns.body.retry")}
                       </button>
                     </div>
                   );

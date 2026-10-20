@@ -5,6 +5,7 @@ import type {
   ChatMuteState,
 } from "@streets/core/view/chat-mute";
 import { type Component, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
 import { hiddenUnderWarning, warningLabel } from "../note/ContentWarningGate";
@@ -21,24 +22,26 @@ import {
 import SegmentedControl from "../ui/SegmentedControl";
 import TextField from "../ui/TextField";
 
-const KIND_OPTIONS = [
-  { value: "message", label: "この発言" },
-  { value: "user", label: "この人" },
-] as const;
+const kindOptions = () =>
+  [
+    { value: "message", label: t("chat.mute.kind.message") },
+    { value: "user", label: t("chat.mute.kind.user") },
+  ] as const;
 
-const SCOPE_OPTIONS = [
-  { value: "channel", label: "このチャンネルだけ" },
-  { value: "everywhere", label: "どこでも" },
-] as const;
+const scopeOptions = () =>
+  [
+    { value: "channel", label: t("chat.mute.scope.channel") },
+    { value: "everywhere", label: t("chat.mute.scope.everywhere") },
+  ] as const;
 
 const bodyOf = (kind: ChatMuteKind, scope: ChatMuteScope): string => {
   if (scope === "everywhere")
     return kind === "message"
-      ? "この発言を、すべての画面で隠します。ミュートの設定から、いつでも解除できます。"
-      : "この人の投稿や発言を、すべての画面で隠します。ミュートの設定から、いつでも解除できます。";
+      ? t("chat.mute.body.everywhereMessage")
+      : t("chat.mute.body.everywhereUser");
   return kind === "message"
-    ? "このチャンネルの中でだけ、この発言を畳んで出します。押せばいつでも読めます。"
-    : "すべてのチャンネルで、この人の発言を畳んで出します。押せばいつでも読めます。投稿など、チャンネルの外は今までどおり見えます。";
+    ? t("chat.mute.body.channelMessage")
+    : t("chat.mute.body.channelUser");
 };
 
 /** チャンネルの発言のミュートを選ばせる。状態は裁定する段（チャンネルのカラム）が持つ。 */
@@ -67,7 +70,7 @@ const ChatMuteDialog: Component<{
               >
                 <div class="flex shrink-0 items-center gap-2 px-5 pt-5">
                   <DialogTitle class="flex-1 font-700 text-h3">
-                    ミュート
+                    {t("chat.mute.title")}
                   </DialogTitle>
                   <DialogClose disabled={state().phase === "sending"} />
                 </div>
@@ -92,11 +95,13 @@ const ChatMuteDialog: Component<{
                     disabled={state().phase === "sending"}
                   >
                     <div class="flex flex-col gap-1">
-                      <span class="c-secondary text-caption">何を</span>
+                      <span class="c-secondary text-caption">
+                        {t("chat.mute.kind.title")}
+                      </span>
                       <SegmentedControl
                         block
-                        label="何をミュートするか"
-                        options={KIND_OPTIONS}
+                        label={t("chat.mute.kind.label")}
+                        options={kindOptions()}
                         value={state().kind}
                         onChange={(value) =>
                           dispatch({ type: "chat-mute/kind", value })
@@ -104,11 +109,13 @@ const ChatMuteDialog: Component<{
                       />
                     </div>
                     <div class="flex flex-col gap-1">
-                      <span class="c-secondary text-caption">どこで</span>
+                      <span class="c-secondary text-caption">
+                        {t("chat.mute.scope.title")}
+                      </span>
                       <SegmentedControl
                         block
-                        label="どこでミュートするか"
-                        options={SCOPE_OPTIONS}
+                        label={t("chat.mute.scope.label")}
+                        options={scopeOptions()}
                         value={state().scope}
                         onChange={(value) =>
                           dispatch({ type: "chat-mute/scope", value })
@@ -119,15 +126,15 @@ const ChatMuteDialog: Component<{
                   <p class="text-body">{bodyOf(state().kind, state().scope)}</p>
                   <Show when={state().scope === "channel"}>
                     <p class="c-secondary text-caption">
-                      ミュートしたことは公開され、ほかの人の画面でも畳まれることがあります。
+                      {t("chat.mute.public")}
                     </p>
                     <TextField
-                      label="理由（任意）"
+                      label={t("chat.mute.reason.label")}
                       value={state().reason}
                       onInput={(value) =>
                         dispatch({ type: "chat-mute/reason", value })
                       }
-                      placeholder="例：宣伝"
+                      placeholder={t("chat.mute.reason.placeholder")}
                     />
                   </Show>
                 </DialogBody>
@@ -138,7 +145,7 @@ const ChatMuteDialog: Component<{
                     disabled={state().phase === "sending"}
                     onClick={() => dispatch({ type: "chat-mute/close" })}
                   >
-                    やめる
+                    {t("chat.mute.cancel")}
                   </Button>
                   <Button
                     type="submit"
@@ -151,8 +158,11 @@ const ChatMuteDialog: Component<{
                     }
                     disabled={state().phase === "sending"}
                   >
-                    <Show when={state().phase !== "sending"} fallback="送信中…">
-                      ミュートする
+                    <Show
+                      when={state().phase !== "sending"}
+                      fallback={t("chat.mute.sending")}
+                    >
+                      {t("chat.mute.submit")}
                     </Show>
                   </Button>
                 </div>

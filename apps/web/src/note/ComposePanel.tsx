@@ -19,6 +19,7 @@ import {
 import { useEventActions } from "../actions";
 import { useNoteSources } from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Completion from "../ui/Completion";
 import Avatar from "./Avatar";
@@ -119,7 +120,7 @@ const ComposePanel: Component<{
           {(actions) => <Avatar pubkey={actions().viewer} size="compact" />}
         </Show>
         {/* 5 行ぶんの高さを確保し、必要なら伸ばす。パネルの高さいっぱいには広げない。 */}
-        <Completion sources={sources} label="入れる候補">
+        <Completion sources={sources} label={t("note.compose.completion")}>
           {(attach) => (
             <textarea
               ref={(el) => {
@@ -127,11 +128,11 @@ const ComposePanel: Component<{
                 attach(el);
                 emojiInsertion.ref(el);
               }}
-              aria-label="ノートの本文"
+              aria-label={t("note.compose.body")}
               rows={5}
               class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-control bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
               disabled={props.state.sending}
-              placeholder="いま何してる？"
+              placeholder={t("note.compose.placeholder")}
               value={props.state.content}
               onInput={(event) =>
                 dispatch({
@@ -157,8 +158,11 @@ const ComposePanel: Component<{
       />
 
       <ComposeTools
-        count={`${countCharacters(props.state.content)} 文字`}
-        label="投稿"
+        count={plural(
+          "note.compose.characters",
+          countCharacters(props.state.content),
+        )}
+        label={t("note.compose.submit")}
         sending={props.state.sending}
         contentWarning={props.state.contentWarning}
         disabled={!canSend(props.state)}
@@ -173,7 +177,9 @@ const ComposePanel: Component<{
         <Show when={previewEvent()}>
           {(event) => (
             <>
-              <span class="c-secondary font-600 text-caption">プレビュー</span>
+              <span class="c-secondary font-600 text-caption">
+                {t("note.compose.preview")}
+              </span>
               <div class="overflow-hidden rounded-2 border border-primary">
                 {/* compact で描く —— 操作列やリアクションは、まだ存在しないノートには出せない。 */}
                 <Event

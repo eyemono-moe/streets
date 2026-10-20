@@ -32,6 +32,7 @@ import {
   useContext,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { EventRefView } from "../note/Event";
 import { ContentTokens } from "../note/NoteText";
@@ -137,7 +138,7 @@ const Image: Component<{ url: string; alt?: string | null }> = (props) => {
           target="_blank"
           rel="noopener noreferrer"
           class="my-1 block w-fit max-w-full cursor-zoom-in"
-          aria-label="画像を開く"
+          aria-label={t("article.openImage")}
           onClick={(event) => {
             // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
             if (

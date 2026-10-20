@@ -5,6 +5,7 @@ import {
 } from "@streets/core/view/compose-drafts";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { useEventActions } from "../actions";
+import { t } from "../i18n/locale";
 import { composeDrafts } from "./compose-drafts";
 import { ComposeMediator } from "./ComposeMediator";
 import QuoteDialog from "./QuoteDialog";
@@ -35,8 +36,8 @@ const TargetComposeDialog: Component<{
           }
           failure={
             props.target.type === "reply"
-              ? "返信できませんでした"
-              : "引用できませんでした"
+              ? t("note.targetCompose.replyFailed")
+              : t("note.targetCompose.quoteFailed")
           }
           onSent={props.onClose}
           onClose={props.onClose}

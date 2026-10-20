@@ -1,0 +1,44 @@
+{
+  "sent": "Zap を送りました",
+  "errors": {
+    "noResponse": "送り先のサーバーが答えませんでした（{{ status }}）",
+    "badAmount": "金額を読めませんでした",
+    "noEndpoint": "この人は Zap の受け取り先を設定していません",
+    "notAccepted": "この送り先は Zap を受け付けていません",
+    "outOfRange": "この送り先に送れるのは {{ min }}〜{{ max }} sats です",
+    "invoiceMismatch": "請求書の金額が、選んだ金額と合いません",
+    "sendFailed": "Zap を送れませんでした"
+  },
+  "dialog": {
+    "title": "Zap する",
+    "sats": "{{ amount }} sats",
+    "amount": {
+      "title": "金額",
+      "custom": "ほか",
+      "customLabel": "金額（sats）",
+      "placeholder": "金額"
+    },
+    "message": {
+      "label": "一言",
+      "optional": "（任意）",
+      "placeholder": "ありがとう！"
+    },
+    "submit": {
+      "fetching": "請求書をもらっています…",
+      "send": "{{ amount }} を Zap する",
+      "needAmount": "金額を入れてください"
+    },
+    "payment": {
+      "copied": "請求書をコピーしました",
+      "copyFailed": "コピーできませんでした",
+      "webln": "ブラウザのウォレットで支払いを確かめてください…",
+      "manual": "ライトニングのウォレットで読み取って支払ってください。支払いが届いたら閉じます。",
+      "copy": "コピー",
+      "openWallet": "ウォレットで開く"
+    }
+  },
+  "notice": {
+    "sats": "{{ amount }} sats",
+    "from": "から"
+  }
+}
