@@ -10,7 +10,8 @@ export type ColumnPresetKind =
   | "user"
   | "bookmarks"
   | "search"
-  | "channels";
+  | "channels"
+  | "napplets";
 
 const userTitle = (pubkey: string): string =>
   `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
@@ -244,6 +245,9 @@ export const buildColumn = (
 
     case "channels":
       return { id, title: "チャンネル", source: { kind: "channel-list" } };
+
+    case "napplets":
+      return { id, title: "napplet", source: { kind: "napplet-list" } };
 
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、

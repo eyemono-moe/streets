@@ -1,5 +1,5 @@
-import { fetchVerifiedBlob } from "@streets/core/napplet/artifact";
-import { type Component, createResource, onCleanup } from "solid-js";
+import { type Component } from "solid-js";
+import { createNappletIcons } from "../../napplet/napplet-icons";
 import NappletInfoView from "../../napplet/NappletInfoView";
 import { STREETS_NAPPLET_DOMAINS } from "../../napplet/streets-host";
 import { createNappletManifest } from "./napplet-manifest";
@@ -17,34 +17,14 @@ const NappletInfo: Component<{
     identifier: () => props.identifier,
     relays: () => props.relays,
   });
-  // NIP-5D: > Clients MUST render the verified bytes rather than an unverified remote URL.
-  // 照合した中身を blob の URL にして出す。画像として読めなければ <img> が出ないだけで、
-  // napplet の読み込みは止めない。
-  const [iconUrl] = createResource(
-    () => manifest()?.icon && manifest(),
-    async (current) => {
-      if (!current.icon) return undefined;
-      const result = await fetchVerifiedBlob(
-        current.icon.hash,
-        current.servers,
-        globalThis.fetch.bind(globalThis),
-      );
-      if (!result.ok) return undefined;
-      if (shown) URL.revokeObjectURL(shown);
-      shown = URL.createObjectURL(
-        new Blob([result.bytes as BlobPart], { type: current.icon.mime }),
-      );
-      return shown;
-    },
-  );
-  let shown: string | undefined;
-  onCleanup(() => {
-    if (shown) URL.revokeObjectURL(shown);
-  });
+  const iconFor = createNappletIcons();
   return (
     <NappletInfoView
       lookup={lookup()}
-      iconUrl={iconUrl()}
+      iconUrl={(() => {
+        const current = manifest();
+        return current ? iconFor(current) : undefined;
+      })()}
       supported={SUPPORTED}
     />
   );

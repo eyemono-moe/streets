@@ -1,4 +1,5 @@
 import { FOLLOW_SET_KIND } from "../lists/follow-set";
+import { NAPPLET_DIRECTORY_RELAYS } from "../napplet/directory";
 import { NAPPLET_NAMED_KIND } from "../napplet/manifest";
 import {
   CHANNEL_CREATE_KIND,
@@ -234,6 +235,16 @@ export const nappletManifestSource = (
     { kinds: [NAPPLET_NAMED_KIND], authors: [pubkey], "#d": [identifier] },
   ],
   ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
+});
+
+/**
+ * 公開されている名前付きの napplet。作者を決めない問い合わせは Outbox で行き先を
+ * 決められないので、napplet がよく公開されるリレーへ明示して聞く。
+ */
+export const nappletDirectorySource = (): NostrSource => ({
+  type: "nostr",
+  filters: [{ kinds: [NAPPLET_NAMED_KIND], limit: 500 }],
+  relays: [...NAPPLET_DIRECTORY_RELAYS] as RelayUrl[],
 });
 
 /**

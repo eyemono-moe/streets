@@ -70,6 +70,7 @@ import {
 import MediaGrid from "./blocks/MediaGrid";
 import Napplet from "./blocks/Napplet";
 import NappletInfo from "./blocks/NappletInfo";
+import NappletList from "./blocks/NappletList";
 import NotificationList from "./blocks/NotificationList";
 import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
@@ -750,6 +751,19 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         identifier={props.source.identifier}
         relays={props.source.relays}
         inputs={props.inputs}
+      />
+    ),
+  },
+  "napplet-list": {
+    meta: () => ({
+      icon: "i-material-symbols:widgets-outline-rounded",
+      subtitle: "Nostr で配られている小さなアプリ",
+    }),
+    Content: (props) => (
+      <NappletList
+        followees={() =>
+          props.inputs.signedIn ? props.inputs.followees() : []
+        }
       />
     ),
   },

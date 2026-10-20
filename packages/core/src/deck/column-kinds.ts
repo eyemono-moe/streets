@@ -144,6 +144,8 @@ export const columnSourceSchema = v.variant("kind", [
     identifier: v.string(),
     relays: v.optional(v.array(v.string())),
   }),
+  /** 公開されている napplet を探す一覧。押すとカラムの中に重ねて開く。 */
+  v.object({ kind: v.literal("napplet-list") }),
   /** napplet の情報。napplet のカラムの見出しの ⓘ から重ねて開く。 */
   v.object({
     kind: v.literal("napplet-info"),
@@ -495,6 +497,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => [CHANNEL_MESSAGE_KIND],
     muted: "hide",
     foldsMuted: false,
+  },
+  "napplet-list": {
+    title: () => ({ text: "napplet" }),
+    kinds: () => [],
   },
   "napplet-info": {
     title: (source, column) => ({
