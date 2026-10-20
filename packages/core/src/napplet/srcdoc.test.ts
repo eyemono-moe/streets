@@ -24,6 +24,10 @@ type TestNapplet = {
     open(uri: string, options?: Record<string, unknown>): Promise<unknown>;
     onDelivery(handler: (delivery: unknown) => void): unknown;
   };
+  inc: {
+    emit(topic: string, payload?: unknown): void;
+    on(topic: string, handler: (event: unknown) => void): { close(): void };
+  };
   outbox: {
     query(filters: unknown): Promise<unknown>;
     subscribe(filters: unknown): {
@@ -301,5 +305,60 @@ describe("nappletPrelude", () => {
     win.napplet.intent.onDelivery((delivery) => received.push(delivery));
     deliver({ type: "intent.deliver", delivery: { payload: 2 } });
     expect(received).toEqual([{ payload: 1 }, { payload: 2 }]);
+  });
+
+  // NAP-INC: > When `emit` receives a convention URI with a query, the runtime MUST:
+  // > 1. Remove the query from the routed topic.
+  // > 2. Percent-decode each unique `name=value` pair as text.
+  it("inc.emit は URI の問い合わせを中身に移して送る", () => {
+    const { win, sent } = run(["inc"]);
+    win.napplet.inc.emit("napplet:profile/open?pubkey=abc123...");
+    expect(sent).toEqual([
+      {
+        type: "inc.emit",
+        topic: "napplet:profile/open",
+        payload: { pubkey: "abc123..." },
+      },
+    ]);
+  });
+
+  // NAP-INTENT が INC から分かれる前の napplet は、依頼を inc.on の話題で受ける。
+  it("onDelivery の無い napplet には、依頼を同じ話題の inc.on へ渡す", () => {
+    const { win, deliver, sent } = run(["intent", "inc"]);
+    const delivery = {
+      sender: "streets",
+      archetype: "article",
+      action: "open",
+      convention: "napplet:article/open",
+      payload: { naddr: "naddr1..." },
+    };
+    // 起動の途中で届き、inc.on を登録するまで待つ。
+    deliver({ type: "intent.deliver", delivery });
+    const received: unknown[] = [];
+    win.napplet.inc.on("napplet:article/open", (event) => received.push(event));
+    expect(sent).toMatchObject([
+      { type: "inc.subscribe", topic: "napplet:article/open" },
+    ]);
+    deliver({ type: "intent.deliver", delivery });
+    const event = {
+      topic: "napplet:article/open",
+      sender: "streets",
+      payload: { naddr: "naddr1..." },
+    };
+    expect(received).toEqual([event, event]);
+  });
+
+  it("onDelivery があれば、依頼は inc.on へ渡さない", () => {
+    const { win, deliver } = run(["intent", "inc"]);
+    const viaInc: unknown[] = [];
+    const viaIntent: unknown[] = [];
+    win.napplet.inc.on("napplet:note/open", (event) => viaInc.push(event));
+    win.napplet.intent.onDelivery((delivery) => viaIntent.push(delivery));
+    deliver({
+      type: "intent.deliver",
+      delivery: { convention: "napplet:note/open", payload: 1 },
+    });
+    expect(viaIntent).toHaveLength(1);
+    expect(viaInc).toEqual([]);
   });
 });

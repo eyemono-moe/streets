@@ -381,7 +381,7 @@
       "packages/core/src/napplet/intent.ts",
       "apps/web/src/columns/blocks/Napplet.tsx"
     ],
-    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data）・intent と、relay・outbox の読み取りだけで、書き込み・inc・config は渡さない。intent の受け手は、インストールしたアップレットと、Streets のカラム（profile・note・article の open）"
+    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data）・intent・inc（話題で送り合うものだけ。1 対 1 の channel は渡さない）と、relay・outbox の読み取りだけで、書き込み・config は渡さない。onDelivery を使わず inc.on の話題で依頼を受けるアップレットには、依頼をその話題で渡す。intent の受け手は、インストールしたアップレットと、Streets のカラム（profile・note・article の open）"
   },
   {
     "nip": "65",

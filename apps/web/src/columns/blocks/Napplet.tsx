@@ -28,6 +28,7 @@ import {
   createResource,
   createSignal,
   on,
+  onCleanup,
 } from "solid-js";
 import {
   appletColumnFor,
@@ -94,6 +95,18 @@ const Napplet: Component<{
   const library = useAppletLibrary();
   const intents = useAppletIntents();
   const [session, setSession] = createSignal<NappletSession>();
+  // NAP-INC の endpoint として登録する。id は動いている間だけのもの。
+  let endpoint: { id: string; leave: () => void } | undefined;
+  createEffect(() => {
+    const current = session();
+    if (!current || !intents) return;
+    const joined = intents.join(current);
+    endpoint = joined;
+    onCleanup(() => {
+      joined.leave();
+      if (endpoint === joined) endpoint = undefined;
+    });
+  });
   const [asking, setAsking] = createSignal<
     Omit<IntentSheetProps, "onPick" | "onInstall" | "onCancel"> & {
       answer: (
@@ -304,6 +317,11 @@ const Napplet: Component<{
         themeSource
           ? currentNappletTheme(themeSource)
           : currentNappletTheme(document.body),
+      inc: {
+        emit: (topic, payload) => {
+          if (endpoint) intents?.emit(endpoint.id, topic, payload);
+        },
+      },
       intent: intentHost(
         running.manifest.title ?? running.manifest.identifier ?? "アップレット",
       ),

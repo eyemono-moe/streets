@@ -87,6 +87,11 @@ export type NappletHost = {
     available: (archetype: string) => IntentAvailability;
     handlers: () => IntentAvailability[];
   };
+  /**
+   * NAP-INC。ほかのアップレットへ話題で送る。受け手は、その話題を購読しているほかの
+   * アップレット（`NappletSession.incEvent`）。
+   */
+  inc: { emit: (topic: string, payload: unknown) => void };
   /** 画像などの中身を取る（`fetchNappletResource`）。 */
   fetchResource: (
     url: string,
@@ -226,6 +231,12 @@ export type NappletSession = {
   deliver: (delivery: IntentDelivery) => void;
   /** 受け手の一覧や既定が変わった。 */
   intentChanged: (availability: IntentAvailability) => void;
+  /** ほかのアップレットが話題で送った。その話題を購読していれば渡す。 */
+  incEvent: (event: {
+    topic: string;
+    sender: string;
+    payload?: unknown;
+  }) => void;
   dispose: () => void;
 };
 
@@ -246,6 +257,7 @@ export const createNappletSession = (
   let initialized = false;
   let disposed = false;
   const waitingDeliveries: IntentDelivery[] = [];
+  const topics = new Set<string>();
 
   const send = (message: Message) => {
     if (!disposed) post(message);
@@ -283,6 +295,34 @@ export const createNappletSession = (
     });
     for (const delivery of waitingDeliveries.splice(0)) {
       send({ type: "intent.deliver", delivery });
+    }
+  };
+
+  const handleInc = (request: Message) => {
+    switch (request.type) {
+      case "inc.subscribe":
+        if (typeof request.topic !== "string") {
+          fail(request, "invalid topic");
+          return;
+        }
+        topics.add(request.topic);
+        reply(request, {});
+        return;
+      case "inc.unsubscribe":
+        if (typeof request.topic === "string") topics.delete(request.topic);
+        return;
+      case "inc.emit":
+        if (typeof request.topic === "string") {
+          host.inc.emit(request.topic, request.payload);
+        }
+        return;
+      // 1 対 1 の通り道（channel）はまだ渡さない。
+      case "inc.channel.open":
+        fail(request, "unsupported");
+        return;
+      case "inc.channel.list":
+        reply(request, { channels: [] });
+        return;
     }
   };
 
@@ -722,9 +762,14 @@ export const createNappletSession = (
       const domain = message.type.split(".")[0] ?? "";
       if (!exposed.has(domain)) return;
       if (domain === "shell") return handleShell(message);
-      // 結果を返す要求は `id` で突き合わせる。無いものは答えようがない。購読は `subId` で扱う。
-      const bySubId = /^(relay|outbox)\.(subscribe|close)$/.test(message.type);
-      if (!bySubId && typeof message.id !== "string") return;
+      // 結果を返す要求は `id` で突き合わせる。無いものは答えようがない。購読は `subId` で扱い、
+      // INC の送りっぱなしの知らせは結果を返さない。
+      const withoutId =
+        /^(relay|outbox)\.(subscribe|close)$/.test(message.type) ||
+        /^inc\.(emit|unsubscribe|channel\.(emit|broadcast|close))$/.test(
+          message.type,
+        );
+      if (!withoutId && typeof message.id !== "string") return;
       switch (domain) {
         case "theme":
           return handleTheme(message);
@@ -740,6 +785,8 @@ export const createNappletSession = (
           return handleResource(message);
         case "intent":
           return handleIntent(message);
+        case "inc":
+          return handleInc(message);
       }
     },
     themeChanged: () => {
@@ -758,6 +805,11 @@ export const createNappletSession = (
     },
     intentChanged: (availability) => {
       if (exposed.has("intent")) send({ type: "intent.changed", availability });
+    },
+    incEvent: (event) => {
+      if (exposed.has("inc") && topics.has(event.topic)) {
+        send({ type: "inc.event", ...event });
+      }
     },
     dispose: () => {
       for (const close of subscriptions.values()) close();

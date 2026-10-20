@@ -408,6 +408,43 @@ function installNapplet(domains: readonly string[]): void {
     };
   }
 
+  // NAP-INTENT と NAP-INC で同じ、URI の問い合わせを中身にする読み方。
+  // > The runtime MUST NOT coerce query values to boolean, number, or null. A `+` is a
+  // > literal plus sign, not a space.
+  const queryPayload = (query: string) => {
+    const fields: Record<string, string> = {};
+    for (const pair of query ? query.split("&") : []) {
+      const separator = pair.indexOf("=");
+      if (separator < 0) {
+        throw new Error(
+          "Convention URI query parameters must use name=value form",
+        );
+      }
+      const name = decodeURIComponent(pair.slice(0, separator));
+      if (Object.prototype.hasOwnProperty.call(fields, name)) {
+        throw new Error("Convention URI query parameter names must be unique");
+      }
+      fields[name] = decodeURIComponent(pair.slice(separator + 1));
+    }
+    return fields;
+  };
+  // inc.on で受けている話題。onDelivery を使わず、話題で依頼を受ける napplet
+  // （NAP-INTENT が INC から分かれる前の書き方。Myco 向けのものなど）に依頼を渡すのに使う。
+  const topicHandlers = new Map<string, Set<(event: unknown) => void>>();
+  const waitingDeliveries: Record<string, unknown>[] = [];
+  const handOver = (delivery: Record<string, unknown>) => {
+    const handlers = topicHandlers.get(String(delivery.convention));
+    if (!handlers || handlers.size === 0) return false;
+    for (const handler of handlers) {
+      handler({
+        topic: delivery.convention,
+        sender: delivery.sender,
+        payload: delivery.payload,
+      });
+    }
+    return true;
+  };
+
   if (exposed.has("intent")) {
     // NAP-INTENT の URI の読み方。`@napplet/shim` の normalizeIntentUri と同じく、
     // 送る前に断る（呼んだ側へ同期で例外を返す）。
@@ -497,24 +534,7 @@ function installNapplet(domains: readonly string[]): void {
             "Convention URI queries cannot be combined with an explicit payload",
           );
         }
-        const fields: Record<string, string> = {};
-        const query = base.slice(queryIndex + 1);
-        for (const pair of query ? query.split("&") : []) {
-          const separator = pair.indexOf("=");
-          if (separator < 0) {
-            throw new Error(
-              "Convention URI query parameters must use name=value form",
-            );
-          }
-          const name = decodeURIComponent(pair.slice(0, separator));
-          if (Object.prototype.hasOwnProperty.call(fields, name)) {
-            throw new Error(
-              "Convention URI query parameter names must be unique",
-            );
-          }
-          fields[name] = decodeURIComponent(pair.slice(separator + 1));
-        }
-        payload = fields;
+        payload = queryPayload(base.slice(queryIndex + 1));
       }
       const handlerHint =
         fragmentIndex >= 0
@@ -534,11 +554,14 @@ function installNapplet(domains: readonly string[]): void {
     };
     // NAP-INTENT: > The runtime-provided binding MUST retain an incoming delivery until an
     // > `onDelivery` handler is registered.
-    const deliveries: unknown[] = [];
     const deliveryHandlers = new Set<(delivery: unknown) => void>();
     onPush("intent.deliver", (message) => {
-      if (deliveryHandlers.size === 0) deliveries.push(message.delivery);
-      else for (const handler of deliveryHandlers) handler(message.delivery);
+      const delivery = message.delivery as Record<string, unknown>;
+      if (deliveryHandlers.size > 0) {
+        for (const handler of deliveryHandlers) handler(delivery);
+      } else if (!handOver(delivery)) {
+        waitingDeliveries.push(delivery);
+      }
     });
     const invoke = (uri: string, options?: InvokeOptions) => {
       const normalized = normalize(uri, options);
@@ -569,8 +592,81 @@ function installNapplet(domains: readonly string[]): void {
         onPush("intent.changed", (message) => handler(message.availability)),
       onDelivery: (handler: (delivery: unknown) => void) => {
         deliveryHandlers.add(handler);
-        for (const delivery of deliveries.splice(0)) handler(delivery);
+        for (const delivery of waitingDeliveries.splice(0)) handler(delivery);
         return { close: () => deliveryHandlers.delete(handler) };
+      },
+    };
+  }
+
+  if (exposed.has("inc")) {
+    const emit = (topic: string, payload?: unknown) => {
+      if (typeof topic !== "string")
+        throw new Error("INC topic must be a string");
+      if (!topic.startsWith("napplet:")) {
+        post({
+          type: "inc.emit",
+          topic,
+          ...(payload !== undefined ? { payload } : {}),
+        });
+        return;
+      }
+      decodeURIComponent(topic);
+      if (topic.includes("#")) {
+        throw new Error("Convention URI fragments are not supported");
+      }
+      const queryIndex = topic.indexOf("?");
+      if (queryIndex >= 0 && payload !== undefined) {
+        throw new Error(
+          "Convention URI queries cannot be combined with an explicit payload",
+        );
+      }
+      const routed = queryIndex < 0 ? topic : topic.slice(0, queryIndex);
+      const body =
+        queryIndex < 0 ? payload : queryPayload(topic.slice(queryIndex + 1));
+      post({
+        type: "inc.emit",
+        topic: routed,
+        ...(body !== undefined ? { payload: body } : {}),
+      });
+    };
+    onPush("inc.event", (message) => {
+      for (const handler of topicHandlers.get(String(message.topic)) ?? []) {
+        handler({
+          topic: message.topic,
+          sender: message.sender,
+          payload: message.payload,
+        });
+      }
+    });
+    const unsupported = () =>
+      Promise.reject(new Error("INC channels are not supported by this shell"));
+    napplet.inc = {
+      emit,
+      on: (topic: string, handler: (event: unknown) => void) => {
+        const handlers = topicHandlers.get(topic) ?? new Set();
+        const first = handlers.size === 0;
+        handlers.add(handler);
+        topicHandlers.set(topic, handlers);
+        if (first) void request("inc.subscribe", { topic }, () => undefined);
+        // 先に届いて待っていた依頼のうち、この話題のものを渡す。
+        for (const delivery of [...waitingDeliveries]) {
+          if (delivery.convention !== topic) continue;
+          waitingDeliveries.splice(waitingDeliveries.indexOf(delivery), 1);
+          handOver(delivery);
+        }
+        return {
+          close: () => {
+            if (!handlers.delete(handler) || handlers.size > 0) return;
+            topicHandlers.delete(topic);
+            post({ type: "inc.unsubscribe", topic });
+          },
+        };
+      },
+      channel: {
+        open: unsupported,
+        onOpened: () => ({ close: () => {} }),
+        list: () => Promise.resolve([]),
+        broadcast: () => {},
       },
     };
   }

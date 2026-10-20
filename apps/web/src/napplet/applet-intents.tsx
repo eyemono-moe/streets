@@ -18,6 +18,7 @@ import {
   type NappletManifest,
   parseNappletManifest,
 } from "@streets/core/napplet/manifest";
+import type { NappletSession } from "@streets/core/napplet/session";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -53,6 +54,16 @@ export type AppletIntents = {
   handlersFor: (column: ColumnDef) => { id: string; title: string }[];
   /** `handlersFor` の 1 つで開くカラムを作り、依頼を預ける。 */
   openIn: (handlerId: string, column: ColumnDef) => ColumnDef | undefined;
+  /**
+   * 動いているアップレット（NAP-INC の endpoint）を登録する。id は動いている間だけ
+   * 使い、同じアップレットを 2 つ開いても重ならない。外すときは返した関数を呼ぶ。
+   */
+  join: (session: Pick<NappletSession, "incEvent">) => {
+    id: string;
+    leave: () => void;
+  };
+  /** 話題で送る。送った本人には返さない。 */
+  emit: (sender: string, topic: string, payload: unknown) => void;
 };
 
 const keyOf = (applet: AppletAddress) =>
@@ -166,7 +177,28 @@ export const createAppletIntents = (options: {
     return (handler && openIn(handler.id, column)) ?? column;
   };
 
+  const endpoints = new Map<string, Pick<NappletSession, "incEvent">>();
+  let joined = 0;
+  const join = (session: Pick<NappletSession, "incEvent">) => {
+    joined += 1;
+    const id = `endpoint-${joined}`;
+    endpoints.set(id, session);
+    return { id, leave: () => endpoints.delete(id) };
+  };
+  const emit = (sender: string, topic: string, payload: unknown) => {
+    for (const [id, session] of endpoints) {
+      if (id === sender) continue;
+      session.incEvent({
+        topic,
+        sender,
+        ...(payload !== undefined ? { payload } : {}),
+      });
+    }
+  };
+
   return {
+    join,
+    emit,
     catalog,
     deliver,
     take,

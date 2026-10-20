@@ -29,6 +29,8 @@ const storyIntents: AppletIntents = {
   route: (column) => column,
   handlersFor: () => [{ id: "35129:story:viewer", title: "Nostr Viewer" }],
   openIn: () => undefined,
+  join: () => ({ id: "story", leave: () => {} }),
+  emit: () => {},
 };
 
 const MenuStory: Component<{

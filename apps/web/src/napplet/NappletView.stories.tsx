@@ -68,6 +68,7 @@ const storyHost = (): NappletHost => {
       keys: () => [...stored.keys()],
     },
     writeRelays: () => undefined,
+    inc: { emit: () => {} },
     intent: {
       invoke: async () => ({ ok: false, error: "no handler" }),
       available: (archetype) => ({

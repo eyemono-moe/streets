@@ -42,6 +42,7 @@ const setup = (
   const stored = new Map<string, string>();
   const fetched: { url: string; signal: AbortSignal }[] = [];
   const invoked: IntentRequest[] = [];
+  const emitted: { topic: string; payload: unknown }[] = [];
   const host: NappletHost = {
     domains,
     publicKey: () => "a".repeat(64),
@@ -64,6 +65,7 @@ const setup = (
           .filter((key) => key.startsWith(`${scope}/`))
           .map((key) => key.slice(scope.length + 1)),
     },
+    inc: { emit: (topic, payload) => void emitted.push({ topic, payload }) },
     intent: {
       invoke: async (request) => {
         invoked.push(request);
@@ -100,7 +102,7 @@ const setup = (
     },
   };
   const session = createNappletSession(host, (message) => sent.push(message));
-  return { session, sent, opened, fetched, invoked };
+  return { session, sent, opened, fetched, invoked, emitted };
 };
 
 describe("createNappletSession", () => {
@@ -637,5 +639,49 @@ describe("NAP-INTENT", () => {
     expect(sent).toEqual([]);
     session.receive({ type: "shell.ready" });
     expect(sent.at(-1)).toEqual({ type: "intent.deliver", delivery });
+  });
+});
+
+describe("NAP-INC", () => {
+  // NAP-INC の「Subscribe」「Event delivery」の例。
+  it("購読した話題の知らせだけを渡す", () => {
+    const { session, sent } = setup(["shell", "inc"]);
+    session.receive({
+      type: "inc.subscribe",
+      id: "a1",
+      topic: "napplet:profile/open",
+    });
+    expect(sent).toEqual([{ type: "inc.subscribe.result", id: "a1" }]);
+    const event = {
+      topic: "napplet:profile/open",
+      sender: "endpoint-social-feed",
+      payload: { pubkey: "abc123..." },
+    };
+    session.incEvent(event);
+    session.incEvent({ ...event, topic: "napplet:note/open" });
+    expect(sent.slice(1)).toEqual([{ type: "inc.event", ...event }]);
+  });
+
+  // > `inc.unsubscribe` is fire-and-forget (no `id`, no result message).
+  it("購読をやめた話題は渡さない", () => {
+    const { session, sent } = setup(["shell", "inc"]);
+    session.receive({ type: "inc.subscribe", id: "a1", topic: "t" });
+    session.receive({ type: "inc.unsubscribe", topic: "t" });
+    session.incEvent({ topic: "t", sender: "s" });
+    expect(sent).toHaveLength(1);
+  });
+
+  // > `inc.emit` has no `id` field — it is fire-and-forget with no acknowledgment.
+  it("送った話題を Streets に渡し、答えは返さない", () => {
+    const { session, sent, emitted } = setup(["shell", "inc"]);
+    session.receive({
+      type: "inc.emit",
+      topic: "napplet:profile/open",
+      payload: { pubkey: "abc123..." },
+    });
+    expect(emitted).toEqual([
+      { topic: "napplet:profile/open", payload: { pubkey: "abc123..." } },
+    ]);
+    expect(sent).toEqual([]);
   });
 });
