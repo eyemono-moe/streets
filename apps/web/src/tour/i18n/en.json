@@ -1,0 +1,36 @@
+{
+  "actions": {
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "start": "Get started",
+    "look": "Take a look"
+  },
+  "steps": {
+    "welcome": {
+      "title": "Welcome to Streets!",
+      "description": "In Streets, you line up what you want to see in columns and build your own timeline. Here's a quick look at how it works."
+    },
+    "columns": {
+      "title": "These are columns",
+      "descriptionWide": "Timelines, notifications and more each flow in their own column. Click a post to open it and see the replies.",
+      "descriptionNarrow": "Timelines, notifications and more each flow in their own column. Tap the icons below or swipe left and right to move between columns."
+    },
+    "addColumn": {
+      "title": "Add the columns you like",
+      "description": "Add a user's posts, hashtag search results, or anything else you're curious about as a new column."
+    },
+    "compose": {
+      "title": "Write a post",
+      "description": "Post to Nostr from here."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Change your theme, relays, mutes, profile and more here. You can replay this tour anytime."
+    },
+    "menu": {
+      "title": "Menu",
+      "description": "Adding columns, search and settings are in this menu. You can replay this tour anytime."
+    }
+  }
+}

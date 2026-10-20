@@ -14,6 +14,7 @@ import {
 } from "solid-js";
 import { useEmojiSource } from "../completion/sources";
 import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
+import { t } from "../i18n/locale";
 import { useComposeEmojiInsertion } from "../note/use-compose-emoji-insertion";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -28,13 +29,21 @@ import SegmentedControl from "../ui/SegmentedControl";
 import TextField from "../ui/TextField";
 
 /** よく使う状態。押すと本文に入る。 */
-const PRESETS = ["💻 作業中", "☕ 休憩中", "🚶 外出中", "💤 寝ています"];
+const presets = () => [
+  t("status.dialog.presets.working"),
+  t("status.dialog.presets.break"),
+  t("status.dialog.presets.away"),
+  t("status.dialog.presets.sleeping"),
+];
 
-const EXPIRIES: { value: Exclude<StatusExpiry, "keep">; label: string }[] = [
-  { value: "never", label: "消さない" },
-  { value: "1h", label: "1 時間" },
-  { value: "today", label: "今日中" },
-  { value: "1w", label: "1 週間" },
+const expiries = (): {
+  value: Exclude<StatusExpiry, "keep">;
+  label: string;
+}[] => [
+  { value: "never", label: t("status.dialog.expiry.never") },
+  { value: "1h", label: t("status.dialog.expiry.oneHour") },
+  { value: "today", label: t("status.dialog.expiry.today") },
+  { value: "1w", label: t("status.dialog.expiry.oneWeek") },
 ];
 
 /**
@@ -71,7 +80,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
               <>
                 <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
                   <DialogTitle class="flex-1 font-600 text-body">
-                    ステータスを設定
+                    {t("status.dialog.title")}
                   </DialogTitle>
                   <DialogClose disabled={form().phase === "saving"} />
                 </div>
@@ -84,7 +93,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                 >
                   <div class="flex flex-col gap-2">
                     <TextField
-                      label="いまの状態"
+                      label={t("status.dialog.content.label")}
                       value={form().draft.content}
                       onInput={(value) =>
                         dispatch({
@@ -93,7 +102,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                           value,
                         })
                       }
-                      placeholder="例：作業中"
+                      placeholder={t("status.dialog.content.placeholder")}
                       completion={emojiSources}
                       fieldRef={emojiInsertion.ref}
                       trailing={
@@ -105,7 +114,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                       }
                     />
                     <div class="flex flex-wrap gap-1.5">
-                      <For each={PRESETS}>
+                      <For each={presets()}>
                         {(preset) => (
                           <Button
                             size="sm"
@@ -125,7 +134,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                     </div>
                   </div>
                   <TextField
-                    label="リンク（任意）"
+                    label={t("status.dialog.link.label")}
                     type="url"
                     value={form().draft.link}
                     onInput={(value) =>
@@ -139,14 +148,14 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                   />
                   <section class="flex flex-col gap-1.5">
                     <h3 class="c-secondary font-600 text-caption">
-                      消える時刻
+                      {t("status.dialog.expiry.title")}
                     </h3>
                     <SegmentedControl
-                      label="消える時刻"
+                      label={t("status.dialog.expiry.title")}
                       variant="secondary"
                       // 直す前の期限（keep）は選ぶ欄に入れず、下に書く。どれも選んでいない
                       // 形で始め、選んだら置き換わる（入れると、狭い画面で横にはみ出す）。
-                      options={EXPIRIES}
+                      options={expiries()}
                       value={form().draft.expiry}
                       onChange={(expiry) =>
                         dispatch({ type: "status-form/expiry", expiry })
@@ -159,12 +168,12 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                     >
                       {(at) => (
                         <p class="c-secondary text-caption">
-                          今の期限のまま（
-                          {formatEventTime(
-                            new Date(at() * 1000),
-                            new Date(),
-                          )}{" "}
-                          に消えます）。変えるときは上から選んでください。
+                          {t("status.dialog.expiry.keep", {
+                            time: formatEventTime(
+                              new Date(at() * 1000),
+                              new Date(),
+                            ),
+                          })}
                         </p>
                       )}
                     </Show>
@@ -177,7 +186,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                   >
                     <Show when={form().blocked}>
                       <p class="c-danger font-600 text-caption">
-                        保存するか、やめてから閉じてください
+                        {t("status.dialog.blocked")}
                       </p>
                     </Show>
                     <div class="flex flex-wrap items-center gap-2">
@@ -191,7 +200,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                             dispatch({ type: "status-form/clear" })
                           }
                         >
-                          ステータスを消す
+                          {t("status.dialog.clear")}
                         </Button>
                       </Show>
                       <span class="flex-1" />
@@ -203,7 +212,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                           dispatch({ type: "status-form/discard" })
                         }
                       >
-                        やめる
+                        {t("status.dialog.discard")}
                       </Button>
                       <Button
                         type="submit"
@@ -213,9 +222,9 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                       >
                         <Show
                           when={form().phase !== "saving"}
-                          fallback="送信中…"
+                          fallback={t("status.dialog.sending")}
                         >
-                          保存
+                          {t("status.dialog.save")}
                         </Show>
                       </Button>
                     </div>

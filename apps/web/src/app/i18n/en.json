@@ -1,0 +1,99 @@
+{
+  "writeLabel": {
+    "post": "Post",
+    "reply": "Reply",
+    "quote": "Quote",
+    "channelMessage": "Channel message",
+    "status": "Status",
+    "repost": "Repost",
+    "vote": "Vote",
+    "reaction": "Reaction",
+    "bookmark": "Bookmark",
+    "pin": "Pin",
+    "channelCreate": "Create channel",
+    "channelInfo": "Channel info",
+    "chatMute": "Chat mute",
+    "favorite": "Favorite",
+    "broadcast": "Broadcast",
+    "follow": "Follow"
+  },
+  "actions": {
+    "cannotRepost": "This post can't be reposted",
+    "cannotVote": "You can't vote on this post"
+  },
+  "actionFailed": {
+    "generic": "That didn't work",
+    "repost": "Couldn't repost",
+    "react": "Couldn't send the reaction",
+    "reactMade": "Couldn't send the custom emoji",
+    "vote": "Couldn't vote",
+    "bookmark": "Couldn't save the bookmark",
+    "pin": "Couldn't save the pin",
+    "follow": "Couldn't save the follow",
+    "favorite": "Couldn't save the favorite",
+    "broadcast": "Couldn't send it again"
+  },
+  "errors": {
+    "writeFailed": {
+      "one": "It didn't reach any relay ({{ count }} relay rejected it)",
+      "other": "It didn't reach any relay ({{ count }} relays rejected it)"
+    },
+    "refetchFailed": "Couldn't get the current state before saving. Wait a moment and try again",
+    "privateItemsUnavailable": "Your current login method can't handle private items",
+    "invalidPrivateItems": "Nothing was saved because the private items couldn't be read",
+    "nip46PermissionMissing": "Your signer hasn't allowed this action. Log out and reconnect the remote signer to be asked for permission again",
+    "signerDisconnected": "Not connected to your signer. Check that the signer app is running, then reconnect",
+    "signerUnavailable": "Your signer isn't available. Please log in again",
+    "noUploadServer": "No upload server for images. Add one under \"Images\" in settings",
+    "notUploadServer": "{{ server }} didn't respond as an image upload server. Check the URL",
+    "emoji": {
+      "missingChars": "Some characters can't be drawn ({{ chars }})",
+      "denied": "This emoji can't be made",
+      "rateLimited": "Too many emoji requests. Wait a moment and try again",
+      "server": "Couldn't make the emoji. Wait a moment and try again"
+    },
+    "sendFailed": "Couldn't send: {{ message }}",
+    "upload": {
+      "chooseServer": "Choose an image upload server in settings",
+      "tooLarge": "The file is too large",
+      "failed": "Couldn't upload ({{ message }})"
+    },
+    "loginRequired": "Log in first"
+  },
+  "session": {
+    "nip07NoResponse": "The extension isn't responding. Check that it is allowed on this site. You'll be logged in as soon as it works.",
+    "nip07NotFound": "No NIP-07 extension found.",
+    "loginFailed": "Couldn't log in: {{ message }}",
+    "bunkerFailed": "Couldn't connect to the remote signer: {{ message }}",
+    "restoreFailed": "Couldn't restore your login: {{ message }}",
+    "signerNotReached": "Couldn't reach your signer. Check that the signer app is running, then try again.",
+    "storedLoginUnreadable": "Couldn't read your saved login. Please log in again.",
+    "waitingLogin": "Waiting for login",
+    "waitingRestore": "Waiting to restore your login"
+  },
+  "signerWait": {
+    "approvalRequired": "Approval needed in your signer",
+    "pending": {
+      "one": "Waiting for {{ count }} approval from your signer",
+      "other": "Waiting for {{ count }} approvals from your signer"
+    },
+    "confirmHint": "Check your signer app or window",
+    "approve": "Approve in signer",
+    "encrypting": "Waiting for your signer to encrypt private data",
+    "decrypting": "Waiting for your signer to read private data"
+  },
+  "disconnected": {
+    "title": "Not connected to your signer",
+    "description": "You can still read, but you can't post or react.",
+    "descriptionWithReason": "You can still read, but you can't post or react. {{ message }}",
+    "retry": "Reconnect"
+  },
+  "lazyPart": {
+    "title": "Couldn't load part of the screen",
+    "description": "This can happen right after a new version is released, or when you're offline. Reloading should fix it.",
+    "reload": "Reload"
+  },
+  "toast": {
+    "close": "Close"
+  }
+}

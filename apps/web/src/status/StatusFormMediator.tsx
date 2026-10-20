@@ -10,6 +10,7 @@ import { type ParentComponent, Show, createEffect, onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type { EventActions } from "../actions";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { t } from "../i18n/locale";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -45,8 +46,8 @@ export const StatusFormMediator: ParentComponent<{ actions: EventActions }> = (
           notifyError(
             cause,
             form.clearing
-              ? "ステータスを消せませんでした"
-              : "ステータスを保存できませんでした",
+              ? t("status.errors.clearFailed")
+              : t("status.errors.saveFailed"),
           );
         },
       );

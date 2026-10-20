@@ -1,0 +1,44 @@
+{
+  "dialog": {
+    "title": "Set your status",
+    "content": {
+      "label": "What are you up to?",
+      "placeholder": "e.g. Working"
+    },
+    "presets": {
+      "working": "💻 Working",
+      "break": "☕ On a break",
+      "away": "🚶 Out and about",
+      "sleeping": "💤 Sleeping"
+    },
+    "link": {
+      "label": "Link (optional)"
+    },
+    "expiry": {
+      "title": "Clear after",
+      "never": "Don't clear",
+      "oneHour": "1 hour",
+      "today": "Today",
+      "oneWeek": "1 week",
+      "keep": "Keeping the current expiry (clears {{ time }}). Choose one above to change it."
+    },
+    "blocked": "Save or discard your changes before closing",
+    "clear": "Clear status",
+    "discard": "Discard",
+    "sending": "Sending…",
+    "save": "Save"
+  },
+  "errors": {
+    "clearFailed": "Couldn't clear your status",
+    "saveFailed": "Couldn't save your status"
+  },
+  "view": {
+    "kind": {
+      "general": "Status",
+      "music": "Listening to"
+    },
+    "openLink": "Open the status link",
+    "openTarget": "Open what the status points to",
+    "edit": "Edit status"
+  }
+}
