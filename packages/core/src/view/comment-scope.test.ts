@@ -43,7 +43,7 @@ describe("commentScope", () => {
       type: "event",
       label: {
         key: "comment.scope.event",
-        args: { summary: "長文記事" },
+        args: { kind: 30_023 },
       },
       target: { form: "address", address: ARTICLE, relay: "wss://r.example/" },
     });
@@ -53,7 +53,7 @@ describe("commentScope", () => {
     // 捕まえる変異: K だけで kind を決める（K を落とすクライアントのコメントが「コメント」とだけ出る）
     expect(commentScope(comment([["A", ARTICLE]]))?.label).toEqual({
       key: "comment.scope.event",
-      args: { summary: "長文記事" },
+      args: { kind: 30_023 },
     });
   });
 

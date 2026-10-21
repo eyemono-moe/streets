@@ -99,5 +99,8 @@
     "separator": "：",
     "reasonWithDetail": "{{ reason }}（{{ detail }}）",
     "unknownReason": "理由は分かりません"
+  },
+  "kind": {
+    "unknown": "イベント"
   }
 }

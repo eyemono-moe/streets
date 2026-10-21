@@ -86,6 +86,8 @@ export const validateKindInventory = (inventory, kinds) => {
     if (!["表示対応", "内部利用", "未対応"].includes(entry.status))
       throw Error(`対応状態が不正: kind:${entry.kind}`);
     if (!entry.summary) throw Error(`内容がない: kind:${entry.kind}`);
+    // 画面では kind の名前を文の中に出すので、英語の名前も要る。
+    if (!entry.summaryEn) throw Error(`英語の名前がない: kind:${entry.kind}`);
   }
   for (const entry of inventory) {
     for (const kind of entry.kinds) {

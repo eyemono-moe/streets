@@ -8,10 +8,9 @@ import {
   addressOfNaddr,
 } from "@streets/core/nostr/address";
 import { type EventRef, idRefOfPointer } from "@streets/core/nostr/event-refs";
-import { kindLabel } from "@streets/core/nostr/kind-support";
 import type { Nip19Ref } from "@streets/core/nostr/nip19";
 import { type Component, Match, Show, Switch } from "solid-js";
-import { t } from "../i18n/locale";
+import { kindLabel, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import AvatarImage from "../ui/Avatar";
 import Name from "./Name";

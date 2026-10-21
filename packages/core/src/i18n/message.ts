@@ -39,6 +39,7 @@ export type MessageKey =
   | "column.title.welcome"
   | "column.title.relays"
   | "column.title.note"
+  | "column.title.kind"
   | "column.alert.directUnreachable"
   | "column.alert.directUnreachableAction"
   | "column.alert.relaysBlocked"
