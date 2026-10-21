@@ -46,7 +46,37 @@
   },
   "sample": {
     "label": "Sample",
-    "login": "Sign in"
+    "login": "Sign in",
+    "names": {
+      "you": "You",
+      "sora": "Sora",
+      "nanami": "Nanami",
+      "haru": "Haru"
+    },
+    "notes": {
+      "hello": "Just started Nostr with Streets. Nice to meet you all!",
+      "coffee": "Home, notifications and #coffee side by side in columns. Looking through them has become my morning routine.",
+      "portable": "Love that my Nostr account works as-is in other apps too.",
+      "lime": "Switched my theme color to lime. Feels fresh.",
+      "bakery": "The bakery by the station has cinnamon rolls only on Tuesdays.",
+      "books": "Rainy days are for working through my reading pile.",
+      "welcome": "Welcome! Feel free to ask if anything's unclear.",
+      "nice": "Nice to meet you! I just started too."
+    },
+    "lists": {
+      "music": {
+        "title": "Music",
+        "description": "People who make songs"
+      },
+      "food": {
+        "title": "Food",
+        "description": "Cooking and eating out"
+      },
+      "photo": {
+        "title": "Photos",
+        "description": "People who take and enjoy photos"
+      }
+    }
   },
   "blocks": {
     "empty": {
