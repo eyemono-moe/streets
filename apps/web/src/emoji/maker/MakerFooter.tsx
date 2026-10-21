@@ -12,7 +12,7 @@ import {
   textProblem,
 } from "@streets/core/emoji-maker/text";
 import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
-import { t } from "../../i18n/locale";
+import { t, message } from "../../i18n/locale";
 import Button from "../../ui/Button";
 import type { PickerLayout } from "../PickerSurface";
 import { prefetchKana } from "./glyphs";
@@ -25,7 +25,13 @@ export const pickerCandidates = (last: Style | undefined): MakerCandidate[] => {
   const presets = PICKER_PRESET_IDS.flatMap((id) => {
     const preset = presetById(id);
     return preset
-      ? [{ label: preset.label, style: styleOfPreset(preset), presetId: id }]
+      ? [
+          {
+            label: message(preset.label),
+            style: styleOfPreset(preset),
+            presetId: id,
+          },
+        ]
       : [];
   });
   if (!last || presets.some((candidate) => sameStyle(candidate.style, last))) {

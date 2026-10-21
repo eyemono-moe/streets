@@ -25,7 +25,6 @@ import {
   columnShow,
   groupsActions,
 } from "@streets/core/deck/deck";
-import { followSetName } from "@streets/core/lists/follow-set";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   hasSearchExclusions,
@@ -43,7 +42,8 @@ import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import { fallbackRelays } from "../fallback-relay-setting";
-import { t } from "../i18n/locale";
+import { t, locale } from "../i18n/locale";
+import { followSetName } from "../lists/follow-set-name";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
@@ -383,7 +383,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     meta: (source) => ({
       icon: "i-material-symbols:history-rounded",
       subtitle: t("columns.views.subtitle.timeslip", {
-        time: formatEventTimeFull(new Date(source.until * 1000)),
+        time: formatEventTimeFull(new Date(source.until * 1000), locale()),
       }),
     }),
     Sample: () => (

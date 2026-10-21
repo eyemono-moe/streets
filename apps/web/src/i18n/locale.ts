@@ -97,6 +97,10 @@ export const message = (
   return translate(`core.${text.key}`, merged);
 };
 
+/** 文言（core が返すキー）か、書いた人や相手の文字列かを問わず、画面に出す文にする。 */
+export const messageOrText = (text: Message | string): string =>
+  typeof text === "string" ? text : message(text);
+
 /**
  * 文の中に部品（名前のリンクなど）を挟むとき、挟む位置の前と後ろの文を返す。
  * 語順が言語で違うので、前後を別のキーに分けずに、1 つの文の `{{ slot }}` で分ける。

@@ -1,12 +1,12 @@
 import {
   type FollowSet,
-  followSetName,
   mayBeLegacyMuteSet,
 } from "@streets/core/lists/follow-set";
 import { type Component, For, Show } from "solid-js";
 import { plural, t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import Name from "../note/Name";
+import { followSetName } from "./follow-set-name";
 import ListPicture from "./ListPicture";
 
 /** 「12 人・非公開 3 人」。非公開がいなければ人数だけ。 */

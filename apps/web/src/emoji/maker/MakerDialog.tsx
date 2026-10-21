@@ -22,7 +22,7 @@ import {
 import { defaultShortcode } from "@streets/core/emoji-maker/url";
 import { isValidShortcode } from "@streets/core/nostr/content";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
-import { t } from "../../i18n/locale";
+import { t, message } from "../../i18n/locale";
 import Button from "../../ui/Button";
 import ColorField from "../../ui/ColorField";
 import {
@@ -317,7 +317,7 @@ export const MakerEditor: Component<{
                 <For each={PRESETS}>
                   {(preset) => (
                     <PresetButton
-                      label={preset.label}
+                      label={message(preset.label)}
                       selected={presetId() === preset.id}
                       spec={{
                         ...spec(),

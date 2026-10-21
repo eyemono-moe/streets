@@ -76,6 +76,154 @@
         "other": "Saved. It didn't reach {{ count }} relays"
       },
       "saved": "Saved"
+    },
+    "error": {
+      "unverifiable": "Can't send an event whose signature can't be verified",
+      "encrypted": "Can't resend an encrypted event",
+      "deleted": "This post was deleted. Change its content or time and post it again.",
+      "verifyFailed": "Couldn't verify the post (the extension's response is broken)."
     }
+  },
+  "signer": {
+    "wait": {
+      "profile": "Waiting to sign your profile",
+      "post": "Waiting to sign your post",
+      "follow": "Waiting to sign your follow list",
+      "delete": "Waiting to sign the post deletion",
+      "repost": "Waiting to sign the repost",
+      "reaction": "Waiting to sign the reaction",
+      "mute": "Waiting to sign your mute list",
+      "relayList": "Waiting to sign your relay settings",
+      "bookmark": "Waiting to sign your bookmarks",
+      "relayAuth": "Waiting to sign in to the relay",
+      "settings": "Waiting to sign your settings",
+      "unknown": "Waiting for a signature"
+    },
+    "bunker": {
+      "unparsable": "Can't read this bunker URI",
+      "notBunker": "Enter a URI that starts with bunker://",
+      "unsupported": "This bunker URI has parts that aren't supported",
+      "invalidPubkey": "The remote signer's public key is invalid",
+      "relayScheme": "Relay URLs must start with ws:// or wss://",
+      "relayRequired": "At least one relay is required",
+      "relayTooMany": "Use at most {{ max }} relays",
+      "secretEmpty": "The secret is empty"
+    }
+  },
+  "comment": {
+    "scope": {
+      "web": "Comment on a web page",
+      "hashtag": "Comment on a hashtag",
+      "geo": "Comment on a place",
+      "isbn": "Comment on a book",
+      "isan": "Comment on a film or show",
+      "doi": "Comment on a paper",
+      "podcast": "Comment on a podcast",
+      "external": "Comment on something external",
+      "event": "Comment on {{ summary }}",
+      "comment": "Comment"
+    }
+  },
+  "time": {
+    "relative": {
+      "now": "now",
+      "minutes": "{{ value }}m",
+      "hours": "{{ value }}h"
+    }
+  },
+  "emoji": {
+    "group": {
+      "own": "My emoji"
+    },
+    "preset": {
+      "pop": "Pop",
+      "clear": "Crisp",
+      "sumi": "Ink",
+      "yuru": "Soft",
+      "alert": "Alert",
+      "neon": "Neon"
+    }
+  },
+  "media": {
+    "server": {
+      "urlRequired": "Enter the upload server's URL",
+      "httpsRequired": "Enter a URL that starts with https://",
+      "duplicate": "This upload server is already added"
+    },
+    "upload": {
+      "unreadableResponse": "Couldn't read the upload server's response",
+      "notNip96": "The server didn't respond as a NIP-96 upload server",
+      "notUploadServer": "{{ server }} didn't respond as an image upload server. Check the URL"
+    }
+  },
+  "poll": {
+    "deadline": {
+      "closed": "Closed",
+      "minutes": {
+        "one": "{{ count }} minute left",
+        "other": "{{ count }} minutes left"
+      },
+      "hours": {
+        "one": "{{ count }} hour left",
+        "other": "{{ count }} hours left"
+      },
+      "days": {
+        "one": "{{ count }} day left",
+        "other": "{{ count }} days left"
+      }
+    }
+  },
+  "shortcut": {
+    "compose": "Open the compose panel",
+    "search": "Open the search panel",
+    "addColumn": "Open the add column panel",
+    "palette": "Open the command palette"
+  },
+  "relay": {
+    "input": {
+      "urlRequired": "Enter the relay's URL",
+      "wssRequired": "Enter a relay URL that starts with wss://",
+      "duplicate": "This relay is already added"
+    },
+    "usage": {
+      "readWrite": "Read and write",
+      "read": "Read",
+      "write": "Write"
+    },
+    "followeeCount": {
+      "one": "{{ count }} person",
+      "other": "{{ count }} people"
+    }
+  },
+  "profile": {
+    "error": {
+      "url": "Enter a URL that starts with https://",
+      "nip05": "Enter it as name@example.com",
+      "lightningAddress": "Enter it as name@wallet.example (your wallet app shows it)"
+    }
+  },
+  "display": {
+    "contrast": {
+      "standard": "Default"
+    }
+  },
+  "sync": {
+    "error": {
+      "storage": "Couldn't save the sync data on this device. Check your browser's storage settings",
+      "nip44Unavailable": "This sign-in method can't encrypt your deck for syncing",
+      "invalidRemote": "Couldn't read the sync data on the relays",
+      "load": "Couldn't load the sync data. Check your connection and try again",
+      "save": "Couldn't save the sync data. Check your signer and connection, then try again"
+    }
+  },
+  "zap": {
+    "error": {
+      "invalidInvoice": "The invoice is malformed",
+      "declined": "The recipient's server declined",
+      "noInvoice": "No invoice came back"
+    }
+  },
+  "lists": {
+    "unnamed": "Unnamed list"
   }
 }

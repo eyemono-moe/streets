@@ -25,11 +25,21 @@ describe("relaySuggestions", () => {
     expect(
       result.map((item) => [item.group, item.url, item.detail, item.added]),
     ).toEqual([
-      ["account", url("yabu.me"), "読み書き", true],
-      ["account", url("relay-jp.example"), "読み込み", false],
+      ["account", url("yabu.me"), { key: "relay.usage.readWrite" }, true],
+      ["account", url("relay-jp.example"), { key: "relay.usage.read" }, false],
       // 捕まえる変異: 同じ人のリレーを重ねて数える（2 人が 3 人になる）
-      ["followees", url("nos.lol"), "2 人", false],
-      ["followees", url("relay.damus.io"), "1 人", false],
+      [
+        "followees",
+        url("nos.lol"),
+        { key: "relay.followeeCount", count: 2 },
+        false,
+      ],
+      [
+        "followees",
+        url("relay.damus.io"),
+        { key: "relay.followeeCount", count: 1 },
+        false,
+      ],
     ]);
   });
 

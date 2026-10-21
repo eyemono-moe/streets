@@ -1,3 +1,4 @@
+import type { Message } from "@streets/core/i18n/message";
 import {
   DEFAULT_BLOSSOM_SERVERS,
   parseServerInput,
@@ -12,7 +13,7 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
-import { t } from "../i18n/locale";
+import { t, message } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -177,7 +178,7 @@ const AddServer: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   const [text, setText] = createSignal("");
-  const [error, setError] = createSignal<string>();
+  const [error, setError] = createSignal<Message>();
 
   const submit = () => {
     const result = parseServerInput(
@@ -231,9 +232,9 @@ const AddServer: Component<{
           </p>
         }
       >
-        {(message) => (
+        {(text) => (
           <p id="media-input-error" class="c-danger text-caption">
-            {message()}
+            {message(text())}
           </p>
         )}
       </Show>

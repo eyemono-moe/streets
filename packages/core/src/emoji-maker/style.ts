@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import type { FontId } from "./glyph-shard";
 
 export type HexColor = `#${string}`;
@@ -13,7 +14,7 @@ export type Style = {
 
 export type Preset = {
   id: string;
-  label: string;
+  label: Message;
   color: HexColor;
   outlineWidth: number;
   font: FontId;
@@ -23,36 +24,42 @@ export type Preset = {
 export const PRESETS: readonly Preset[] = [
   {
     id: "pop",
-    label: "ポップ",
+    label: { key: "emoji.preset.pop" },
     color: "#ffd43b",
     outlineWidth: 7,
     font: "rounded",
   },
   {
     id: "clear",
-    label: "くっきり",
+    label: { key: "emoji.preset.clear" },
     color: "#ffffff",
     outlineWidth: 7,
     font: "gothic",
   },
-  { id: "sumi", label: "墨", color: "#222226", outlineWidth: 5, font: "serif" },
+  {
+    id: "sumi",
+    label: { key: "emoji.preset.sumi" },
+    color: "#222226",
+    outlineWidth: 5,
+    font: "serif",
+  },
   {
     id: "yuru",
-    label: "ゆる",
+    label: { key: "emoji.preset.yuru" },
     color: "#ff8fb8",
     outlineWidth: 6,
     font: "rounded",
   },
   {
     id: "alert",
-    label: "警告",
+    label: { key: "emoji.preset.alert" },
     color: "#e5383b",
     outlineWidth: 6,
     font: "gothic",
   },
   {
     id: "neon",
-    label: "ネオン",
+    label: { key: "emoji.preset.neon" },
     color: "#3ee0f0",
     outlineWidth: 7,
     font: "rounded",

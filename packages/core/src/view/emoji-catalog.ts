@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import type {
   CustomEmoji,
   EmojiList,
@@ -10,7 +11,8 @@ import type { EmojiSet } from "../settings/emoji-set";
 export type EmojiGroup = {
   /** 見出しの id。ピッカーのタブはこれで行き先を指す。 */
   id: string;
-  title: string;
+  /** セットの題名は書いた人の文字列。自分の絵文字だけ文言。 */
+  title: Message | string;
   emojis: CustomEmoji[];
 };
 
@@ -50,7 +52,11 @@ export const customEmojiGroups = (
   const groups: EmojiGroup[] = [];
   const own = dedupe(list.emojis);
   if (own.length > 0) {
-    groups.push({ id: OWN_EMOJI_GROUP_ID, title: "自分の絵文字", emojis: own });
+    groups.push({
+      id: OWN_EMOJI_GROUP_ID,
+      title: { key: "emoji.group.own" },
+      emojis: own,
+    });
   }
   for (const ref of list.sets) {
     const set = setOf(sets, ref);

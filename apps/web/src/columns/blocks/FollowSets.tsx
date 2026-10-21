@@ -7,7 +7,6 @@ import {
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import {
   type FollowSet,
-  followSetName,
   followSetsIncluding,
   latestFollowSets,
   readFollowSet,
@@ -22,6 +21,7 @@ import {
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { t } from "../../i18n/locale";
+import { followSetName } from "../../lists/follow-set-name";
 import FollowSetInfoView from "../../lists/FollowSetInfoView";
 import FollowSetListView from "../../lists/FollowSetListView";
 import { useFollowSets } from "../../lists/FollowSetMediator";

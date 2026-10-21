@@ -6,7 +6,6 @@ import {
   type FollowSetChange,
   changeFollowSet,
   decodeFollowSet,
-  followSetName,
   latestFollowSets,
   newFollowSetIdentifier,
   readFollowSet,
@@ -49,6 +48,7 @@ import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import { trackWrites } from "../write-progress";
+import { followSetName } from "./follow-set-name";
 
 const FollowSetFormDialog = lazyPart(() => import("./FollowSetFormDialog"));
 

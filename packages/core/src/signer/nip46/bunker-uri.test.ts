@@ -42,7 +42,10 @@ describe("parseBunkerUri", () => {
       (_, index) => `relay=wss%3A%2F%2Fr${index}.example`,
     ).join("&");
     expect(() => parseBunkerUri(`bunker://${PUBKEY}?${query}`)).toThrow(
-      "relay は5本まで",
+      new InvalidBunkerUriError({
+        key: "signer.bunker.relayTooMany",
+        args: { max: 5 },
+      }),
     );
   });
 });

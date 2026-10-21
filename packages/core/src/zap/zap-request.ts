@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import { addressOfEvent, formatEventAddress } from "../nostr/address";
 import type { EventDraft } from "../nostr/build/draft";
 import type { NostrEvent } from "../nostr/event";
@@ -94,12 +95,12 @@ export const zapInvoiceUrl = (options: {
   return url.toString();
 };
 
-/** callback の答え。請求書（`pr`）か、断られた理由。 */
+/** callback の答え。請求書（`pr`）か、断られた理由（サーバーが添えた文はそのまま）。 */
 export const parseInvoiceResponse = (
   json: unknown,
-): { invoice: string } | { error: string } => {
+): { invoice: string } | { error: Message | string } => {
   if (typeof json !== "object" || json === null) {
-    return { error: "請求書の形が不正です" };
+    return { error: { key: "zap.error.invalidInvoice" } };
   }
   const record = json as Record<string, unknown>;
   if (record.status === "ERROR") {
@@ -107,10 +108,10 @@ export const parseInvoiceResponse = (
       error:
         typeof record.reason === "string" && record.reason
           ? record.reason
-          : "送り先のサーバーに断られました",
+          : { key: "zap.error.declined" },
     };
   }
   return typeof record.pr === "string" && record.pr
     ? { invoice: record.pr }
-    : { error: "請求書が返ってきませんでした" };
+    : { error: { key: "zap.error.noInvoice" } };
 };

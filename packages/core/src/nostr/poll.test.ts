@@ -152,9 +152,20 @@ describe("pollDeadlineLabel", () => {
   it("残りを日・時間・分で、過ぎたら締め切りと出す", () => {
     const poll = parsePoll(pollEvent([["endsAt", "200000"]]));
     if (!poll) throw new Error("poll");
-    expect(pollDeadlineLabel(poll, 200_000 - 2 * 86_400 - 5)).toBe("あと 2 日");
-    expect(pollDeadlineLabel(poll, 200_000 - 5 * 3600)).toBe("あと 5 時間");
-    expect(pollDeadlineLabel(poll, 200_000 - 30)).toBe("あと 1 分");
-    expect(pollDeadlineLabel(poll, 200_000)).toBe("締め切りました");
+    expect(pollDeadlineLabel(poll, 200_000 - 2 * 86_400 - 5)).toEqual({
+      key: "poll.deadline.days",
+      count: 2,
+    });
+    expect(pollDeadlineLabel(poll, 200_000 - 5 * 3600)).toEqual({
+      key: "poll.deadline.hours",
+      count: 5,
+    });
+    expect(pollDeadlineLabel(poll, 200_000 - 30)).toEqual({
+      key: "poll.deadline.minutes",
+      count: 1,
+    });
+    expect(pollDeadlineLabel(poll, 200_000)).toEqual({
+      key: "poll.deadline.closed",
+    });
   });
 });

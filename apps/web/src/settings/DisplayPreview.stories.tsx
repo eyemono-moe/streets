@@ -5,6 +5,7 @@ import {
 } from "@streets/core/settings/ui-contrast";
 import { For } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { messageOrText } from "../i18n/locale";
 import DisplayPreview from "./DisplayPreview";
 
 const meta = {
@@ -29,7 +30,9 @@ export const Contrast: Story = {
             class="c-primary flex flex-col gap-2 bg-primary"
             style={{ "--ui-contrast": factor }}
           >
-            <p class="text-body font-bold">{formatUiContrast(factor)}</p>
+            <p class="text-body font-bold">
+              {messageOrText(formatUiContrast(factor))}
+            </p>
             <DisplayPreview />
             {/* 投稿の外の段。薄い面と区切り線が、背景と見分けられるかを見る。 */}
             <div class="flex flex-col gap-1 rounded-2 border border-primary p-2">

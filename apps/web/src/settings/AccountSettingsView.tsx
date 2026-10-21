@@ -33,7 +33,7 @@ import {
   userSource,
 } from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
-import { t } from "../i18n/locale";
+import { message, t } from "../i18n/locale";
 import ImageUrlField from "../media/ImageUrlField";
 import { useNip05Lookup } from "../profile/nip05";
 import { Nip05View } from "../profile/Nip05Badge";
@@ -412,7 +412,7 @@ const ProfileImageInput: Component<{
     <ImageUrlField
       label={props.label}
       value={props.state.draft[props.field]}
-      error={profileErrors(props.state.draft)[props.field]}
+      error={fieldError(props.state.draft, props.field)}
       aspectRatio={props.aspectRatio}
       disabled={props.state.saving}
       preview={props.preview}
@@ -463,7 +463,7 @@ const ProfileInput: Component<{
       multiline={props.multiline}
       type={props.type}
       value={props.state.draft[props.field]}
-      error={profileErrors(props.state.draft)[props.field]}
+      error={fieldError(props.state.draft, props.field)}
       onBlur={props.onBlur}
       status={props.status}
       onInput={(value) =>
@@ -548,6 +548,11 @@ const AccountId: Component<{ pubkey: string }> = (props) => {
       </Button>
     </div>
   );
+};
+
+const fieldError = (draft: ProfileEditState["draft"], field: ProfileField) => {
+  const error = profileErrors(draft)[field];
+  return error && message(error);
 };
 
 export default AccountSettingsView;

@@ -1,7 +1,6 @@
 import { columnTitle } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { Message } from "@streets/core/i18n/message";
-import { followSetName } from "@streets/core/lists/follow-set";
 import {
   CHANNEL_CREATE_KIND,
   parseChannelMetadata,
@@ -9,6 +8,7 @@ import {
 import { profileLabel } from "@streets/core/nostr/profile";
 import { type Accessor, type Component, Show } from "solid-js";
 import { message, messageAround } from "../i18n/locale";
+import { followSetName } from "../lists/follow-set-name";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import Name from "../note/Name";
 import { useEvent } from "../note/use-event";

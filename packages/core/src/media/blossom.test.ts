@@ -96,7 +96,7 @@ describe("parseServerInput", () => {
       parseServerInput("https://a.example/", ["https://a.example"]),
     ).toMatchObject({
       ok: false,
-      message: "このアップロード先はもう入っています",
+      message: { key: "media.server.duplicate" },
     });
   });
 
