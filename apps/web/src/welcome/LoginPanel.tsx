@@ -12,6 +12,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { isMultiColumn } from "../deck-layout-setting";
+import { t } from "../i18n/locale";
 import type { ConnectAttempt } from "../session";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -45,7 +46,7 @@ const BackButton: Component<{ onClick: () => void }> = (props) => (
       class="i-material-symbols:arrow-back-rounded size-4"
       aria-hidden="true"
     />
-    戻る
+    {t("welcome.login.back")}
   </button>
 );
 
@@ -128,7 +129,7 @@ const LoginPanel: Component<{
             aria-labelledby="choose-heading"
           >
             <h2 id="choose-heading" class="sr-only">
-              はじめる
+              {t("welcome.login.choose.heading")}
             </h2>
             <div
               ref={(element) => (nudgeTarget = element)}
@@ -136,15 +137,15 @@ const LoginPanel: Component<{
             >
               <ChoiceButton
                 icon="i-material-symbols:person-add-outline-rounded"
-                title="Nostrをはじめる"
-                description="アカウントの作成から案内します"
+                title={t("welcome.login.new.title")}
+                description={t("welcome.login.new.description")}
                 trailing="next"
                 onClick={() => setStep("new")}
               />
               <ChoiceButton
                 icon="i-material-symbols:login-rounded"
-                title="アカウントを持っている方"
-                description="今のNostrアカウントでログインします"
+                title={t("welcome.login.existing.title")}
+                description={t("welcome.login.existing.description")}
                 trailing="next"
                 onClick={() => setStep("existing")}
               />
@@ -153,14 +154,14 @@ const LoginPanel: Component<{
                 when={!isMultiColumn()}
                 fallback={
                   <p class="c-secondary text-caption">
-                    ログインしなくても、ほかのカラムで投稿を読めます。
+                    {t("welcome.login.choose.browseHint")}
                   </p>
                 }
               >
                 <ChoiceButton
                   icon="i-material-symbols:visibility-outline-rounded"
-                  title="ログインせずに読む"
-                  description="投稿を見るだけならアカウントは不要です"
+                  title={t("welcome.login.browse.title")}
+                  description={t("welcome.login.browse.description")}
                   trailing="next"
                   onClick={() => dispatch({ type: "deck/browse" })}
                 />
@@ -182,7 +183,7 @@ const LoginPanel: Component<{
           >
             <BackButton onClick={() => setStep("choose")} />
             <h2 id="new-heading" class="font-600 text-body">
-              Nostrをはじめる
+              {t("welcome.login.new.title")}
             </h2>
             <NewcomerGuide
               initialDevice={
@@ -209,7 +210,7 @@ const LoginPanel: Component<{
           >
             <BackButton onClick={() => setStep("choose")} />
             <h2 id="existing-heading" class="font-600 text-body">
-              アカウントを持っている方
+              {t("welcome.login.existing.title")}
             </h2>
 
             <Show when={props.state.error}>
@@ -226,7 +227,7 @@ const LoginPanel: Component<{
                       disabled={props.state.pending}
                       onClick={() => props.onRetryRestore()}
                     >
-                      もう一度試す
+                      {t("welcome.login.retry")}
                     </Button>
                   </Show>
                 </div>
@@ -235,8 +236,8 @@ const LoginPanel: Component<{
 
             <ChoiceButton
               icon="i-material-symbols:extension-outline-rounded"
-              title="拡張機能でログイン"
-              description="nos2x や Alby など、ブラウザの拡張機能に署名を頼みます"
+              title={t("welcome.login.extension.title")}
+              description={t("welcome.login.extension.description")}
               disabled={props.state.pending}
               onClick={() => props.onExtension()}
             />
@@ -252,8 +253,8 @@ const LoginPanel: Component<{
                   <ChoiceButton
                     {...trigger()}
                     icon="i-material-symbols:phonelink-lock-outline-rounded"
-                    title="リモート署名器でログイン"
-                    description="Amber や Primal など、鍵を預かる別のアプリに署名を頼みます"
+                    title={t("welcome.login.remote.title")}
+                    description={t("welcome.login.remote.description")}
                     trailing="expand"
                   />
                 )}
@@ -278,7 +279,7 @@ const LoginPanel: Component<{
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  署名器で接続を承認する
+                  {t("welcome.login.approve")}
                 </a>
               )}
             </Show>

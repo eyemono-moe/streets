@@ -1,4 +1,5 @@
 import { type Component, type JSX, Show, splitProps } from "solid-js";
+import { t } from "../i18n/locale";
 import Completion, { type CompletionSource } from "./Completion";
 import IconButton from "./IconButton";
 
@@ -54,7 +55,7 @@ const SearchInput: Component<SearchInputProps> = (props) => {
       />
       <Completion
         sources={own.completion ?? []}
-        label={own.completionLabel ?? "入れる候補"}
+        label={own.completionLabel ?? t("ui.completion.label")}
       >
         {(attach) => (
           <input
@@ -88,7 +89,7 @@ const SearchInput: Component<SearchInputProps> = (props) => {
       <Show when={clearing()}>
         <IconButton
           icon="i-material-symbols:close-rounded"
-          label="入力を消す"
+          label={t("ui.searchInput.clear")}
           onClick={clear}
         />
       </Show>

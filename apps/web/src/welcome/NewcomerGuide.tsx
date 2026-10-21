@@ -7,6 +7,7 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import ChoiceButton from "../ui/ChoiceButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import { GUIDE, GuideLink } from "./guide";
@@ -44,10 +45,7 @@ const Links: Component<{ links: { href: string; label: string }[] }> = (
 
 const RemoteLoginStep: Component = () => (
   <Step>
-    <p>
-      Streets
-      に戻り、「リモート署名器でログイン」の「この端末の署名器で開く」を押して、アプリで承認します。
-    </p>
+    <p>{t("welcome.newcomer.steps.remoteLogin")}</p>
   </Step>
 );
 
@@ -63,13 +61,9 @@ const NewcomerGuide: Component<{
   const [device, setDevice] = createSignal(props.initialDevice);
   return (
     <div class="flex flex-col gap-4">
-      <p class="text-caption">
-        Nostrでは、秘密鍵があなたのアカウントの鍵になります。
-        この鍵は他人に見せず、なくさないように大切に保管してください。
-        Streetsでは秘密鍵を保存せず、専用のアプリや拡張機能を通して安全に利用します。
-      </p>
+      <p class="text-caption">{t("welcome.newcomer.intro")}</p>
       <SegmentedControl
-        label="使っている端末"
+        label={t("welcome.newcomer.deviceLabel")}
         variant="secondary"
         block
         value={device()}
@@ -87,7 +81,7 @@ const NewcomerGuide: Component<{
           },
           {
             value: "pc",
-            label: "パソコン",
+            label: t("welcome.newcomer.devices.pc"),
             icon: "i-material-symbols:computer-outline-rounded",
           },
         ]}
@@ -96,7 +90,7 @@ const NewcomerGuide: Component<{
         <Match when={device() === "android"}>
           <Steps>
             <Step>
-              <p>秘密鍵を保存するアプリを入手します。</p>
+              <p>{t("welcome.newcomer.steps.getApp")}</p>
               <Links
                 links={[
                   { href: PRIMAL_ANDROID, label: "Primal（Google Play）" },
@@ -105,7 +99,7 @@ const NewcomerGuide: Component<{
               />
             </Step>
             <Step>
-              <p>アプリを開き、案内に沿ってアカウントを作ります。</p>
+              <p>{t("welcome.newcomer.steps.createAccountInApp")}</p>
             </Step>
             <RemoteLoginStep />
           </Steps>
@@ -113,13 +107,13 @@ const NewcomerGuide: Component<{
         <Match when={device() === "ios"}>
           <Steps>
             <Step>
-              <p>秘密鍵を保存するアプリを入手します。</p>
+              <p>{t("welcome.newcomer.steps.getApp")}</p>
               <Links
                 links={[{ href: PRIMAL_IOS, label: "Primal（App Store）" }]}
               />
             </Step>
             <Step>
-              <p>アプリを開き、案内に沿ってアカウントを作ります。</p>
+              <p>{t("welcome.newcomer.steps.createAccountInApp")}</p>
             </Step>
             <RemoteLoginStep />
           </Steps>
@@ -127,7 +121,7 @@ const NewcomerGuide: Component<{
         <Match when={device() === "pc"}>
           <Steps>
             <Step>
-              <p>秘密鍵を保存する拡張機能を入手します。</p>
+              <p>{t("welcome.newcomer.steps.getExtension")}</p>
               <Links
                 links={[
                   { href: NOS2X_CHROME, label: "nos2x（Chrome）" },
@@ -137,25 +131,24 @@ const NewcomerGuide: Component<{
               />
             </Step>
             <Step>
-              <p>拡張機能の設定を開き、アカウント（鍵）を作ります。</p>
+              <p>{t("welcome.newcomer.steps.createAccountInExtension")}</p>
             </Step>
             <Step>
-              <p>Streets に戻り、「拡張機能でログイン」を押します。</p>
+              <p>{t("welcome.newcomer.steps.extensionLogin")}</p>
             </Step>
           </Steps>
           <p class="c-secondary text-caption">
-            拡張機能を入れたくないときは、スマートフォンのアプリでアカウントを作り、「リモート署名器でログイン」の
-            QR コードを読み取ってもログインできます。
+            {t("welcome.newcomer.pcAlternative")}
           </p>
         </Match>
       </Switch>
       <p class="c-secondary text-caption">
-        アプリや拡張機能が作った秘密鍵は、なくすと二度と取り戻せません。案内に沿って控えを取っておいてください。
-        <GuideLink href={GUIDE}>Nostr のはじめかた</GuideLink>
+        {t("welcome.newcomer.keyWarning")}
+        <GuideLink href={GUIDE}>{t("welcome.newcomer.guide")}</GuideLink>
       </p>
       <ChoiceButton
         icon="i-material-symbols:login-rounded"
-        title="アカウントを作ったらログインへ"
+        title={t("welcome.newcomer.done")}
         trailing="next"
         onClick={() => props.onDone(device())}
       />

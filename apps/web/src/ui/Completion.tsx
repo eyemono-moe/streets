@@ -18,6 +18,7 @@ import {
   onMount,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { t } from "../i18n/locale";
 import { type CaretOffset, caretOffset, caretRect } from "./caret";
 import { insertText } from "./insert-text";
 import { Portal } from "./Portal";
@@ -292,7 +293,7 @@ const Completion = (props: {
               </For>
             </div>
             <p class="c-secondary b-t-1 border-control px-2.5 py-1 text-caption">
-              ↑↓ で選ぶ · Enter で入れる · Esc で閉じる
+              {t("ui.completion.keyHint")}
             </p>
           </Popover.Content>
         </Popover.Positioner>

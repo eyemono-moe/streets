@@ -1,5 +1,6 @@
 import { Tabs } from "@ark-ui/solid/tabs";
 import { type Component, For, type JSX, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import {
   DialogClose,
   DialogContent,
@@ -41,7 +42,7 @@ const PagedDialog: Component<{
   /** 背景の色。後ろの画面を暗くせずに見せたいページで変える。 */
   backdropClass?: string;
 }> = (props) => {
-  const closeLabel = () => `${props.title}を閉じる`;
+  const closeLabel = () => t("ui.pagedDialog.close", { title: props.title });
   const pageBody = (page: DialogPage) => (
     <>
       <div
@@ -150,7 +151,9 @@ const PagedDialog: Component<{
                       />
                       {page.label}
                       <Show when={page.content === undefined}>
-                        <span class="sr-only">（準備中）</span>
+                        <span class="sr-only">
+                          {t("ui.pagedDialog.comingSoon")}
+                        </span>
                       </Show>
                     </Tabs.Trigger>
                   )}

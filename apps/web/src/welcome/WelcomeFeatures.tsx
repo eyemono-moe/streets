@@ -1,5 +1,6 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import { type Component, For, type ParentComponent, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import { displayHotkey, keymap } from "../keymap";
 import PalettePicker from "../settings/PalettePicker";
 import { type ColorScheme, paletteOf } from "../theme";
@@ -13,27 +14,23 @@ import ReorderDemo from "./ReorderDemo";
 const REPOSITORY = "https://github.com/eyemono-moe/streets";
 
 const COLUMN_KINDS = [
-  "ホーム",
-  "通知",
-  "検索",
-  "リスト",
-  "チャンネル",
-  "ユーザー",
-  "ブックマーク",
-  "長文記事",
+  "home",
+  "notifications",
+  "search",
+  "lists",
+  "channels",
+  "users",
+  "bookmarks",
+  "articles",
+] as const;
+
+const schemes = (): { value: ColorScheme; label: string }[] => [
+  { value: "light", label: t("welcome.features.custom.schemes.light") },
+  { value: "dark", label: t("welcome.features.custom.schemes.dark") },
+  { value: "system", label: t("welcome.features.custom.schemes.system") },
 ];
 
-const SCHEMES: { value: ColorScheme; label: string }[] = [
-  { value: "light", label: "ライト" },
-  { value: "dark", label: "ダーク" },
-  { value: "system", label: "端末に合わせる" },
-];
-
-const OTHERS = [
-  "投稿の日時へタイムスリップして、その前後のタイムラインを見返せる",
-  "文字からカスタム絵文字を作れる",
-  "カラムをピクチャーインピクチャーで表示して、別の画面を開いていても読める",
-];
+const OTHERS = ["timeTravel", "customEmoji", "pip"] as const;
 
 const Section: ParentComponent<{ id: string; title: string; lead: string }> = (
   props,
@@ -100,31 +97,36 @@ const WelcomeFeatures: Component<{
     <>
       <Section
         id="welcome-nostr"
-        title="Nostrのアカウントで使える"
-        lead="Streetsは、分散型SNSの共通規格「Nostr」を使ったアプリです。投稿は「リレー」と呼ばれるサーバーに保存され、複数のアプリから閲覧できます。"
+        title={t("welcome.features.nostr.title")}
+        lead={t("welcome.features.nostr.lead")}
       >
         <NostrDiagram />
-        <Point title="ほかのアプリでも使える">
-          ほかのNostrアプリでも同じアカウントでログインできます。フォローしている人の一覧も引き継がれます。
+        <Point title={t("welcome.features.nostr.otherApps.title")}>
+          {t("welcome.features.nostr.otherApps.body")}
         </Point>
-        <Point title="相手の投稿先を探して読む">
-          Streetsは、フォロー中の人が投稿に使っているリレーを調べ、そこから読み取ります。
+        <Point title={t("welcome.features.nostr.findRelays.title")}>
+          {t("welcome.features.nostr.findRelays.body")}
         </Point>
         <p class="text-caption">
-          <GuideLink href={GUIDE}>Nostr について詳しく知る</GuideLink>
+          <GuideLink href={GUIDE}>
+            {t("welcome.features.nostr.guide")}
+          </GuideLink>
         </p>
       </Section>
 
       <Section
         id="welcome-columns"
-        title="見たいものを並べる"
-        lead="ホーム、通知、検索などをカラムに追加できます。"
+        title={t("welcome.features.columns.title")}
+        lead={t("welcome.features.columns.lead")}
       >
-        <ul class="flex flex-wrap gap-2" aria-label="カラムの種類">
+        <ul
+          class="flex flex-wrap gap-2"
+          aria-label={t("welcome.features.columns.kindsLabel")}
+        >
           <For each={COLUMN_KINDS}>
             {(kind) => (
               <li class="rounded-full border border-control px-3 py-1 text-caption">
-                {kind}
+                {t(`welcome.features.columns.kinds.${kind}`)}
               </li>
             )}
           </For>
@@ -137,17 +139,17 @@ const WelcomeFeatures: Component<{
             dispatch({ type: "deck/open-panel", panel: "add-column" })
           }
         >
-          カラムを足してみる
+          {t("welcome.features.columns.add")}
         </Button>
         <ReorderDemo />
       </Section>
 
       <Section
         id="welcome-custom"
-        title="見やすく、操作しやすく"
-        lead="カラーテーマやショートカットキーを柔軟に変更できます。"
+        title={t("welcome.features.custom.title")}
+        lead={t("welcome.features.custom.lead")}
       >
-        <Card title="カラーテーマ">
+        <Card title={t("welcome.features.custom.theme")}>
           <PalettePicker
             value={paletteOf(props.appearance)}
             onChange={(palette) =>
@@ -158,10 +160,10 @@ const WelcomeFeatures: Component<{
             }
           />
           <SegmentedControl
-            label="明るさ"
+            label={t("welcome.features.custom.brightness")}
             variant="secondary"
             block
-            options={SCHEMES}
+            options={schemes()}
             value={props.scheme}
             onChange={(scheme) =>
               dispatch({ type: "deck/set-color-scheme", scheme })
@@ -169,13 +171,13 @@ const WelcomeFeatures: Component<{
           />
         </Card>
         <Show when={props.keyboard}>
-          <Card title="キーボードでも操作">
+          <Card title={t("welcome.features.custom.keyboard.title")}>
             <dl class="flex flex-col gap-2 text-caption">
               <div class="flex items-center gap-3">
                 <dt>
                   <Key>1–9</Key>
                 </dt>
-                <dd>左から1〜9番目のカラムに移動</dd>
+                <dd>{t("welcome.features.custom.keyboard.moveToColumn")}</dd>
               </div>
               <div class="flex items-center gap-3">
                 <dt>
@@ -187,13 +189,13 @@ const WelcomeFeatures: Component<{
                     class="cursor-pointer bg-transparent p-0 text-link"
                     onClick={() => dispatch({ type: "deck/open-palette" })}
                   >
-                    機能を名前で探して開く
+                    {t("welcome.features.custom.keyboard.openPalette")}
                   </button>
                 </dd>
               </div>
               <div class="flex items-center gap-3">
                 <dt>
-                  <Key>設定</Key>
+                  <Key>{t("welcome.features.custom.keyboard.settingsKey")}</Key>
                 </dt>
                 <dd>
                   <button
@@ -206,7 +208,7 @@ const WelcomeFeatures: Component<{
                       })
                     }
                   >
-                    よく使う操作のキーを変更
+                    {t("welcome.features.custom.keyboard.changeKeys")}
                   </button>
                 </dd>
               </div>
@@ -220,19 +222,21 @@ const WelcomeFeatures: Component<{
         aria-labelledby="welcome-others"
       >
         <h2 id="welcome-others" class="font-700 text-body">
-          ほかにも
+          {t("welcome.features.others.title")}
         </h2>
         <ul class="flex flex-col gap-2 text-caption">
-          <For each={OTHERS}>{(item) => <li>・{item}</li>}</For>
+          <For each={OTHERS}>
+            {(item) => <li>・{t(`welcome.features.others.${item}`)}</li>}
+          </For>
         </ul>
       </section>
 
       <nav
         class="flex flex-wrap gap-x-4 gap-y-1 border-primary border-t px-4 py-6"
-        aria-label="Streets の情報"
+        aria-label={t("welcome.features.nav.label")}
       >
-        <AboutLink>Streets について</AboutLink>
-        <AboutLink page="nips">対応している NIP</AboutLink>
+        <AboutLink>{t("welcome.features.nav.about")}</AboutLink>
+        <AboutLink page="nips">{t("welcome.features.nav.nips")}</AboutLink>
         <a
           href={REPOSITORY}
           target="_blank"
@@ -241,7 +245,9 @@ const WelcomeFeatures: Component<{
         >
           GitHub
         </a>
-        <AboutLink page="releases">リリースノート</AboutLink>
+        <AboutLink page="releases">
+          {t("welcome.features.nav.releases")}
+        </AboutLink>
       </nav>
     </>
   );
