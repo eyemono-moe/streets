@@ -1,4 +1,4 @@
-import { findKinds } from "@streets/core/nostr/kind-support";
+import { findKinds, kindSummary } from "@streets/core/nostr/kind-support";
 import { encodeBech32, encodeNprofile } from "@streets/core/nostr/nip19";
 import { type Profile, parseProfile } from "@streets/core/nostr/profile";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -24,6 +24,7 @@ import {
 } from "solid-js";
 import { useEventActions } from "../actions";
 import { useEmojiGroups } from "../emoji/custom-emojis";
+import { locale } from "../i18n/locale";
 import { ProfileName } from "../note/Name";
 import { useOptionalReadLayer } from "../read-layer";
 import Avatar from "../ui/Avatar";
@@ -365,6 +366,8 @@ export const kindSource = (trigger: CompletionTrigger): CompletionSource => ({
         key: String(entry.kind),
         insert: String(entry.kind),
         space: true,
-        view: () => <KindRow kind={entry.kind} summary={entry.summary} />,
+        view: () => (
+          <KindRow kind={entry.kind} summary={kindSummary(entry, locale())} />
+        ),
       })),
 });

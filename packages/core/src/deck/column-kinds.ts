@@ -282,6 +282,17 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       ) {
         return { message: { key: "column.title.note" } };
       }
+      // 住所で指したイベント 1 件（`columnForAddress`）は、その kind の名前で呼ぶ。
+      const [only] = source.filters;
+      if (
+        source.filters.length === 1 &&
+        only?.kinds?.length === 1 &&
+        only["#d"]?.length === 1
+      ) {
+        return {
+          message: { key: "column.title.kind", args: { kind: only.kinds[0] } },
+        };
+      }
       if (onlyKinds && source.relays && source.relays.length > 0) {
         return relayLabelOf(source.relays);
       }

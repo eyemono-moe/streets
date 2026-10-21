@@ -19,7 +19,8 @@
         "one": "リレー（{{ count }}）",
         "other": "リレー（{{ count }}）"
       },
-      "note": "ノート"
+      "note": "ノート",
+      "kind": "{{ kindName }}"
     },
     "alert": {
       "directUnreachable": {
@@ -120,7 +121,7 @@
       "doi": "論文へのコメント",
       "podcast": "ポッドキャストへのコメント",
       "external": "外部のものへのコメント",
-      "event": "{{ summary }}へのコメント",
+      "event": "{{ kindName }}へのコメント",
       "comment": "コメント"
     }
   },

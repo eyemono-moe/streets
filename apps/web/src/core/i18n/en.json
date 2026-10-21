@@ -19,7 +19,8 @@
         "one": "{{ count }} relay",
         "other": "{{ count }} relays"
       },
-      "note": "Note"
+      "note": "Note",
+      "kind": "{{ kindName }}"
     },
     "alert": {
       "directUnreachable": {
@@ -120,7 +121,7 @@
       "doi": "Comment on a paper",
       "podcast": "Comment on a podcast",
       "external": "Comment on something external",
-      "event": "Comment on {{ summary }}",
+      "event": "Comment on {{ kindName }}",
       "comment": "Comment"
     }
   },

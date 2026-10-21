@@ -1,4 +1,4 @@
-import { KIND_SUPPORT } from "@streets/core/nostr/kind-support";
+import { KIND_SUPPORT, kindSummary } from "@streets/core/nostr/kind-support";
 import { NIP_SUPPORT } from "@streets/core/nostr/nip-support";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import {
@@ -11,7 +11,7 @@ import {
   on,
 } from "solid-js";
 import type { ReleaseNote } from "../../release-notes-plugin";
-import { t } from "../i18n/locale";
+import { locale, t } from "../i18n/locale";
 import SettingsSection from "../settings/SettingsSection";
 import { Mediates, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -170,7 +170,9 @@ const KindSupport: Component = () => (
             <span class="c-primary min-w-16 font-600 text-body">
               {entry.kind}
             </span>
-            <span class="c-primary flex-1 text-body">{entry.summary}</span>
+            <span class="c-primary flex-1 text-body">
+              {kindSummary(entry, locale())}
+            </span>
             <span class="c-secondary text-caption">{entry.status}</span>
           </div>
         )}

@@ -8,7 +8,6 @@ import {
 } from "../nostr/address";
 import type { NostrEvent } from "../nostr/event";
 import { relayOf } from "../nostr/event-refs";
-import { KIND_SUPPORT } from "../nostr/kind-support";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { Nip19Ref } from "../nostr/nip19";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -42,9 +41,6 @@ const ADDRESS_OPENERS: Partial<
     ),
 };
 
-const kindLabel = (kind: number): string =>
-  KIND_SUPPORT.find((entry) => entry.kind === kind)?.summary ?? `kind:${kind}`;
-
 /**
  * 住所のイベント 1 件を出すカラム。`relays` は naddr が運ぶリレーの手がかりで、
  * そのイベントを持っている見込みが高い。
@@ -54,7 +50,7 @@ const buildAddressColumn = (
   relays: readonly RelayUrl[],
 ): ColumnDef => ({
   id: `address:${formatEventAddress(address)}`,
-  title: kindLabel(address.kind),
+  title: `kind:${address.kind}`,
   source: {
     kind: "literal",
     filters: [
