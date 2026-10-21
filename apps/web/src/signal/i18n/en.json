@@ -1,0 +1,54 @@
+{
+  "sections": {
+    "action": "Actions",
+    "column": "Columns",
+    "deck": "Decks",
+    "setting": "Settings",
+    "search": "Search"
+  },
+  "columnActions": {
+    "search": "Search and add a column",
+    "pick": "Pick {{ label }} and add a column",
+    "add": "Add a {{ label }} column",
+    "labelColumn": "{{ label }} column"
+  },
+  "actions": {
+    "compose": { "keywords": ["new post", "write", "note"] },
+    "search": { "keywords": ["find posts", "search"] },
+    "addColumn": { "keywords": ["more columns", "new column"] },
+    "arrange": {
+      "title": "Edit the deck",
+      "keywords": ["reorder columns", "deck", "organize"]
+    },
+    "settings": {
+      "title": "Open settings",
+      "keywords": ["preferences", "customize"]
+    },
+    "about": {
+      "title": "About Streets",
+      "keywords": ["app info", "how to use", "guide"]
+    }
+  },
+  "deck": {
+    "switchTo": "Switch to the deck \"{{ name }}\"",
+    "switchKeyword": "switch deck",
+    "columnCount": {
+      "one": "{{ count }} column",
+      "other": "{{ count }} columns"
+    }
+  },
+  "user": {
+    "addColumn": "Add a column for {{ name }}",
+    "searchPosts": "Search posts by {{ name }}"
+  },
+  "palette": {
+    "title": "Command palette",
+    "description": "Search for actions and settings, then pick one.",
+    "searchLabel": "Search actions and settings",
+    "close": "Close the command palette",
+    "resultsLabel": "Results",
+    "empty": "No matching actions or settings.",
+    "searchFor": "Search for \"{{ query }}\"",
+    "openSearch": "Open the search panel"
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "dialog": {
+    "title": "About Streets",
+    "description": "Shows information about the app and its privacy policy."
+  },
+  "pages": {
+    "overview": "About this app",
+    "releases": "Release notes",
+    "nips": "Supported NIPs",
+    "kinds": "Supported events",
+    "privacy": "Privacy policy"
+  },
+  "overview": {
+    "intro": "Streets is a Nostr client that runs in your browser. Combine columns such as timelines, notifications and search results to build a screen that's all your own.",
+    "version": "Version",
+    "source": "Source code",
+    "license": "License",
+    "font": "Fonts",
+    "dev": "In development",
+    "unknownCommit": "Unknown",
+    "prPreview": "Preview of PR #{{ number }}",
+    "commit": " ({{ commit }})",
+    "fontBefore": "The characters for custom emoji are made from Noto Sans JP, M PLUS Rounded 1c and Noto Serif JP (",
+    "fontLink": "SIL Open Font License 1.1",
+    "fontAfter": ")",
+    "tour": "Take the tour again"
+  },
+  "releases": {
+    "empty": "There are no release notes yet.",
+    "viewOnGithub": "View on GitHub"
+  },
+  "nips": {
+    "intro": "These are the Nostr specifications Streets works with. \"Partial\" means only some of the features of that specification are available."
+  },
+  "kinds": {
+    "intro": "\"Displayed\" events can be shown as events. \"Internal\" events are used for settings, communication and so on, and show as unsupported if you open them as an event."
+  },
+  "privacy": {
+    "monitoring": {
+      "title": "Tools for finding bugs and measuring speed",
+      "description": "To find and fix bugs and slowdowns, this app sends error records and the time that page loads and actions take to a tool provided by a third party. Action timings are sent for only some sessions.",
+      "sent": "What is sent",
+      "sentBody": "The error and where it happened, the time that page loads and actions took, the URL of the screen you had open (with the parts that point to a person or post removed), your device and browser details, and the app version.",
+      "notSent": "What is not sent",
+      "notSentBody": "Secret keys, public keys, event IDs, post text, text you're typing, IP addresses and cookies. Public keys and event IDs are removed before sending.",
+      "noAnalytics": "We don't use analytics tools (tools that count things like page views).",
+      "columns": {
+        "provider": "Provider",
+        "tool": "Tool",
+        "sends": "Information collected",
+        "purpose": "Purpose",
+        "terms": "Terms of service",
+        "privacy": "Privacy policy",
+        "optOut": "Opt out"
+      },
+      "tools": {
+        "sentry": {
+          "optOut": "You can turn it off in Settings → Privacy → Error and performance reports",
+          "sends": "The error and where it happened, the time that page loads and actions took, device and browser details, and the app version",
+          "purpose": "To find and fix bugs and slowdowns"
+        }
+      }
+    },
+    "fetching": {
+      "title": "Fetching images and links",
+      "description": "Some images and linked pages are fetched on your behalf by Streets' server (Cloudflare Workers).",
+      "icon": "Icons",
+      "iconBody": "Icons are shrunk to a fitting size before they reach you, so they load through Streets' server (using Cloudflare's image transformation). Icons that can't be shrunk load directly from where the image is hosted.",
+      "linkPreview": "Link previews",
+      "linkPreviewBody": "The titles and descriptions of links in posts are made by Streets' server fetching the linked page.",
+      "note": "For anything loaded through the server, the request reaches the source as coming from Streets' server, so your IP address isn't passed on. Streets' server doesn't keep a record of which images or links it fetched."
+    },
+    "customEmoji": {
+      "title": "Making custom emoji",
+      "description": "When you send an emoji made with \"Make custom emoji\" in the emoji picker, the text you typed and its style settings are sent to Streets' server (Cloudflare Workers), which turns them into an image and stores it.",
+      "body": "Anyone with the URL of a stored image can view it. The URL includes the text you typed. We don't record who made it. The preview is drawn on your device, so text you didn't send never reaches the server."
+    },
+    "storage": {
+      "title": "How information is stored and who can see it",
+      "description": "Settings and sign-in state are stored only in this device's browser.",
+      "body": "The app doesn't hold your secret key. It leaves that to a browser extension (NIP-07) or a connected signer (NIP-46). Posts, profiles, follow lists and similar data are sent to Nostr relays, and anyone can view them through those relays."
+    }
+  }
+}

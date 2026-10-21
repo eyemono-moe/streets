@@ -8,6 +8,7 @@ import {
   useContext,
 } from "solid-js";
 import { isMultiColumn } from "../deck-layout-setting";
+import { t } from "../i18n/locale";
 import type { ConnectAttempt } from "../session";
 import type { ColorScheme } from "../theme";
 import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
@@ -61,7 +62,7 @@ const Head: Component = () => (
     </p>
     <h1 class="font-700 text-[32px] leading-tight">See it your way.</h1>
     <p class="c-secondary text-body leading-relaxed">
-      Streetsは、Nostrの投稿を読むためのアプリです。ホーム、通知、検索などをカラムにして、見たい順に並べられます。
+      {t("welcome.head.description")}
     </p>
   </header>
 );

@@ -1,0 +1,24 @@
+{
+  "colorField": { "pick": "Pick {{ label }}" },
+  "completion": {
+    "label": "Suggestions",
+    "keyHint": "↑↓ to choose · Enter to insert · Esc to close"
+  },
+  "dialog": { "close": "Close" },
+  "experimental": "Experimental",
+  "pagedDialog": {
+    "close": "Close {{ title }}",
+    "comingSoon": "(coming soon)"
+  },
+  "searchInput": { "clear": "Clear input" },
+  "storageHint": {
+    "device": {
+      "label": "Saved on this device",
+      "text": "This setting is saved only on this device. Other devices can keep their own settings."
+    },
+    "account": {
+      "label": "Saved to your account",
+      "text": "This setting is saved to your account. It stays the same when you sign in on other devices."
+    }
+  }
+}

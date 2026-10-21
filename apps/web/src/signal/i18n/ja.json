@@ -1,0 +1,54 @@
+{
+  "sections": {
+    "action": "操作",
+    "column": "カラム",
+    "deck": "デッキ",
+    "setting": "設定",
+    "search": "検索"
+  },
+  "columnActions": {
+    "search": "検索してカラムを追加する",
+    "pick": "{{ label }}を選んでカラムを追加する",
+    "add": "{{ label }}カラムを追加する",
+    "labelColumn": "{{ label }}カラム"
+  },
+  "actions": {
+    "compose": { "keywords": ["新規投稿", "書く", "ノート"] },
+    "search": { "keywords": ["投稿を探す", "検索"] },
+    "addColumn": { "keywords": ["カラムを増やす", "列を追加"] },
+    "arrange": {
+      "title": "デッキを編集する",
+      "keywords": ["カラムの並べ替え", "デッキ", "整理"]
+    },
+    "settings": {
+      "title": "設定を開く",
+      "keywords": ["環境設定", "カスタマイズ"]
+    },
+    "about": {
+      "title": "Streets についてを見る",
+      "keywords": ["アプリの情報", "使い方", "案内"]
+    }
+  },
+  "deck": {
+    "switchTo": "デッキ「{{ name }}」に切り替える",
+    "switchKeyword": "デッキを切り替える",
+    "columnCount": {
+      "one": "カラム {{ count }} 本",
+      "other": "カラム {{ count }} 本"
+    }
+  },
+  "user": {
+    "addColumn": "{{ name }}のカラムを追加する",
+    "searchPosts": "{{ name }}の投稿を検索する"
+  },
+  "palette": {
+    "title": "コマンドパレット",
+    "description": "操作や設定を検索して選べます。",
+    "searchLabel": "操作や設定を検索",
+    "close": "コマンドパレットを閉じる",
+    "resultsLabel": "検索結果",
+    "empty": "該当する操作や設定はありません。",
+    "searchFor": "「{{ query }}」で検索する",
+    "openSearch": "検索パネルを開く"
+  }
+}

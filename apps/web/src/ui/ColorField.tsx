@@ -1,5 +1,6 @@
 import { ColorPicker, parseColor } from "@ark-ui/solid/color-picker";
 import { type Component, createEffect, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import { Portal } from "./Portal";
 
 /**
@@ -46,7 +47,7 @@ const ColorField: Component<{
       </ColorPicker.Label>
       <ColorPicker.Control class="flex h-9 shrink-0 items-center gap-2 rounded-2 border border-control bg-primary pr-2.5 pl-1">
         <ColorPicker.Trigger
-          aria-label={`${props.label}を選ぶ`}
+          aria-label={t("ui.colorField.pick", { label: props.label })}
           class="grid size-7 cursor-pointer place-items-center rounded-1.5 bg-transparent p-0"
         >
           <ColorPicker.ValueSwatch class="size-6 rounded-1.5" />
