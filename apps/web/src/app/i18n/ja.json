@@ -95,5 +95,10 @@
   },
   "toast": {
     "close": "閉じる"
+  },
+  "writeProgress": {
+    "separator": "：",
+    "reasonWithDetail": "{{ reason }}（{{ detail }}）",
+    "unknownReason": "理由は分かりません"
   }
 }

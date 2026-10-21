@@ -35,7 +35,11 @@ const ADDRESS_OPENERS: Partial<
     buildArticleColumn(address.pubkey, address.identifier, relays),
   // リストはメンバーの投稿を読むためのもの。名前は届いたら題名に出る。
   [FOLLOW_SET_KIND]: (address) =>
-    buildFollowSetColumn(address.pubkey, address.identifier, "リスト"),
+    buildFollowSetColumn(
+      address.pubkey,
+      address.identifier,
+      address.identifier,
+    ),
 };
 
 const kindLabel = (kind: number): string =>

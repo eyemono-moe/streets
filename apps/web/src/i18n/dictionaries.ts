@@ -1,3 +1,5 @@
+import type { Flatten } from "@solid-primitives/i18n";
+import type { MessageKey } from "@streets/core/i18n/message";
 import aboutEn from "../about/i18n/en.json";
 import aboutJa from "../about/i18n/ja.json";
 import appEn from "../app/i18n/en.json";
@@ -8,6 +10,8 @@ import chatEn from "../chat/i18n/en.json";
 import chatJa from "../chat/i18n/ja.json";
 import columnsEn from "../columns/i18n/en.json";
 import columnsJa from "../columns/i18n/ja.json";
+import coreEn from "../core/i18n/en.json";
+import coreJa from "../core/i18n/ja.json";
 import deckEn from "../deck/i18n/en.json";
 import deckJa from "../deck/i18n/ja.json";
 import emojiEn from "../emoji/i18n/en.json";
@@ -48,6 +52,7 @@ export const ja = {
   article: articleJa,
   chat: chatJa,
   columns: columnsJa,
+  core: coreJa,
   deck: deckJa,
   emoji: emojiJa,
   lists: listsJa,
@@ -74,6 +79,7 @@ export const en: Messages = {
   article: articleEn,
   chat: chatEn,
   columns: columnsEn,
+  core: coreEn,
   deck: deckEn,
   emoji: emojiEn,
   lists: listsEn,
@@ -91,3 +97,10 @@ export const en: Messages = {
   "write-queue": writeQueueEn,
   zap: zapEn,
 };
+
+// core が返すキーが `core` の辞書に揃っているかを、型で確かめる。
+type MissingCoreKey = Exclude<`core.${MessageKey}`, keyof Flatten<Messages>>;
+const coreKeysCovered: [MissingCoreKey] extends [never]
+  ? true
+  : MissingCoreKey = true;
+void coreKeysCovered;

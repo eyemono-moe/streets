@@ -92,6 +92,11 @@ export type MutedDisplay = "hide" | "fold" | "show";
 
 export type ColumnDef = {
   id: string;
+  /**
+   * 足したときの題名。画面に出すのは、中身から題名を決められない種類（条件を直に
+   * 書いたカラム、名前が届く前のチャンネル・リスト）だけ。ほかの種類は使わないが、
+   * 保存の形が空を許さないので、種類の名前を入れておく。
+   */
   title: string;
   source: ColumnSource;
   width?: ColumnWidth;
@@ -214,6 +219,10 @@ export const defaultColumns = (relays: readonly RelayUrl[]): ColumnDef[] => {
  */
 export const FIRST_DECK_ID = "main";
 
+/**
+ * 最初のデッキの、保存する名前。画面では言語に合わせた名前に読み替える（名前を
+ * 変えていなければ）。既に保存されたデッキがこの名前を持っているので、値は変えない。
+ */
 export const FIRST_DECK_NAME = "メイン";
 
 export const defaultDeckSet = (relays: readonly RelayUrl[]): DeckSet => ({

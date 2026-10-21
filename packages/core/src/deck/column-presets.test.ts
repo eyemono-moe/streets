@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { encodeNprofile } from "../nostr/nip19";
+import { columnTitle } from "./column-kinds";
 import {
   buildActivityColumn,
   buildColumn,
@@ -11,11 +12,16 @@ const HEX = "a".repeat(64);
 // HEX の npub 表現。実際に走らせた値 (手計算では出せない)。
 const NPUB = "npub1424242424242424242424242424242424242424242424242424qamrcaj";
 
+const must = <T>(value: T | undefined): T => {
+  if (value === undefined) throw new Error("値がありません");
+  return value;
+};
+
 describe("buildColumn", () => {
   it("activity は対象イベントから重複しないidを作る", () => {
     expect(buildActivityColumn(HEX)).toEqual({
       id: `activity:${HEX}`,
-      title: "アクティビティ",
+      title: "activity",
       source: { kind: "activity", target: HEX },
     });
   });
@@ -126,23 +132,20 @@ describe("buildColumn", () => {
 
   // タイトルの既定値。npub の bech32 表現は手計算できないので実測値を使う。
   describe("title の既定値", () => {
-    it("home は「ホーム」", () => {
-      // 捕まえる変異: タイトルを別の種別と取り違える
-      expect(buildColumn("home", "")?.title).toBe("ホーム");
-    });
-
     it("user は npub の先頭 12 文字を使う (hex ではない)", () => {
       // 捕まえる変異: hex の先頭を使う (`@aaaaaaaa` で見分けられなくなる)
       expect(buildColumn("user", HEX)?.title).toBe("@npub14242424");
     });
 
-    it("relay は1本ならURL、複数なら本数", () => {
-      expect(buildRelayColumn(["wss://relay.example/"])?.title).toBe(
-        "wss://relay.example",
-      );
+    it("relay は1本ならURL、複数なら本数で呼ぶ", () => {
       expect(
-        buildRelayColumn(["wss://a.example/", "wss://b.example/"])?.title,
-      ).toBe("リレー（2）");
+        columnTitle(must(buildRelayColumn(["wss://relay.example/"]))),
+      ).toEqual({ text: "wss://relay.example" });
+      expect(
+        columnTitle(
+          must(buildRelayColumn(["wss://a.example/", "wss://b.example/"])),
+        ),
+      ).toEqual({ message: { key: "column.title.relays", count: 2 } });
     });
   });
 

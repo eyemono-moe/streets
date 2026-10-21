@@ -30,10 +30,10 @@ describe("columnTitle", () => {
   it("人に紐づくカラムは、保存した npub ではなく人として返す", () => {
     const column = buildUserColumn(PUBKEY);
     expect(column.title).toMatch(/^@npub/);
-    expect(columnTitle(column)).toEqual({ person: PUBKEY, suffix: "" });
+    expect(columnTitle(column)).toEqual({ person: PUBKEY });
     expect(columnTitle(buildFolloweesColumn(PUBKEY))).toEqual({
       person: PUBKEY,
-      suffix: " のフォロー",
+      message: { key: "column.title.followees" },
     });
   });
 
@@ -42,7 +42,9 @@ describe("columnTitle", () => {
       ...must(defaultColumns([])[0]),
       title: "変えた名前",
     };
-    expect(columnTitle(home)).toEqual({ text: "ホーム" });
+    expect(columnTitle(home)).toEqual({
+      message: { key: "column.title.home" },
+    });
   });
 
   it("検索・リレー全体は、条件から決める", () => {
@@ -228,7 +230,10 @@ describe("columnAlerts", () => {
       "wss://other/",
     ]);
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]?.message).toContain("1 本");
+    expect(alerts[0]?.message).toEqual({
+      key: "column.alert.relaysBlocked",
+      count: 1,
+    });
   });
 
   it("Outbox が選ぶカラムでは、繋がないリレーを知らせない", () => {
@@ -266,8 +271,8 @@ describe("columnAlerts", () => {
     // 捕まえる変異: この警告を出さない (無反応か kind:10002 欠如か、画面からは区別できない)。
     const alerts = columnAlerts(notifications, status(), missing);
     expect(alerts).toHaveLength(1);
-    // 捕まえる変異: 警告の種類が差し替わる。文言全体は主張しない (タイプミスでしか壊れないようにする)。
-    expect(alerts[0]?.message).toContain("kind:10002");
+    // 捕まえる変異: 警告の種類が差し替わる。
+    expect(alerts[0]?.message.key).toBe("column.alert.relayListMissing");
   });
 
   it("リレー設定が引けていれば知らせない", () => {
@@ -298,7 +303,9 @@ describe("columnAlerts", () => {
       hasRelays,
     );
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]?.action).toContain("read リレー");
+    expect(alerts[0]?.action.key).toBe(
+      "column.alert.readRelaysUnreachableAction",
+    );
   });
 
   it("通知列以外では read リレーの到達不能を出さない", () => {
@@ -328,7 +335,9 @@ describe("columnAlerts", () => {
       missing,
     );
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]?.message).not.toContain("あなたの設定した read リレー");
+    expect(alerts[0]?.message.key).not.toBe(
+      "column.alert.readRelaysUnreachable",
+    );
   });
 });
 
@@ -356,7 +365,10 @@ describe("columnAlerts と読み方", () => {
       "direct",
     );
     expect(alerts).toHaveLength(1);
-    expect(alerts[0].message).toContain("2 本");
+    expect(alerts[0].message).toEqual({
+      key: "column.alert.directUnreachable",
+      count: 2,
+    });
   });
 
   it("Outbox で読んでいるときは、Outbox が選んだリレーの不達を知らせない", () => {
@@ -373,7 +385,7 @@ describe("columnAlerts と読み方", () => {
       "outbox",
     );
     expect(alerts).toHaveLength(1);
-    expect(alerts[0].action).toContain("読み込みリレーだけ");
+    expect(alerts[0].action.key).toBe("column.alert.unroutableAction");
   });
 
   it("取得中はリレー設定が無いと言わない", () => {
@@ -440,14 +452,14 @@ describe("columnStatus", () => {
 
 describe("columnTitle（チャンネル）", () => {
   it("チャンネルは情報が届いたら名前で呼べるよう、id と足したときの題名を返す", () => {
-    // 捕まえる変異: 保存した題名だけを返す（URL から開くと「チャンネル」のままになる）
+    // 捕まえる変異: 保存した題名だけを返す（URL から開くと仮の名前のままになる）
     expect(
       columnTitle({
         id: "x",
-        title: "チャンネル",
+        title: "aaaaaaaa",
         source: { kind: "channel", id: "a".repeat(64) },
       }),
-    ).toEqual({ channel: "a".repeat(64), suffix: "", fallback: "チャンネル" });
+    ).toEqual({ channel: "a".repeat(64), fallback: "aaaaaaaa" });
   });
 
   it("チャンネルの情報は「〈名前〉の情報」と呼ぶ", () => {
@@ -455,13 +467,13 @@ describe("columnTitle（チャンネル）", () => {
     expect(
       columnTitle({
         id: "x",
-        title: "チャンネルの情報",
+        title: "aaaaaaaa",
         source: { kind: "channel-info", id: "a".repeat(64) },
       }),
     ).toEqual({
       channel: "a".repeat(64),
-      suffix: "の情報",
-      fallback: "チャンネルの情報",
+      message: { key: "column.title.info" },
+      fallback: "aaaaaaaa",
     });
   });
 });
