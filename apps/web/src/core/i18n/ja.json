@@ -1,0 +1,81 @@
+{
+  "column": {
+    "title": {
+      "home": "ホーム",
+      "timeslip": "タイムスリップ",
+      "followeesActivity": "みんなのアクティビティ",
+      "notifications": "通知",
+      "bookmarks": "ブックマーク",
+      "article": "長文記事",
+      "thread": "スレッド",
+      "activity": "アクティビティ",
+      "followees": "{{ name }} のフォロー",
+      "followers": "{{ name }} のフォロワー",
+      "info": "{{ name }}の情報",
+      "followSets": "リスト",
+      "channels": "チャンネル",
+      "welcome": "Streets へようこそ",
+      "relays": {
+        "one": "リレー（{{ count }}）",
+        "other": "リレー（{{ count }}）"
+      },
+      "note": "ノート"
+    },
+    "alert": {
+      "directUnreachable": {
+        "one": "読み込みに使うリレーに接続できません ({{ count }} 本)",
+        "other": "読み込みに使うリレーに接続できません ({{ count }} 本)"
+      },
+      "directUnreachableAction": "設定の「リレー」で読み込みリレーを確かめるか、読み方を「人ごとに選ぶ」に戻してください",
+      "relaysBlocked": {
+        "one": "指定したリレーのうち {{ count }} 本は、繋がないリレーにしているため読みません",
+        "other": "指定したリレーのうち {{ count }} 本は、繋がないリレーにしているため読みません"
+      },
+      "relaysBlockedAction": "設定の「リレー」で繋がないリレーから外すか、カラムの設定でそのリレーを外してください",
+      "relaysUnreachable": {
+        "one": "指定したリレーに接続できません ({{ count }} 本)",
+        "other": "指定したリレーに接続できません ({{ count }} 本)"
+      },
+      "relaysUnreachableAction": "カラムの設定でリレーの URL を確認してください",
+      "relayListMissing": "あなたのリレー設定 (kind:10002) が見つからないか取得できなかったため、既定のリレーで待っています",
+      "relayListMissingAction": "通知が届かない場合は、リレー設定を publish しているか確認してください",
+      "readRelaysUnreachable": {
+        "one": "あなたの設定した read リレーに接続できません ({{ count }} 本)",
+        "other": "あなたの設定した read リレーに接続できません ({{ count }} 本)"
+      },
+      "readRelaysUnreachableAction": "リレー設定 (kind:10002) の read リレーを確認してください",
+      "unroutable": "この人のリレー設定が見つからないため、既定のリレーから読んでいます",
+      "unroutableAction": "投稿が出ない場合は、設定の「リレー」で読み方を「読み込みリレーだけ」に切り替えてください"
+    }
+  },
+  "write": {
+    "rejection": {
+      "blocked": "このリレーに断られました",
+      "rateLimited": "短い間に送りすぎて断られました",
+      "invalid": "このリレーが受け付けない形でした",
+      "pow": "このリレーが求める計算（PoW）が足りませんでした",
+      "restricted": "このリレーには書き込めません",
+      "authRequired": "このリレーはログイン（認証）が必要です",
+      "duplicate": "同じものがもう届いていました",
+      "error": "リレーの中でエラーが起きました",
+      "timeout": "時間内に応答がありませんでした",
+      "unreachable": "つながりませんでした",
+      "budget": "同時につなげる数の上限に達していました"
+    },
+    "status": {
+      "checking": "最新の状態を確認しています",
+      "signing": "署名を待っています",
+      "noneReached": "どのリレーにも届きませんでした",
+      "sending": "送信しています（{{ done }}/{{ total }}）",
+      "savedSome": {
+        "one": "保存しました（{{ accepted }}/{{ count }} 件のリレー）",
+        "other": "保存しました（{{ accepted }}/{{ count }} 件のリレー）"
+      },
+      "partial": {
+        "one": "保存しました。{{ count }} 件のリレーには届きませんでした",
+        "other": "保存しました。{{ count }} 件のリレーには届きませんでした"
+      },
+      "saved": "保存しました"
+    }
+  }
+}

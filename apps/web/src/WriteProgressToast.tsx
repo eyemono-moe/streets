@@ -1,12 +1,31 @@
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { WriteOutcome } from "@streets/core/view/write-status";
-import { writeStatus } from "@streets/core/view/write-status";
+import {
+  type Rejection,
+  type WriteStatus,
+  writeStatus,
+} from "@streets/core/view/write-status";
 import {
   type WriteProgress,
   summarizeRelays,
 } from "@streets/core/write/write-progress";
 import { type Component, For, Show } from "solid-js";
+import { message, t } from "./i18n/locale";
 import ProgressRing from "./ui/ProgressRing";
+
+const statusText = (text: WriteStatus["text"]): string =>
+  typeof text === "string" ? text : message(text);
+
+const rejectionText = (rejection: Rejection): string => {
+  const reason = rejection.reason && message(rejection.reason);
+  if (reason && rejection.detail) {
+    return t("app.writeProgress.reasonWithDetail", {
+      reason,
+      detail: rejection.detail,
+    });
+  }
+  return reason ?? rejection.detail ?? t("app.writeProgress.unknownReason");
+};
 
 /** 書き込みのトーストが持つ中身。`toaster.update` で丸ごと差し替える。 */
 export type WriteToastMeta = {
@@ -51,7 +70,7 @@ const WriteProgressToast: Component<{ meta: WriteToastMeta["write"] }> = (
         </span>
       </div>
       <p class="c-secondary pl-6.5 text-caption" aria-live="polite">
-        {status().text}
+        {statusText(status().text)}
       </p>
       <Show when={status().failures.length > 0}>
         <ul class="flex flex-col gap-0.5 pl-6.5 text-caption">
@@ -59,9 +78,10 @@ const WriteProgressToast: Component<{ meta: WriteToastMeta["write"] }> = (
             {(failure) => (
               <li class="c-danger break-all">
                 {relayLabel(failure.relay)}
-                <Show when={failure.reason}>
-                  <span class="c-secondary">：{failure.reason}</span>
-                </Show>
+                <span class="c-secondary">
+                  {t("app.writeProgress.separator")}
+                  {rejectionText(failure.reason)}
+                </span>
               </li>
             )}
           </For>

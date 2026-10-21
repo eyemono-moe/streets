@@ -1,5 +1,6 @@
 import { columnTitle } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import type { Message } from "@streets/core/i18n/message";
 import { followSetName } from "@streets/core/lists/follow-set";
 import {
   CHANNEL_CREATE_KIND,
@@ -7,6 +8,7 @@ import {
 } from "@streets/core/nostr/channel";
 import { profileLabel } from "@streets/core/nostr/profile";
 import { type Accessor, type Component, Show } from "solid-js";
+import { message, messageAround } from "../i18n/locale";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import Name from "../note/Name";
 import { useEvent } from "../note/use-event";
@@ -39,18 +41,24 @@ export const useColumnTitle = (
       // ほかの人のリストは、開いたときの名前で呼ぶ。
       const { pubkey, identifier } = current.followSet;
       const set = lists?.viewer === pubkey ? lists.find(identifier) : undefined;
-      return set ? `${followSetName(set)}${current.suffix}` : current.fallback;
+      return named(
+        current.message,
+        set ? followSetName(set) : current.fallback,
+      );
     }
     if ("person" in current) {
-      return `${profileLabel(profile(), current.person)}${current.suffix}`;
+      return named(current.message, profileLabel(profile(), current.person));
     }
     if ("channel" in current) {
       const name = channelName();
-      return name === undefined ? current.fallback : `${name}${current.suffix}`;
+      return named(current.message, name ?? current.fallback);
     }
-    return current.text;
+    return "message" in current ? message(current.message) : current.text;
   };
 };
+
+const named = (text: Message | undefined, name: string): string =>
+  text ? message(text, { name }) : name;
 
 /**
  * チャンネル（kind:40）の名前。手元に無ければ取りにいく。読み取り層が無い場所
@@ -79,12 +87,19 @@ const ColumnTitle: Component<{ column: ColumnDef }> = (props) => {
   };
   return (
     <Show when={person()} fallback={title()}>
-      {(current) => (
-        <>
-          <Name pubkey={current().person} />
-          {current().suffix}
-        </>
-      )}
+      {(current) => {
+        const around = () => {
+          const text = current().message;
+          return text ? messageAround(text, "name") : ["", ""];
+        };
+        return (
+          <>
+            {around()[0]}
+            <Name pubkey={current().person} />
+            {around()[1]}
+          </>
+        );
+      }}
     </Show>
   );
 };

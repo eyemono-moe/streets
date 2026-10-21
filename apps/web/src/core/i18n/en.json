@@ -1,0 +1,81 @@
+{
+  "column": {
+    "title": {
+      "home": "Home",
+      "timeslip": "Time slip",
+      "followeesActivity": "Everyone's activity",
+      "notifications": "Notifications",
+      "bookmarks": "Bookmarks",
+      "article": "Article",
+      "thread": "Thread",
+      "activity": "Activity",
+      "followees": "Followed by {{ name }}",
+      "followers": "{{ name }}'s followers",
+      "info": "About {{ name }}",
+      "followSets": "Lists",
+      "channels": "Channels",
+      "welcome": "Welcome to Streets",
+      "relays": {
+        "one": "{{ count }} relay",
+        "other": "{{ count }} relays"
+      },
+      "note": "Note"
+    },
+    "alert": {
+      "directUnreachable": {
+        "one": "Can't connect to {{ count }} of your read relays",
+        "other": "Can't connect to {{ count }} of your read relays"
+      },
+      "directUnreachableAction": "Check your read relays under \"Relays\" in settings, or switch back to choosing relays per person",
+      "relaysBlocked": {
+        "one": "{{ count }} of the chosen relays is blocked, so it isn't read",
+        "other": "{{ count }} of the chosen relays are blocked, so they aren't read"
+      },
+      "relaysBlockedAction": "Unblock it under \"Relays\" in settings, or remove it from this column's settings",
+      "relaysUnreachable": {
+        "one": "Can't connect to {{ count }} of the chosen relays",
+        "other": "Can't connect to {{ count }} of the chosen relays"
+      },
+      "relaysUnreachableAction": "Check the relay URLs in this column's settings",
+      "relayListMissing": "Your relay list couldn't be found or loaded, so this is waiting on the default relays",
+      "relayListMissingAction": "If notifications don't arrive, check that you have published your relay list",
+      "readRelaysUnreachable": {
+        "one": "Can't connect to {{ count }} of your read relays",
+        "other": "Can't connect to {{ count }} of your read relays"
+      },
+      "readRelaysUnreachableAction": "Check the read relays in your relay list",
+      "unroutable": "This person's relay list wasn't found, so posts are read from the default relays",
+      "unroutableAction": "If posts don't show up, switch to reading only your read relays under \"Relays\" in settings"
+    }
+  },
+  "write": {
+    "rejection": {
+      "blocked": "This relay refused it",
+      "rateLimited": "Refused for sending too much in a short time",
+      "invalid": "This relay doesn't accept this format",
+      "pow": "Not enough proof of work for this relay",
+      "restricted": "You can't write to this relay",
+      "authRequired": "This relay requires you to log in (authenticate)",
+      "duplicate": "It had already arrived",
+      "error": "An error happened inside the relay",
+      "timeout": "No response in time",
+      "unreachable": "Couldn't connect",
+      "budget": "Reached the limit of simultaneous connections"
+    },
+    "status": {
+      "checking": "Checking the latest state",
+      "signing": "Waiting for your signature",
+      "noneReached": "It didn't reach any relay",
+      "sending": "Sending ({{ done }}/{{ total }})",
+      "savedSome": {
+        "one": "Saved ({{ accepted }}/{{ count }} relay)",
+        "other": "Saved ({{ accepted }}/{{ count }} relays)"
+      },
+      "partial": {
+        "one": "Saved. It didn't reach {{ count }} relay",
+        "other": "Saved. It didn't reach {{ count }} relays"
+      },
+      "saved": "Saved"
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import * as i18n from "@solid-primitives/i18n";
+import type { Message } from "@streets/core/i18n/message";
 import {
   LOCALE_STORAGE_KEY,
   type Locale,
@@ -77,4 +78,36 @@ export const plural = (
   // キーの型は `one` と `other` の両方があることまでで、組み立てたキーは型が追えない。
   const translate = t as (key: string, args: Record<string, unknown>) => string;
   return translate([key, form].join("."), { ...args, count });
+};
+
+/**
+ * core が返した文言を引く。core のキーは `core` の辞書にある（`dictionaries.ts` が
+ * キーの抜けを型で落とす）。
+ */
+export const message = (
+  text: Message,
+  args: Record<string, string | number> = {},
+): string => {
+  const merged = { ...text.args, ...args };
+  // キーの一覧は core が持ち、辞書の型とは `dictionaries.ts` で突き合わせている。
+  if (text.count !== undefined) {
+    return plural(`core.${text.key}` as PluralKey, text.count, merged);
+  }
+  const translate = t as (key: string, args: Record<string, unknown>) => string;
+  return translate(`core.${text.key}`, merged);
+};
+
+/**
+ * 文の中に部品（名前のリンクなど）を挟むとき、挟む位置の前と後ろの文を返す。
+ * 語順が言語で違うので、前後を別のキーに分けずに、1 つの文の `{{ slot }}` で分ける。
+ */
+export const messageAround = (
+  text: Message,
+  slot: string,
+): [before: string, after: string] => {
+  const marker = "\u0000";
+  const [before = "", after = ""] = message(text, { [slot]: marker }).split(
+    marker,
+  );
+  return [before, after];
 };

@@ -6,7 +6,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
-import { t } from "../i18n/locale";
+import { message, t } from "../i18n/locale";
 import { reportError } from "../telemetry";
 import {
   NewerItemsProvider,
@@ -117,12 +117,10 @@ const ColumnBody: ParentComponent<{
             role="alert"
             class="c-secondary bg-secondary px-3 py-2 text-caption"
           >
-            {alert.action
-              ? t("columns.body.alertWithAction", {
-                  message: alert.message,
-                  action: alert.action,
-                })
-              : alert.message}
+            {t("columns.body.alertWithAction", {
+              message: message(alert.message),
+              action: message(alert.action),
+            })}
           </p>
         )}
       </For>

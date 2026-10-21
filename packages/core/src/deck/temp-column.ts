@@ -36,7 +36,7 @@ export const tempColumnFor = (entity: string): ColumnDef | undefined => {
     const relay = ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined;
     return {
       id: TEMP_COLUMN_ID,
-      title: "ノート",
+      title: "note",
       source: {
         kind: "literal",
         filters: [{ ids: [ref.id] }],
