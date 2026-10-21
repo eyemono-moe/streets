@@ -1,4 +1,5 @@
 import { Combobox, createListCollection } from "@ark-ui/solid/combobox";
+import type { Message } from "@streets/core/i18n/message";
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { parseRelayInput, relayLabel } from "@streets/core/settings/relay-edit";
@@ -14,7 +15,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
-import { t } from "../i18n/locale";
+import { t, message } from "../i18n/locale";
 import Button from "../ui/Button";
 import { Portal } from "../ui/Portal";
 import { textInputClass } from "../ui/TextField";
@@ -40,7 +41,7 @@ const RelayInput: Component<{
 }> = (props) => {
   const followeeRelays = useFolloweeWriteRelays();
   const [query, setQuery] = createSignal("");
-  const [error, setError] = createSignal<string>();
+  const [error, setError] = createSignal<Message>();
   const [highlighted, setHighlighted] = createSignal<string | null>(null);
   const items = createMemo(() =>
     relaySuggestions({
@@ -130,7 +131,7 @@ const RelayInput: Component<{
         </Button>
       </Combobox.Control>
       <Show when={error()}>
-        {(message) => <span class="c-danger text-caption">{message()}</span>}
+        {(text) => <span class="c-danger text-caption">{message(text())}</span>}
       </Show>
       <Portal>
         <Combobox.Positioner>
@@ -157,7 +158,7 @@ const RelayInput: Component<{
                           {relayLabel(item.url)}
                         </Combobox.ItemText>
                         <span class="c-secondary shrink-0 text-caption">
-                          {item.detail}
+                          {message(item.detail)}
                         </span>
                         <Show when={item.added}>
                           <span

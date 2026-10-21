@@ -227,7 +227,7 @@ describe("parseRelayInput", () => {
   it("もう入っているリレーは断る（書き方が違っても同じものとみなす）", () => {
     expect(parseRelayInput("WSS://A.example", [both(A)])).toMatchObject({
       ok: false,
-      message: "このリレーはもう入っています",
+      message: { key: "relay.input.duplicate" },
     });
   });
 });

@@ -1,4 +1,4 @@
-import { type FollowSet, followSetName } from "@streets/core/lists/follow-set";
+import { type FollowSet } from "@streets/core/lists/follow-set";
 import type { ItemVisibility } from "@streets/core/nostr/private-tags";
 import {
   type Component,
@@ -23,6 +23,7 @@ import {
 } from "../ui/Dialog";
 import SegmentedControl from "../ui/SegmentedControl";
 import CreateFollowSetForm from "./CreateFollowSetForm";
+import { followSetName } from "./follow-set-name";
 import { useFollowSets } from "./FollowSetMediator";
 import {
   type Membership,

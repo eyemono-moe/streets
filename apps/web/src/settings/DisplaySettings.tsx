@@ -42,7 +42,7 @@ import {
 } from "@streets/core/settings/ui-contrast";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
 import type { Component } from "solid-js";
-import { locale, t } from "../i18n/locale";
+import { locale, messageOrText, t } from "../i18n/locale";
 import { DEFAULT_APPEARANCE, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
@@ -197,7 +197,7 @@ const DisplaySettings: Component<{
           min={UI_CONTRAST_MIN}
           max={UI_CONTRAST_MAX}
           step={UI_CONTRAST_STEP}
-          format={formatUiContrast}
+          format={(contrast) => messageOrText(formatUiContrast(contrast))}
           onChange={(contrast) =>
             dispatch({ type: "deck/preview-ui-contrast", contrast })
           }

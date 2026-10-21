@@ -14,7 +14,7 @@ import {
 } from "solid-js";
 import { useEmojiSource } from "../completion/sources";
 import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
-import { t } from "../i18n/locale";
+import { t, locale } from "../i18n/locale";
 import { useComposeEmojiInsertion } from "../note/use-compose-emoji-insertion";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -172,6 +172,7 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                             time: formatEventTime(
                               new Date(at() * 1000),
                               new Date(),
+                              locale(),
                             ),
                           })}
                         </p>

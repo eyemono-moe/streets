@@ -34,7 +34,7 @@ import {
 import { type ParentComponent, Show, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { fallbackRelays } from "../fallback-relay-setting";
-import { t } from "../i18n/locale";
+import { messageOrText, t } from "../i18n/locale";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError, notifySuccess } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -214,7 +214,7 @@ export const ZapMediator: ParentComponent<{
         signal,
       ),
     );
-    if ("error" in answer) throw new ZapError(answer.error);
+    if ("error" in answer) throw new ZapError(messageOrText(answer.error));
     // 選んだ金額と違う請求書は払わせない。
     if (bolt11AmountMsat(answer.invoice) !== amountMsat) {
       throw new ZapError(t("zap.errors.invoiceMismatch"));

@@ -24,7 +24,7 @@ describe("customEmojiGroups", () => {
       set("neko", "ねこ", ["neko1"]),
     ]);
     expect(groups.map((group) => group.title)).toEqual([
-      "自分の絵文字",
+      { key: "emoji.group.own" },
       "ねこ",
       "おこめ",
     ]);

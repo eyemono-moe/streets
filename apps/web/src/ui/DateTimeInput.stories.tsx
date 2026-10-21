@@ -1,6 +1,7 @@
 import { formatEventTimeFull } from "@streets/core/view/format-time";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { locale } from "../i18n/locale";
 import DateTimeInput from "./DateTimeInput";
 
 const Story = (props: { initial: number; max?: number }) => {
@@ -14,7 +15,7 @@ const Story = (props: { initial: number; max?: number }) => {
         max={props.max}
       />
       <p class="c-secondary text-caption">
-        {formatEventTimeFull(new Date(value() * 1000))}（{value()}）
+        {formatEventTimeFull(new Date(value() * 1000), locale())}（{value()}）
       </p>
     </div>
   );

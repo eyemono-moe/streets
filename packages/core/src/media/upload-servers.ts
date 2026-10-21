@@ -1,4 +1,5 @@
 import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
+import { MessageError } from "../i18n/message";
 import type { BlossomServer } from "./blossom";
 import { parseNip96ApiUrl } from "./nip96";
 
@@ -63,10 +64,13 @@ export const checkUploadServer = async (options: {
 };
 
 /** Blossom としても NIP-96 としても応答しなかったので、アップロード先に足さなかった。 */
-export class NotUploadServerError extends Error {
+export class NotUploadServerError extends MessageError {
   readonly server: BlossomServer;
   constructor(server: BlossomServer) {
-    super(`${server} は画像のアップロード先ではありません`);
+    super({
+      key: "media.upload.notUploadServer",
+      args: { server: server.replace(/^https:\/\//, "") },
+    });
     this.name = "NotUploadServerError";
     this.server = server;
   }

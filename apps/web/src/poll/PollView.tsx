@@ -5,7 +5,7 @@ import {
   pollDeadlineLabel,
 } from "@streets/core/nostr/poll";
 import { type Component, For, Show, createSignal } from "solid-js";
-import { plural, t } from "../i18n/locale";
+import { plural, t, message } from "../i18n/locale";
 import type { EventSize } from "../note/Event";
 import Button from "../ui/Button";
 
@@ -52,7 +52,7 @@ const PollView: Component<PollViewProps> = (props) => {
         : plural("poll.summary.voters", props.tally.voters),
     );
     const deadline = pollDeadlineLabel(props.poll, props.nowSeconds);
-    if (deadline) parts.push(deadline);
+    if (deadline) parts.push(message(deadline));
     if (voting())
       parts.push(
         props.poll.multiple

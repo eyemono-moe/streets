@@ -16,7 +16,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
-import { t } from "../i18n/locale";
+import { t, message } from "../i18n/locale";
 import { displayHotkey } from "../keymap";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -61,7 +61,7 @@ const KeyboardSettings: Component<{
       const other = conflictingAction(props.keymap, action, hotkey);
       if (other)
         return t("settings.keyboard.conflict", {
-          action: SHORTCUT_LABELS[other],
+          action: message(SHORTCUT_LABELS[other]),
         });
       // 1〜9 は左から数えたカラムを見せるのに使っていて、変えられない。
       if (
@@ -108,7 +108,7 @@ const KeyboardSettings: Component<{
             {(action) => (
               <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
                 <span class="c-primary min-w-32 flex-1 text-body">
-                  {SHORTCUT_LABELS[action]}
+                  {message(SHORTCUT_LABELS[action])}
                 </span>
                 <Show
                   when={editing() === action && recorder.isRecording()}
@@ -134,7 +134,7 @@ const KeyboardSettings: Component<{
                 <IconButton
                   icon="i-material-symbols:refresh-rounded"
                   label={t("settings.keyboard.resetLabel", {
-                    action: SHORTCUT_LABELS[action],
+                    action: message(SHORTCUT_LABELS[action]),
                   })}
                   title={t("settings.section.reset")}
                   disabled={props.keymap[action] === DEFAULT_KEYMAP[action]}

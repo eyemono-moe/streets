@@ -154,7 +154,7 @@ export const uploadNip96 = async (options: {
   if (!apiUrl) {
     throw new UploadFailedError(
       options.server,
-      "NIP-96 のアップロード先として応答しませんでした",
+      { key: "media.upload.notNip96" },
       info.status,
     );
   }
@@ -207,7 +207,7 @@ export const uploadNip96 = async (options: {
       options.server,
       typeof message === "string" && message !== ""
         ? message
-        : "アップロード先の返事を読み取れませんでした",
+        : { key: "media.upload.unreadableResponse" },
       response.status,
     );
   }

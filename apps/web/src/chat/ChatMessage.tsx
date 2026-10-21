@@ -131,7 +131,7 @@ export const ChatMessage: Component<{
             <time
               class="c-secondary shrink-0 text-caption"
               datetime={date().toISOString()}
-              title={formatEventTimeFull(date())}
+              title={formatEventTimeFull(date(), locale())}
             >
               {chatTime(date())}
             </time>

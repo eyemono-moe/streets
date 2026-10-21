@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import type { Mutation } from "../nostr/build/draft";
 import { setRelayList } from "../nostr/build/relay-list";
 import { type RelayListEntry, parseRelayList } from "../read/relay-list";
@@ -151,7 +152,7 @@ export const displayedRelays = (
 
 export type RelayInputResult =
   | { ok: true; url: RelayUrl }
-  | { ok: false; message: string };
+  | { ok: false; message: Message };
 
 /**
  * 入力された URL を確かめる。`wss://` を省いて打つ人が多いので、スキームが
@@ -163,13 +164,13 @@ export const parseRelayInput = (
 ): RelayInputResult => {
   const text = input.trim();
   if (text === "" || text === "wss://") {
-    return { ok: false, message: "リレーの URL を入力してください" };
+    return { ok: false, message: { key: "relay.input.urlRequired" } };
   }
   // 途中に空白のあるものは URL ではない。そのまま通すと `%20` に直されて足されてしまう。
   if (/\s/.test(text)) {
     return {
       ok: false,
-      message: "wss:// で始まるリレーの URL を入力してください",
+      message: { key: "relay.input.wssRequired" },
     };
   }
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text)
@@ -179,11 +180,11 @@ export const parseRelayInput = (
   if (!url) {
     return {
       ok: false,
-      message: "wss:// で始まるリレーの URL を入力してください",
+      message: { key: "relay.input.wssRequired" },
     };
   }
   if (existing.some((entry) => entry.url === url)) {
-    return { ok: false, message: "このリレーはもう入っています" };
+    return { ok: false, message: { key: "relay.input.duplicate" } };
   }
   return { ok: true, url };
 };

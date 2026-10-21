@@ -1,3 +1,4 @@
+import { MessageError } from "@streets/core/i18n/message";
 import type { ConnectionPool } from "@streets/core/read/connection-pool";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { createActiveSigner } from "@streets/core/signer/active-signer";
@@ -41,7 +42,7 @@ import {
 } from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import { t } from "./i18n/locale";
+import { t, message } from "./i18n/locale";
 import {
   type SignerTags,
   nip07Tags,
@@ -53,7 +54,11 @@ import {
 import { createSignerWait, observeSigner } from "./signer-wait";
 
 const errorText = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+  error instanceof MessageError
+    ? message(error.text)
+    : error instanceof Error
+      ? error.message
+      : String(error);
 
 /** 署名器の側から繋いでもらう 1 回分。 */
 export type ConnectAttempt = {
