@@ -32,7 +32,7 @@ export const setLocalePreference = (value: LocalePreference) => {
 };
 
 // 英語の文言が揃うまでは、ブラウザの言語に従わず日本語にする。英語のブラウザで
-// 半分だけ英語の画面を出さない。英語を選んだときだけ英語にする。
+// 半分だけ英語の画面を出さない。設定で English を選んだときだけ英語にする。
 const followsBrowser = false;
 
 export const locale = (): Locale =>
