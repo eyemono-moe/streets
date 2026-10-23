@@ -13,5 +13,350 @@
       "message": "Couldn't load new messages"
     },
     "retry": "Try again"
+  },
+  "accountMenu": {
+    "account": "Account",
+    "loginAndMenu": "Log in and menu",
+    "login": "Log in",
+    "setStatus": "Set status",
+    "settings": "Settings",
+    "about": "About Streets",
+    "feedback": "Send feedback",
+    "logout": "Log out"
+  },
+  "column": {
+    "closeStack": "Close stacked view"
+  },
+  "columnSettingsPanel": {
+    "popOut": "Open in picture-in-picture",
+    "close": "Close column settings",
+    "titleBefore": "Settings for ",
+    "titleAfter": ""
+  },
+  "columnArrange": {
+    "delete": "Delete \"{{ title }}\"",
+    "move": "Move \"{{ title }}\" (position {{ position }} of {{ count }})",
+    "moveHint": "Drag up or down, or use the arrow keys",
+    "empty": "This deck has no columns.",
+    "hint": "Drag a row up or down to reorder the columns.",
+    "add": "Add column"
+  },
+  "syncNotice": {
+    "saveFailed": "Couldn't save the deck: {{ message }}",
+    "retry": "Try again",
+    "conflict": "The deck changed on another device. Which version do you want to keep?",
+    "keepLocal": "Keep this device's version",
+    "useRemote": "Use the other device's version"
+  },
+  "feedback": {
+    "title": "Feedback for Streets",
+    "intro": "Tell us about bugs, confusing parts, or features you'd like. We use your feedback to make Streets better.",
+    "privacy": "The report text you enter is saved to Google Forms, organized by AI, and filed as a public GitHub issue. Screenshots and similar files aren't sent to AI or GitHub automatically. Don't enter personal information, private keys, or anything you don't want made public.",
+    "close": "Close",
+    "submit": "Report a bug or request a feature"
+  },
+  "addColumn": {
+    "presets": {
+      "home": {
+        "label": "Home",
+        "description": "Notes and reposts from people you follow",
+        "keywords": ["timeline", "following", "feed"]
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Replies, reactions, and reposts directed at you",
+        "keywords": ["replies", "reactions", "mentions"]
+      },
+      "search": {
+        "label": "Search",
+        "description": "Posts found by words or hashtags",
+        "keywords": ["find", "hashtag", "query"]
+      },
+      "relay": {
+        "label": "Relay",
+        "description": "Public notes from a relay you choose",
+        "keywords": ["server", "connection"]
+      },
+      "user": {
+        "label": "User",
+        "description": "Posts from a person you choose",
+        "keywords": ["person", "profile", "account"]
+      },
+      "channels": {
+        "label": "Channels",
+        "description": "Chat channels where everyone can talk",
+        "keywords": ["chat", "room"]
+      },
+      "bookmarks": {
+        "label": "Bookmarks",
+        "description": "Notes you've saved",
+        "keywords": ["saved", "favorites"]
+      },
+      "follow-sets": {
+        "label": "List",
+        "description": "Posts from a group of people you choose",
+        "keywords": ["follow set", "group"]
+      },
+      "followees-activity": {
+        "label": "Activity",
+        "description": "Reactions and reposts from people you follow",
+        "keywords": ["activity", "TweetDeck", "likes", "favorites"]
+      },
+      "timeslip": {
+        "label": "Timeslip",
+        "description": "Home timeline going back from a date and time you choose",
+        "keywords": ["past", "history", "date", "until"]
+      }
+    },
+    "backToKinds": "Back to column types",
+    "addListAsColumn": "Add the list to the deck as a column",
+    "channelPicker": {
+      "title": "Choose a channel",
+      "description": "Shows the messages of the channel you choose."
+    },
+    "followSetPicker": {
+      "title": "Choose a list",
+      "description": "Shows posts from the people in the list you choose."
+    },
+    "userSearch": {
+      "searching": "Searching on search relays…",
+      "none": "No one found on search relays",
+      "found": {
+        "one": "Found {{ count }} person on search relays",
+        "other": "Found {{ count }} people on search relays"
+      }
+    },
+    "userPicker": {
+      "invalid": "Pick from the suggestions, or enter a user ID starting with npub1… or nprofile1…",
+      "title": "Choose a user",
+      "description": "Shows notes and replies from the person you choose.",
+      "candidates": "People suggestions",
+      "placeholder": "Search by name or npub1…",
+      "inputLabel": "Person to show in the column",
+      "submit": "Add user column"
+    },
+    "timeslipPicker": {
+      "title": "Choose a date and time",
+      "description": "Shows posts from people you follow, going back in time from the date and time you choose.",
+      "label": "Start going back from",
+      "submit": "Add timeslip column"
+    },
+    "relayPicker": {
+      "title": "Choose a relay",
+      "description": "Shows the public notes on the relay you choose, in time order.",
+      "hint": "Enter a URL or pick one from the suggestions. Suggestions include relays used by your account and by people you follow.",
+      "loading": "Loading relay settings…",
+      "missing": "Your account has no relay settings. You can enter a URL directly.",
+      "submit": "Add relay column"
+    }
+  },
+  "loginReason": {
+    "post": "Log in to post",
+    "repost": "Log in to repost",
+    "reaction": "Log in to react",
+    "vote": "Log in to vote",
+    "bookmark": "Log in to bookmark posts",
+    "pin": "Log in to pin posts",
+    "broadcast": "Log in to resend this post to other relays",
+    "follow": "Log in to follow people",
+    "channelFavorite": "Log in to favorite channels",
+    "channelCreate": "Log in to create channels",
+    "channelEdit": "Log in to edit channels",
+    "zap": "Log in to send Zaps",
+    "status": "Log in to set a status",
+    "mute": "Log in to mute",
+    "listCreate": "Log in to create lists",
+    "listEdit": "Log in to edit lists",
+    "emoji": "Log in to manage your emoji",
+    "customEmoji": "Log in to make custom emoji",
+    "account": "Log in to change account settings"
+  },
+  "deckEdit": {
+    "nameLabel": "Deck name",
+    "switch": "Switch deck (current: \"{{ name }}\")",
+    "openColumns": {
+      "one": "Open deck · {{ count }} column",
+      "other": "Open deck · {{ count }} columns"
+    },
+    "columns": {
+      "one": "{{ count }} column",
+      "other": "{{ count }} columns"
+    },
+    "newDeck": "New deck…",
+    "actions": "Actions for \"{{ name }}\"",
+    "rename": "Rename",
+    "moveUp": "Move up in the list",
+    "moveDown": "Move down in the list",
+    "delete": "Delete this deck",
+    "confirmDelete": "This deletes \"{{ name }}\" and the arrangement of its columns. This can't be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  },
+  "mobileMenu": {
+    "menu": "Menu",
+    "search": "Search",
+    "addColumn": "Add column",
+    "editDeck": "Edit deck",
+    "commandPalette": "Command palette"
+  },
+  "nav": {
+    "openCompose": "Open the post panel",
+    "openSearch": "Open the search panel",
+    "addColumn": "Add column",
+    "editDeck": "Edit deck",
+    "openCommandPalette": "Open the command palette",
+    "settings": "Settings",
+    "openMenu": "Open the menu",
+    "columns": "Columns"
+  },
+  "newDeck": {
+    "description": "You can keep separate column layouts for different uses, such as phone and desktop. This device remembers which deck is open.",
+    "title": "New deck settings",
+    "name": "Name",
+    "firstColumns": "First columns",
+    "copy": "Copy \"{{ name }}\"",
+    "default": "Starter layout",
+    "submit": "Create and open"
+  },
+  "olderLoader": {
+    "waiting": "Waiting for other relays…",
+    "loading": "Loading older posts…",
+    "exhausted": "No older posts",
+    "failed": "Couldn't load older posts",
+    "retry": "Try again"
+  },
+  "poppedOut": {
+    "message": "Showing in picture-in-picture",
+    "popIn": "Return to the deck"
+  },
+  "panels": {
+    "compose": "Post",
+    "composeFailed": "Couldn't post",
+    "search": "Search",
+    "addColumn": "Add a column to \"{{ name }}\"",
+    "arrange": "Edit deck",
+    "newDeck": "New deck"
+  },
+  "writeLabel": {
+    "deckSettings": "Deck settings",
+    "uploadServers": "Image upload servers",
+    "searchRelays": "Search relays",
+    "blockedRelays": "Blocked relays",
+    "emoji": "My emoji",
+    "profile": "Profile",
+    "relays": "Relay settings",
+    "mutes": "Mute list"
+  },
+  "deckScreen": {
+    "appearanceSaved": "Display settings saved",
+    "privacySaved": "Privacy settings saved",
+    "localOnlyTitle": "This login method can't sync your deck to other devices",
+    "localOnlyBody": "Deck changes are saved only on this device. To sync, log in with an extension or signer app that supports encryption.",
+    "sharedLogin": "Log in to post the content you shared",
+    "popOutFailed": "Couldn't open picture-in-picture",
+    "followsFailed": "Couldn't load your follow list.",
+    "loadingDeck": "Loading deck…"
+  },
+  "relayEditor": {
+    "defaultListLabel": "Relays to add",
+    "remove": "Remove {{ relay }} from {{ list }}",
+    "minimum": "Choose at least one relay",
+    "maximum": "You can choose up to {{ count }} relays. Remove one to add another."
+  },
+  "relayInput": {
+    "group": {
+      "account": "Relays your account uses",
+      "followees": "Relays people you follow use"
+    },
+    "label": "Add a relay",
+    "placeholder": "Enter a URL or pick a suggestion",
+    "add": "Add",
+    "added": "Added"
+  },
+  "searchHistory": {
+    "label": "Recent searches",
+    "clear": "Clear all",
+    "remove": "Remove \"{{ query }}\" from history",
+    "removeTitle": "Remove from history"
+  },
+  "searchPanel": {
+    "empty": "Results appear here when you enter a keyword.",
+    "notSearched": "Press Enter or Search to search.",
+    "incomplete": "Couldn't get results from some relays.",
+    "noPosts": "No posts yet.",
+    "searching": "Searching…",
+    "search": "Search",
+    "openColumn": "Open a column with these conditions"
+  },
+  "searchQuery": {
+    "label": "Search query",
+    "placeholder": "cats #nostr from:npub1…",
+    "details": "More conditions"
+  },
+  "settingField": {
+    "reset": "Reset {{ label }} to default",
+    "resetTitle": "Reset to default"
+  },
+  "sidePanel": {
+    "back": "Back",
+    "close": "Close"
+  },
+  "unreadableLink": {
+    "message": "Couldn't read this link: {{ entity }}",
+    "close": "Close"
+  },
+  "pip": {
+    "unsupported": "This browser doesn't support picture-in-picture"
+  },
+  "columnSettings": {
+    "width": "Width",
+    "widthPx": "Width (px)",
+    "density": {
+      "label": "Density",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "expandMedia": "Expand images and videos",
+    "linkCards": {
+      "label": "Link cards",
+      "off": "Off",
+      "compact": "Small",
+      "large": "Large"
+    },
+    "muted": {
+      "label": "Muted posts",
+      "hide": "Hide",
+      "fold": "Collapse",
+      "show": "Show as is"
+    },
+    "show": {
+      "label": "Show",
+      "replies": "Replies",
+      "quotes": "Quotes",
+      "mentions": "Mentions",
+      "reposts": "Reposts",
+      "reactions": "Reactions",
+      "zaps": "Zaps",
+      "chats": "Channel messages"
+    },
+    "delete": "Delete this column"
+  },
+  "searchForm": {
+    "unknownKind": "{{ kind }} (unknown kind)",
+    "words": "Words",
+    "wordsPlaceholder": "cats -dogs",
+    "hashtags": "Hashtags",
+    "followsOnly": "Only people you follow",
+    "followsNeedLogin": "Log in to search people you follow.",
+    "excludeFrom": "Exclude people",
+    "from": "Written by",
+    "peopleSuggestions": "People suggestions",
+    "to": "Replying to",
+    "since": "From",
+    "until": "Until",
+    "kindSuggestions": "Kind suggestions",
+    "kindsPlaceholder": "1 (posts if left empty)",
+    "excludeBots": "Exclude bots",
+    "peopleNote": "People you specify are written back in the search box as hex public keys (they refer to the same people)."
   }
 }

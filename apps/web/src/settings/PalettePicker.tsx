@@ -1,5 +1,6 @@
 import { RadioGroup } from "@ark-ui/solid/radio-group";
 import { type Component, For } from "solid-js";
+import { t } from "../i18n/locale";
 import { PALETTES, type PaletteName } from "../theme";
 
 /** 色の組み合わせ（アクセントと、文字と背景の色味）を 1 つ選ぶ。 */
@@ -17,7 +18,9 @@ const PalettePicker: Component<{
       if (palette) props.onChange(palette);
     }}
   >
-    <RadioGroup.Label class="sr-only">色の組み合わせ</RadioGroup.Label>
+    <RadioGroup.Label class="sr-only">
+      {t("settings.palettes.label")}
+    </RadioGroup.Label>
     <For each={Object.entries(PALETTES)}>
       {([name, palette]) => (
         <RadioGroup.Item
@@ -38,7 +41,7 @@ const PalettePicker: Component<{
             </span>
           </span>
           <RadioGroup.ItemText class="sr-only">
-            {palette.label}
+            {t(`settings.palettes.${name as PaletteName}`)}
           </RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>

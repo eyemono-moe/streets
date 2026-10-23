@@ -22,6 +22,7 @@ import {
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { t } from "../i18n/locale";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
@@ -76,11 +77,11 @@ export const ProfileMediator: ParentComponent<{
       .then(
         () => {
           apply({ type: "profile/saved" });
-          notifySaved("プロフィールを保存しました");
+          notifySaved(t("settings.profile.saved"));
         },
         (cause) => {
           apply({ type: "profile/failed" });
-          notifyError(cause, "プロフィールを保存できませんでした");
+          notifyError(cause, t("settings.profile.saveFailed"));
         },
       );
   };

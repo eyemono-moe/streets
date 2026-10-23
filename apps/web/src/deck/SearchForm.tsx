@@ -9,6 +9,7 @@ import {
   useUserCandidates,
   userSource,
 } from "../completion/sources";
+import { t } from "../i18n/locale";
 import Completion from "../ui/Completion";
 import ExperimentalBadge from "../ui/ExperimentalBadge";
 import Switch from "../ui/Switch";
@@ -32,7 +33,9 @@ const fromDateInput = (value: string): number | undefined => {
 /** 欄に入れた kind が何を指すか。一覧に無い番号は、打ち間違いに気づけるようにそう書く。 */
 const kindName = (kind: number): string => {
   const entry = KIND_SUPPORT.find((known) => known.kind === kind);
-  return entry ? `${kind} ${entry.summary}` : `${kind}（知らない kind）`;
+  return entry
+    ? `${kind} ${entry.summary}`
+    : t("deck.searchForm.unknownKind", { kind });
 };
 
 const Field: Component<{ id: string; label: string; children: unknown }> = (
@@ -91,11 +94,11 @@ const SearchForm: Component<{
 
   return (
     <div class="flex flex-col gap-2.5">
-      <Field id="search-words" label="単語">
+      <Field id="search-words" label={t("deck.searchForm.words")}>
         <input
           id="search-words"
           class={inputClass}
-          placeholder="ねこ -いぬ"
+          placeholder={t("deck.searchForm.wordsPlaceholder")}
           value={shownSigned(props.query.words, props.query.excludeWords)}
           onChange={(event) => {
             const { include, exclude } = signed(event.currentTarget.value);
@@ -103,7 +106,7 @@ const SearchForm: Component<{
           }}
         />
       </Field>
-      <Field id="search-hashtags" label="ハッシュタグ">
+      <Field id="search-hashtags" label={t("deck.searchForm.hashtags")}>
         <input
           id="search-hashtags"
           class={inputClass}
@@ -120,7 +123,7 @@ const SearchForm: Component<{
       </Field>
       <Show when={props.signedIn}>
         <Switch
-          label="フォローしている人に限定"
+          label={t("deck.searchForm.followsOnly")}
           checked={props.query.from === "follows"}
           onChange={(checked) =>
             patch({ from: checked ? "follows" : undefined })
@@ -129,11 +132,21 @@ const SearchForm: Component<{
       </Show>
       <Show when={!props.signedIn && props.query.from === "follows"}>
         <p class="c-secondary text-caption">
-          フォロー中の人を検索するにはログインしてください。
+          {t("deck.searchForm.followsNeedLogin")}
         </p>
       </Show>
-      <Field id="search-from" label={followsSelected() ? "除く人" : "書いた人"}>
-        <Completion sources={people} label="人の候補">
+      <Field
+        id="search-from"
+        label={
+          followsSelected()
+            ? t("deck.searchForm.excludeFrom")
+            : t("deck.searchForm.from")
+        }
+      >
+        <Completion
+          sources={people}
+          label={t("deck.searchForm.peopleSuggestions")}
+        >
           {(attach) => (
             <input
               ref={attach}
@@ -162,8 +175,11 @@ const SearchForm: Component<{
           )}
         </Completion>
       </Field>
-      <Field id="search-to" label="宛先">
-        <Completion sources={people} label="人の候補">
+      <Field id="search-to" label={t("deck.searchForm.to")}>
+        <Completion
+          sources={people}
+          label={t("deck.searchForm.peopleSuggestions")}
+        >
           {(attach) => (
             <input
               ref={attach}
@@ -185,7 +201,7 @@ const SearchForm: Component<{
       </Field>
       <div class="flex gap-2">
         <div class="min-w-0 flex-1">
-          <Field id="search-since" label="この日から">
+          <Field id="search-since" label={t("deck.searchForm.since")}>
             <input
               id="search-since"
               type="date"
@@ -198,7 +214,7 @@ const SearchForm: Component<{
           </Field>
         </div>
         <div class="min-w-0 flex-1">
-          <Field id="search-until" label="この日まで">
+          <Field id="search-until" label={t("deck.searchForm.until")}>
             <input
               id="search-until"
               type="date"
@@ -212,13 +228,16 @@ const SearchForm: Component<{
         </div>
       </div>
       <Field id="search-kinds" label="kind">
-        <Completion sources={kinds} label="kind の候補">
+        <Completion
+          sources={kinds}
+          label={t("deck.searchForm.kindSuggestions")}
+        >
           {(attach) => (
             <input
               ref={attach}
               id="search-kinds"
               class={inputClass}
-              placeholder="1（省略すると投稿）"
+              placeholder={t("deck.searchForm.kindsPlaceholder")}
               value={props.query.kinds.join(" ")}
               onChange={(event) =>
                 patch({
@@ -238,7 +257,7 @@ const SearchForm: Component<{
       </Field>
       {/* プロフィールで名乗っている人しか除けず効きにくいので、印で示す。 */}
       <Switch
-        label="botを除く"
+        label={t("deck.searchForm.excludeBots")}
         checked={props.query.excludeBots}
         onChange={(checked) => patch({ excludeBots: checked })}
         aside={<ExperimentalBadge />}
@@ -252,8 +271,7 @@ const SearchForm: Component<{
         }
       >
         <p class="c-secondary text-caption">
-          人の指定は、入力欄では 16 進の公開鍵として書き戻されます（指すものは
-          同じです）。
+          {t("deck.searchForm.peopleNote")}
         </p>
       </Show>
     </div>

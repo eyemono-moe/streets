@@ -18,6 +18,7 @@ import {
 import { actionLayout } from "../action-layout-setting";
 import { chatOrder } from "../chat-order-setting";
 import { contentWarningMode } from "../content-warning-setting";
+import { t } from "../i18n/locale";
 import { timeFormat } from "../time-format-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
@@ -178,8 +179,9 @@ const SettingsDialog: Component<{
       get title() {
         return pageName("emoji");
       },
-      description:
-        "いいねボタンで送る絵文字と、リアクションのピッカーに出る絵文字を設定します",
+      get description() {
+        return t("settings.emoji.pageDescription");
+      },
       content: () => <EmojiSettings defaultReaction={props.defaultReaction} />,
     },
     {
@@ -260,8 +262,9 @@ const SettingsDialog: Component<{
       get title() {
         return pageName("stats");
       },
-      description:
-        "リレーとやりとりしたデータの量と、いま投稿を読んでいるリレーです。",
+      get description() {
+        return t("settings.stats.pageDescription");
+      },
       content: () => <StatsSettings />,
     },
   ];
@@ -273,14 +276,14 @@ const SettingsDialog: Component<{
 
   const searchPage: DialogPage = {
     value: "settings-results",
-    label: "検索結果",
+    label: t("settings.search.resultsLabel"),
     icon: "i-material-symbols:search-rounded",
-    title: "設定の検索結果",
+    title: t("settings.search.resultsTitle"),
     content: () => (
       <Show
         when={hits().length > 0}
         fallback={
-          <p class="c-secondary text-body">該当する設定はありません。</p>
+          <p class="c-secondary text-body">{t("settings.search.noResults")}</p>
         }
       >
         <div class="flex flex-col gap-7">
@@ -318,17 +321,17 @@ const SettingsDialog: Component<{
       <PagedDialog
         open={props.open}
         wide={props.wide}
-        title="設定"
+        title={t("settings.dialog.title")}
         description={
           props.signedIn
-            ? "アカウントと、この端末の表示を設定します。"
-            : "この端末の表示を設定します。アカウントの設定は、ログインすると使えます。"
+            ? t("settings.dialog.descriptionSignedIn")
+            : t("settings.dialog.descriptionSignedOut")
         }
         pages={pages()}
         navigationBefore={
           <SearchInput
-            label="設定を検索"
-            placeholder="設定を検索"
+            label={t("settings.search.label")}
+            placeholder={t("settings.search.label")}
             value={query()}
             onValueChange={(value) => {
               setTarget(undefined);

@@ -5,6 +5,7 @@ import { MAX_FALLBACK_RELAYS } from "@streets/core/settings/fallback-relay-setti
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, Show } from "solid-js";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import SettingsSection from "./SettingsSection";
 
@@ -24,11 +25,15 @@ const FallbackRelaysView: Component<{
     <SettingsSection
       id="fallbackRelays"
       scope="device"
-      description={`リレーの設定が見つからない人の投稿を読むときや、あなたの書き込みリレーが無いときの送り先に使うリレーです。${MAX_FALLBACK_RELAYS} 本まで指定できます。1 本も指定しなければ、Streets が決めたリレーを使います。`}
+      description={t("settings.fallbackRelays.description", {
+        max: MAX_FALLBACK_RELAYS,
+      })}
     >
       <Show when={props.relays.length === 0}>
         <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-          {`いまは Streets が決めたリレー（${FALLBACK_RELAYS.map(hostOf).join("・")}）を使っています。`}
+          {t("settings.fallbackRelays.usingDefault", {
+            relays: FALLBACK_RELAYS.map(hostOf).join(", "),
+          })}
         </p>
       </Show>
       <RelayColumnEditor
@@ -36,7 +41,7 @@ const FallbackRelaysView: Component<{
         followeeWriteRelays={props.followeeWriteRelays}
         selected={props.relays}
         maximum={MAX_FALLBACK_RELAYS}
-        listLabel="既定のリレー"
+        listLabel={t("settings.fallbackRelays.listLabel")}
         onChange={(relays) =>
           dispatch({ type: "deck/set-fallback-relays", relays })
         }

@@ -1,3 +1,4 @@
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 
@@ -10,11 +11,11 @@ const UnreadableLink = (props: { entity: string }) => {
   return (
     <div class="flex items-start gap-2 p-4">
       <p role="alert" class="c-secondary min-w-0 flex-1 break-all text-caption">
-        このリンクは読めませんでした：{props.entity}
+        {t("deck.unreadableLink.message", { entity: props.entity })}
       </p>
       <IconButton
         icon="i-material-symbols:close-rounded"
-        label="閉じる"
+        label={t("deck.unreadableLink.close")}
         size="sm"
         onClick={() => dispatch({ type: "deck/close-temp" })}
       />

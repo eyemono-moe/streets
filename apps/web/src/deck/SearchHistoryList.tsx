@@ -3,6 +3,7 @@ import {
   searchHistoryParts,
 } from "@streets/core/search/history";
 import { type Component, For, Match, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import Name from "../note/Name";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -39,17 +40,20 @@ const SearchHistoryList: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    <section class="flex flex-col py-2" aria-label="最近の検索">
+    <section
+      class="flex flex-col py-2"
+      aria-label={t("deck.searchHistory.label")}
+    >
       <div class="flex items-center gap-2 py-1 pr-2 pl-3">
         <h3 class="c-secondary min-w-0 flex-1 font-600 text-caption">
-          最近の検索
+          {t("deck.searchHistory.label")}
         </h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => dispatch({ type: "search/history-clear" })}
         >
-          すべて消す
+          {t("deck.searchHistory.clear")}
         </Button>
       </div>
       <ul class="flex flex-col">
@@ -72,8 +76,8 @@ const SearchHistoryList: Component<{
               <IconButton
                 size="sm"
                 icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                label={`「${query}」を履歴から外す`}
-                title="履歴から外す"
+                label={t("deck.searchHistory.remove", { query })}
+                title={t("deck.searchHistory.removeTitle")}
                 onClick={() =>
                   dispatch({ type: "search/history-remove", query })
                 }

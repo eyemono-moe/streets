@@ -150,9 +150,9 @@
     "unpin": "Unpin",
     "pinUnavailable": "This post can't be pinned",
     "gate": {
-      "reply": "reply",
-      "quote": "quote",
-      "broadcast": "send this to other relays"
+      "reply": "Log in to reply",
+      "quote": "Log in to quote",
+      "broadcast": "Log in to resend this post to other relays"
     },
     "reposted": "Reposted",
     "repostAction": "Repost",

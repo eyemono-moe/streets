@@ -1,4 +1,5 @@
 import { type Component, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -31,28 +32,30 @@ const NewDeckPanel: Component<{ placeholder: string; current: string }> = (
         setName("");
       }}
     >
-      <p class="c-secondary text-caption">
-        用途ごとにカラムの並びを分けて持てます（スマホ用・PC
-        用など）。どのデッキを開いているかは、この端末に覚えます。
-      </p>
+      <p class="c-secondary text-caption">{t("deck.newDeck.description")}</p>
       <h3 class="flex items-center gap-1.5 font-600 text-body">
-        新しいデッキの設定
+        {t("deck.newDeck.title")}
         <StorageHint scope="account" />
       </h3>
       <TextField
-        label="名前"
+        label={t("deck.newDeck.name")}
         value={name()}
         placeholder={props.placeholder}
         onInput={setName}
       />
       <div class="flex flex-col gap-1">
-        <span class="c-secondary font-600 text-caption">最初のカラム</span>
+        <span class="c-secondary font-600 text-caption">
+          {t("deck.newDeck.firstColumns")}
+        </span>
         <SegmentedControl
-          label="最初のカラム"
+          label={t("deck.newDeck.firstColumns")}
           block
           options={[
-            { value: "copy", label: `「${props.current}」を複製` },
-            { value: "default", label: "はじめの構成" },
+            {
+              value: "copy",
+              label: t("deck.newDeck.copy", { name: props.current }),
+            },
+            { value: "default", label: t("deck.newDeck.default") },
           ]}
           value={from()}
           onChange={setFrom}
@@ -63,7 +66,7 @@ const NewDeckPanel: Component<{ placeholder: string; current: string }> = (
         variant="primary"
         icon="i-material-symbols:add-rounded"
       >
-        作って開く
+        {t("deck.newDeck.submit")}
       </Button>
     </form>
   );

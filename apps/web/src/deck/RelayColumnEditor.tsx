@@ -2,6 +2,7 @@ import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import RelaySummary from "../settings/RelaySummary";
 import IconButton from "../ui/IconButton";
 import RelayInput from "./RelayInput";
@@ -19,7 +20,8 @@ const RelayColumnEditor: Component<{
   /** 選んだリレーの一覧の見出し。 */
   listLabel?: string;
 }> = (props) => {
-  const listLabel = () => props.listLabel ?? "追加するリレー";
+  const listLabel = () =>
+    props.listLabel ?? t("deck.relayEditor.defaultListLabel");
   const selected = (url: RelayUrl) => props.selected.includes(url);
   const add = (url: RelayUrl) => {
     if (!selected(url)) props.onChange([...props.selected, url]);
@@ -46,11 +48,14 @@ const RelayColumnEditor: Component<{
                     actions={
                       <IconButton
                         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                        label={`${relayLabel(url)}を${listLabel()}から外す`}
+                        label={t("deck.relayEditor.remove", {
+                          relay: relayLabel(url),
+                          list: listLabel(),
+                        })}
                         disabled={props.selected.length <= (props.minimum ?? 0)}
                         title={
                           props.selected.length <= (props.minimum ?? 0)
-                            ? "リレーを1つ以上選んでください"
+                            ? t("deck.relayEditor.minimum")
                             : undefined
                         }
                         onClick={() => remove(url)}
@@ -72,7 +77,7 @@ const RelayColumnEditor: Component<{
       />
       <Show when={full()}>
         <p class="c-secondary text-caption">
-          {`${props.maximum} 本まで指定できます。足すには、どれかを外してください。`}
+          {t("deck.relayEditor.maximum", { count: props.maximum ?? 0 })}
         </p>
       </Show>
     </div>

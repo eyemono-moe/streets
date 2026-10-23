@@ -6,13 +6,14 @@ import {
 } from "@streets/core/settings/read-routing-setting";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, Match, Show, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
 
-const READ_MODES: { value: ReadRoutingMode; label: string }[] = [
-  { value: "outbox", label: "人ごとに選ぶ" },
-  { value: "direct", label: "読み込みリレーだけ" },
+const readModes = (): { value: ReadRoutingMode; label: string }[] => [
+  { value: "outbox", label: t("settings.readRouting.outbox") },
+  { value: "direct", label: t("settings.readRouting.direct") },
 ];
 
 /** 投稿を読むリレーの決め方。変えたらイベントを上へ渡す。 */
@@ -44,23 +45,23 @@ const ReadRoutingView: Component<{
     <SettingsSection
       id="readRouting"
       scope="device"
-      description="ふつうは、フォローしている人ごとに、その人が書き込みに使っているリレーを探して投稿を読みます。その人のリレーの設定が見つからないと、決まったリレーから読むので、手元で動かしているリレーや、限られた人だけのリレーにある投稿は出ないことがあります。「読み込みリレーだけ」にすると、誰の投稿も、「使うリレー」で「読み込み」にしたリレーから読みます。"
+      description={t("settings.readRouting.description")}
     >
       <SegmentedControl
-        label="投稿を読むリレー"
+        label={t("settings.readRouting.label")}
         variant="secondary"
         value={props.mode}
-        options={READ_MODES}
+        options={readModes()}
         onChange={(mode) => dispatch({ type: "deck/set-read-routing", mode })}
       />
       <Show when={props.mode === "direct"}>
         <div class="c-secondary rounded-2 border border-primary p-3 text-caption">
           <Switch>
-            <Match when={props.loading}>読み込み中…</Match>
+            <Match when={props.loading}>{t("settings.relays.loading")}</Match>
             <Match when={true}>
               {usesFallback()
-                ? "読み込みにしたリレーが無いので、いまは次のリレーから読んでいます。"
-                : "いまは次のリレーから読んでいます。"}
+                ? t("settings.readRouting.readingFallback")
+                : t("settings.readRouting.reading")}
               <For each={directRelays()}>
                 {(url) => (
                   <span class="c-primary block break-all">

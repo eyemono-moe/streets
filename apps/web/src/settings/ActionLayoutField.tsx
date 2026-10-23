@@ -11,6 +11,7 @@ import {
 } from "@streets/core/settings/action-layout";
 import { type Component, For, createMemo } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { t } from "../i18n/locale";
 import { EVENT_ACTION_META } from "../note/event-ops";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
@@ -62,10 +63,10 @@ const Row: Component<{
         }
         label={
           props.inBar
-            ? `「${meta().label}」をメニューへ移す`
+            ? t("settings.actionLayout.toMenu", { action: meta().label })
             : props.full
-              ? `アクション欄は ${ACTION_BAR_MAX} 個までです`
-              : `「${meta().label}」をアクション欄へ出す`
+              ? t("settings.actionLayout.barFull", { max: ACTION_BAR_MAX })
+              : t("settings.actionLayout.toBar", { action: meta().label })
         }
         disabled={!props.inBar && props.full}
         onPointerDown={(event) => event.stopPropagation()}
@@ -87,8 +88,12 @@ const Row: Component<{
       >
         <IconButton
           icon="i-material-symbols:drag-indicator"
-          label={`「${meta().label}」を動かす（${props.inBar ? "アクション欄" : "メニュー"}）`}
-          title="掴んで上下に動かすか、↑↓ キーで動かす"
+          label={
+            props.inBar
+              ? t("settings.actionLayout.moveInBar", { action: meta().label })
+              : t("settings.actionLayout.moveInMenu", { action: meta().label })
+          }
+          title={t("settings.actionLayout.moveHint")}
           aria-keyshortcuts="ArrowUp ArrowDown"
           onKeyDown={(event) => {
             if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
@@ -141,7 +146,10 @@ export const ActionLayoutView: Component<{
   return (
     <div class="flex flex-col gap-1.5">
       <p class="c-secondary font-600 text-caption">
-        アクション欄（{shown().bar.length} / {ACTION_BAR_MAX}）
+        {t("settings.actionLayout.barHeading", {
+          count: shown().bar.length,
+          max: ACTION_BAR_MAX,
+        })}
       </p>
       {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
       <ol class="relative m-0 flex list-none flex-col gap-1.5 p-0" ref={list}>
@@ -153,7 +161,9 @@ export const ActionLayoutView: Component<{
                 class="c-secondary pt-3 font-600 text-caption"
                 style={{ order: positionOf(MENU_DIVIDER) }}
               >
-                右上のメニュー（{shown().menu.length}）
+                {t("settings.actionLayout.menuHeading", {
+                  count: shown().menu.length,
+                })}
               </li>
             ) : (
               <Row

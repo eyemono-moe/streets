@@ -1,6 +1,7 @@
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { buildReaction } from "@streets/core/nostr/reaction";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
+import { locale, t } from "../i18n/locale";
 import Event from "../note/Event";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -10,23 +11,28 @@ import { Mediates } from "../ui-events";
  * 色の当たり方を見るための投稿。リンク・メンション・ハッシュタグ・自分のいいねは
  * アクセントカラーで描かれるので、全部入りの 1 件を手元で作って並べる（リレーには出さない）。
  */
-const DisplayPreview: Component = () => {
+const PreviewScene: Component = () => {
   const author = createStoryAuthor(201, {
     name: "streets",
     displayName: "Streets",
   });
   const friend = createStoryAuthor(202, {
     name: "friend",
-    displayName: "ともだち",
+    displayName: t("settings.preview.friend"),
   });
   const other = createStoryAuthor(203, {
     name: "other",
-    displayName: "ほかのひと",
+    displayName: t("settings.preview.other"),
   });
-  const viewer = createStoryAuthor(204, { name: "you", displayName: "あなた" });
+  const viewer = createStoryAuthor(204, {
+    name: "you",
+    displayName: t("settings.preview.viewer"),
+  });
 
   const note = author.note(
-    `色を確かめるためのノート。https://example.com/ へのリンク、#streets のハッシュタグ、nostr:${encodeBech32("npub", friend.pubkey)} へのメンションが入っています。`,
+    t("settings.preview.note", {
+      npub: encodeBech32("npub", friend.pubkey),
+    }),
     [["t", "streets"]],
   );
   const reactions = [
@@ -58,5 +64,15 @@ const DisplayPreview: Component = () => {
     </EventSceneProvider>
   );
 };
+
+/**
+ * 見本の投稿は署名したイベントなので、文を後から差し替えられない。言語を切り替えたら
+ * 作り直す。
+ */
+const DisplayPreview: Component = () => (
+  <Show when={locale()} keyed>
+    {(_) => <PreviewScene />}
+  </Show>
+);
 
 export default DisplayPreview;

@@ -6,6 +6,7 @@ import {
   EmojiSetAddButton,
   EmojiSetHeading,
 } from "../emoji/EmojiSetParts";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import SearchInput from "../ui/SearchInput";
 
@@ -52,10 +53,10 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
       >
         <SearchInput
           class="min-w-48 flex-1"
-          label="絵文字セットを探す"
-          placeholder="ねこ / @名前 / npub1… / naddr1…"
+          label={t("settings.emojiSearch.label")}
+          placeholder={t("settings.emojiSearch.placeholder")}
           completion={sources}
-          completionLabel="人の候補"
+          completionLabel={t("settings.emojiSearch.peopleLabel")}
           aria-invalid={props.error !== undefined}
           aria-describedby={props.error ? "emoji-set-search-error" : undefined}
           value={text()}
@@ -66,7 +67,7 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
           variant="primary"
           icon="i-material-symbols:search-rounded"
         >
-          探す
+          {t("settings.emojiSearch.submit")}
         </Button>
       </form>
       <Show when={props.error}>
@@ -77,7 +78,9 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
         )}
       </Show>
       <Show when={props.searching}>
-        <p class="c-secondary text-caption">探しています…</p>
+        <p class="c-secondary text-caption">
+          {t("settings.emojiSearch.searching")}
+        </p>
       </Show>
       <Show when={props.results.length > 0}>
         <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
@@ -92,8 +95,7 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
         when={props.searched && !props.searching && props.results.length === 0}
       >
         <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-          見つかりませんでした。言葉での検索に答えるリレーは多くありません。入力を空にして押すと新しく作られたものが並びます。作った人の
-          npub か、セットの naddr を貼っても取り込めます。
+          {t("settings.emojiSearch.notFound")}
         </p>
       </Show>
     </div>

@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
 import { ColumnHeader } from "../columns/ColumnHeader";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ColumnAccentBar from "./ColumnAccentBar";
@@ -33,15 +34,13 @@ const PoppedOutColumn: Component<{
           class="i-material-symbols:picture-in-picture-alt-outline-rounded c-secondary size-8"
           aria-hidden="true"
         />
-        <p class="c-secondary text-caption">
-          ピクチャーインピクチャーで表示しています
-        </p>
+        <p class="c-secondary text-caption">{t("deck.poppedOut.message")}</p>
         <Button
           size="sm"
           icon="i-material-symbols:pip-exit-outline-rounded"
           onClick={() => dispatch({ type: "deck/pop-in" })}
         >
-          デッキに戻す
+          {t("deck.poppedOut.popIn")}
         </Button>
       </div>
     </section>
