@@ -16,17 +16,13 @@ import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
-import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 import { followSetName } from "./follow-set-name";
 import { privatePartNotice } from "./FollowSetMediator";
 import { LegacyMuteNotice, memberCountLabel } from "./FollowSetSummary";
 import ListPicture from "./ListPicture";
-import {
-  VISIBILITY_LABEL,
-  memberVisibilityHint,
-  visibilityOptions,
-} from "./visibility";
+import { VISIBILITY_LABEL, memberVisibilityHint } from "./visibility";
+import VisibilityAddButton from "./VisibilityAddButton";
 
 const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
   props,
@@ -72,13 +68,6 @@ const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
         submit();
       }}
     >
-      <SegmentedControl
-        label={t("lists.info.visibility")}
-        variant="secondary"
-        value={visibility()}
-        options={visibilityOptions(props.privateReady)}
-        onChange={setChosen}
-      />
       <div class="flex items-center gap-2">
         <Completion sources={people} label={t("lists.info.candidates")}>
           {(attach) => (
@@ -96,13 +85,12 @@ const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
             />
           )}
         </Completion>
-        <Button
+        <VisibilityAddButton
           type="submit"
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-        >
-          {t("lists.info.add")}
-        </Button>
+          value={visibility()}
+          privateReady={props.privateReady}
+          onChange={setChosen}
+        />
       </div>
       <p
         class="text-caption"

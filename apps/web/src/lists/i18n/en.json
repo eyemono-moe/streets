@@ -16,7 +16,16 @@
     },
     "privateUnavailable": "Your current sign-in method can't handle private members",
     "none": "Don't add",
-    "membershipHint": "People you add privately are saved encrypted, so no one else can tell. People you add publicly can be seen by anyone."
+    "membershipHint": "People you add privately are saved encrypted, so no one else can tell. People you add publicly can be seen by anyone.",
+    "add": {
+      "label": "Add",
+      "private": "Add privately",
+      "public": "Add publicly",
+      "menuLabel": "Choose who can see it",
+      "privateDescription": "Saved encrypted. Others can't tell.",
+      "publicDescription": "Other people and apps can see it.",
+      "privateUnavailable": "Your current sign-in method can't save private items"
+    }
   },
   "summary": {
     "members": {
@@ -60,11 +69,9 @@
   "info": {
     "invalidUser": "Enter a user ID that starts with npub1… or nprofile1…",
     "alreadyMember": "Already in this list",
-    "visibility": "Visibility",
     "candidates": "Suggested people",
     "searchPlaceholder": "Search by name or npub1…",
     "memberInput": "Person to add to the list",
-    "add": "Add",
     "removeMember": "Remove from list",
     "delete": "Delete list",
     "deleteNotice": "This deletes the list itself. The people in it and who you follow are not affected. This can't be undone.",
