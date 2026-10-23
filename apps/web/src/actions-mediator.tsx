@@ -116,7 +116,7 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
         );
         return true;
       case "note/delete":
-        run(event, "削除を依頼できませんでした", () =>
+        run(event, t("app.actionFailed.delete"), () =>
           actions.deleteEvent(event.target),
         );
         return true;

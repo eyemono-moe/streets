@@ -172,7 +172,8 @@
     "muteMore": "Mute…",
     "postedFrom": "Posted from {{ client }}",
     "label": "Post actions",
-    "thisEvent": "This event"
+    "thisEvent": "This event",
+    "delete": "Delete"
   },
   "linkCard": {
     "loading": "Loading link info"
@@ -229,5 +230,11 @@
     "close": "Close",
     "openOriginalVideo": "Open original video",
     "openOriginalImage": "Open original image"
+  },
+  "deleteDialog": {
+    "title": "Delete this post?",
+    "description": "This asks the relays that received the post to delete it. It may stay on relays that ignore the request and in apps that already received it. This can't be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete"
   }
 }

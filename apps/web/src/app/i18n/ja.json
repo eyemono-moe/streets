@@ -15,7 +15,8 @@
     "chatMute": "チャット内のミュート",
     "favorite": "お気に入り",
     "broadcast": "ブロードキャスト",
-    "follow": "フォロー"
+    "follow": "フォロー",
+    "delete": "投稿の削除"
   },
   "actions": {
     "cannotRepost": "この投稿はリポストできません",
@@ -31,7 +32,8 @@
     "pin": "ピン留めを保存できませんでした",
     "follow": "フォローの状態を保存できませんでした",
     "favorite": "お気に入りを保存できませんでした",
-    "broadcast": "送り直せませんでした"
+    "broadcast": "送り直せませんでした",
+    "delete": "削除を依頼できませんでした"
   },
   "errors": {
     "writeFailed": {

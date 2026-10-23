@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Component } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
@@ -27,18 +28,18 @@ const DeleteEventDialog: Component<{
         <DialogContent class="w-full max-w-100 rounded-3 border border-primary">
           <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
             <DialogTitle class="min-w-0 flex-1 font-600 text-body">
-              この投稿を削除しますか
+              {t("note.deleteDialog.title")}
             </DialogTitle>
             <DialogClose />
           </div>
           <DialogBody class="px-4 pb-4">
             <DialogDescription class="text-caption">
-              投稿を届けたリレーに、削除を依頼します。依頼に従わないリレーや、すでに投稿を受け取ったアプリには残ることがあります。削除は取り消せません。
+              {t("note.deleteDialog.description")}
             </DialogDescription>
           </DialogBody>
           <div class="flex shrink-0 justify-end gap-2 px-4 pb-4">
             <Button variant="ghost" onClick={props.onClose}>
-              やめる
+              {t("note.deleteDialog.cancel")}
             </Button>
             <Button
               variant="danger"
@@ -48,7 +49,7 @@ const DeleteEventDialog: Component<{
                 props.onClose();
               }}
             >
-              削除する
+              {t("note.deleteDialog.confirm")}
             </Button>
           </div>
         </DialogContent>

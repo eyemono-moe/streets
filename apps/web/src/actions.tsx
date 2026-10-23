@@ -468,9 +468,13 @@ export const createWriteStack = (options: {
       // 自分の write リレーだけでは、別のリレーに残った投稿が消えない（NIP-09 は対象を持つ
       // リレーへも送るよう求める）。数を絞らないのは、どれも投稿を読むのに一度繋いだリレーで、
       // 削除依頼は投稿のたびに送るものではないため。
-      await tracked("投稿の削除").publish(buildDeletion(event), undefined, {
-        relays: seenRelays(event.id),
-      });
+      await tracked(t("app.writeLabel.delete")).publish(
+        buildDeletion(event),
+        undefined,
+        {
+          relays: seenRelays(event.id),
+        },
+      );
     },
     followeeIds,
     following: (pubkey) => followeeIds().includes(pubkey),
