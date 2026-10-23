@@ -57,13 +57,14 @@
   {
     "nip": "09",
     "status": "対応",
-    "summary": "イベントの削除依頼と非表示",
+    "summary": "自分の投稿をメニューから削除する（投稿を受け取ったリレーへも削除依頼を送る）。届いた削除依頼で投稿を隠す",
     "kinds": [5],
     "tags": ["e", "a", "k"],
     "paths": [
-      "packages/core/src/nostr/build/deletion.ts",
+      "packages/core/src/nostr/deletion.ts",
       "packages/core/src/read/event-store.ts",
-      "packages/core/src/read/deletion-requests.ts"
+      "packages/core/src/read/deletion-requests.ts",
+      "apps/web/src/note/DeleteEventDialog.tsx"
     ],
     "gap": "削除依頼は投稿を取ったリレーにだけ聞くので、ほかのリレーにだけ送られた依頼は届かない。引用や返信先として id で取って描いた投稿は、描いた後に届いた削除依頼では消えない"
   },

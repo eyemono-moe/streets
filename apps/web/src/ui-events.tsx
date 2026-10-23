@@ -325,7 +325,9 @@ export type ActionEvent =
   /** チャンネルをお気に入りに入れる・外す。`on` は押した後に入っているべき状態。 */
   | { type: "channel/favorite"; id: string; on: boolean }
   /** 見かけたイベントを、署名済みのまま `relays` へ送り直す。 */
-  | { type: "note/broadcast"; target: NostrEvent; relays: readonly RelayUrl[] };
+  | { type: "note/broadcast"; target: NostrEvent; relays: readonly RelayUrl[] }
+  /** 自分のイベントの削除をリレーに依頼する（NIP-09）。 */
+  | { type: "note/delete"; target: NostrEvent };
 
 type Dispatch = (event: UiEvent) => void;
 

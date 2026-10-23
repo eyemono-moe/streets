@@ -36,6 +36,8 @@ const pendingKey = (event: ActionEvent): string => {
       return `favorite-channel:${event.id}`;
     case "note/broadcast":
       return `broadcast:${event.target.id}`;
+    case "note/delete":
+      return `delete:${event.target.id}`;
   }
 };
 
@@ -110,6 +112,11 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
       case "note/broadcast":
         run(event, "送り直せませんでした", () =>
           actions.broadcast(event.target, event.relays),
+        );
+        return true;
+      case "note/delete":
+        run(event, "削除を依頼できませんでした", () =>
+          actions.deleteEvent(event.target),
         );
         return true;
       default:

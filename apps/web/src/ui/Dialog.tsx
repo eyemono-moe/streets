@@ -13,9 +13,12 @@ export const DialogRoot: ParentComponent<{
   onClose: () => void;
   /** 閉じる動きが終わり、Portal が外れた後に呼ぶ。 */
   onExitComplete?: () => void;
+  /** 取り消せない操作の確かめは `alertdialog`。読み上げで、すぐ答えを求めていると伝わる。 */
+  role?: "dialog" | "alertdialog";
 }> = (props) => (
   <ArkDialog.Root
     open={props.open}
+    role={props.role}
     onOpenChange={(details) => !details.open && props.onClose()}
     onExitComplete={props.onExitComplete}
     lazyMount

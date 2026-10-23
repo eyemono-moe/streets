@@ -72,6 +72,8 @@ const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
 
 const ClientDialog = lazyPart(() => import("./ClientDialog"));
 
+const DeleteEventDialog = lazyPart(() => import("./DeleteEventDialog"));
+
 type MenuItem = {
   value: string;
   label: string;
@@ -488,6 +490,9 @@ const EventMenu: Component<{
       case "mute":
         props.onMute?.();
         break;
+      case "delete":
+        setConfirmingDelete(true);
+        break;
     }
   };
 
@@ -495,6 +500,11 @@ const EventMenu: Component<{
   const client = () => clientOf(props.event);
   const [showingClient, setShowingClient] = createSignal(false);
   const [addingToList, setAddingToList] = createSignal(false);
+  const [confirmingDelete, setConfirmingDelete] = createSignal(false);
+  const deleting = useSending(() => ({
+    type: "note/delete",
+    target: props.event,
+  }));
 
   // ポップアップとボトムシートで同じ中身を使い、出し方だけを変える。
   const eventSection = () => (
@@ -531,6 +541,20 @@ const EventMenu: Component<{
             ]}
           />
         )}
+      </Show>
+      {/* 取り消せない操作なので、ほかの項目と離して最後に置く。 */}
+      <Show when={actions && mine()}>
+        <Items
+          items={[
+            {
+              value: "delete",
+              label: "削除",
+              icon: "i-material-symbols:delete-outline-rounded",
+              danger: true,
+              todo: deleting(),
+            },
+          ]}
+        />
       </Show>
     </>
   );
@@ -734,6 +758,12 @@ const EventMenu: Component<{
         <AddToListDialog
           pubkey={props.event.pubkey}
           onClose={() => setAddingToList(false)}
+        />
+      </Show>
+      <Show when={confirmingDelete()}>
+        <DeleteEventDialog
+          event={props.event}
+          onClose={() => setConfirmingDelete(false)}
         />
       </Show>
     </span>
