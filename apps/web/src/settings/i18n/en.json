@@ -271,9 +271,7 @@
       "other": "{{ count }} blocked relays"
     },
     "removeLabel": "Remove {{ relay }} from the list",
-    "remove": "Remove from list",
-    "visibility": "Visibility",
-    "privateUnavailable": "Your current login method can't handle private items"
+    "remove": "Remove from list"
   },
   "searchRelays": {
     "saved": "Saved the search relays",
@@ -343,12 +341,9 @@
     "menuHint": "You can also mute posts and users from the menu at the top right of a post.",
     "already": "Already muted",
     "typeLabel": "What to mute",
-    "visibility": "Visibility",
     "private": "Private",
     "public": "Public",
-    "privateUnavailable": "Your current login method can't handle private mutes",
     "peopleLabel": "People suggestions",
-    "add": "Add",
     "unmute": "Unmute",
     "openEvent": "Open this post"
   },

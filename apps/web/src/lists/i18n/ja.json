@@ -16,7 +16,16 @@
     },
     "privateUnavailable": "今のログインの方法では、非公開のメンバーを扱えません",
     "none": "入れない",
-    "membershipHint": "非公開で入れると暗号化して保存するので、入れたことはほかの人には分かりません。公開で入れたことは、ほかの人も見られます。"
+    "membershipHint": "非公開で入れると暗号化して保存するので、入れたことはほかの人には分かりません。公開で入れたことは、ほかの人も見られます。",
+    "add": {
+      "label": "追加",
+      "private": "非公開で追加",
+      "public": "公開で追加",
+      "menuLabel": "公開範囲を選ぶ",
+      "privateDescription": "暗号化して保存します。ほかの人には分かりません。",
+      "publicDescription": "ほかの人やほかのアプリも見られます。",
+      "privateUnavailable": "今のログインの方法では、非公開で保存できません"
+    }
   },
   "summary": {
     "members": {
@@ -60,11 +69,9 @@
   "info": {
     "invalidUser": "npub1… か nprofile1… で始まる、ユーザーの ID を入力してください",
     "alreadyMember": "もうこのリストに入っています",
-    "visibility": "公開範囲",
     "candidates": "人の候補",
     "searchPlaceholder": "名前・npub1… で探す",
     "memberInput": "リストに入れる人",
-    "add": "追加",
     "removeMember": "リストから外す",
     "delete": "リストを削除",
     "deleteNotice": "リストそのものを削除します。入っている人やフォローには影響しません。元には戻せません。",
