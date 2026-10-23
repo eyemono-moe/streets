@@ -29,6 +29,7 @@ import OlderLoader from "../../deck/OlderLoader";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
 import MutedGate from "../../note/MutedGate";
+import { reportError } from "../../telemetry";
 import VirtualList from "../../ui/VirtualList";
 import { useOwnZapKey } from "../../zap/own-zap-key";
 import ZapNotice from "../../zap/ZapNotice";
@@ -173,6 +174,7 @@ const NotificationList: Component<{
               <ErrorBoundary
                 fallback={(error) => {
                   console.error("通知を描けませんでした", row.key, error);
+                  reportError(error, "notification-render");
                   return <BrokenEvent />;
                 }}
               >

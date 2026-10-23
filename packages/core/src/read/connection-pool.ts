@@ -13,6 +13,7 @@ import {
   type SessionHold,
   type SessionSubscription,
 } from "./relay-session";
+import { reportIsolated } from "./report-isolated";
 import { type Scheduler, defaultScheduler } from "./scheduler";
 
 export type PooledSubscription = SessionSubscription;
@@ -203,7 +204,7 @@ export class ConnectionPool {
       try {
         listener(url);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "ConnectionPool: an onDegradedChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );

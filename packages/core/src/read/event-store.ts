@@ -7,6 +7,7 @@ import {
 import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
+import { reportIsolated } from "./report-isolated";
 import { type Scheduler, defaultScheduler } from "./scheduler";
 import { SignatureGate } from "./signature-gate";
 
@@ -275,7 +276,7 @@ export class EventStore {
       try {
         listener(dropped);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "EventStore: a sweep listener threw; isolating it so the remaining listeners still forget what was dropped.",
           error,
         );
@@ -614,7 +615,7 @@ export class EventStore {
       try {
         listener(change);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "EventStore: an onReplaceableChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );
@@ -627,7 +628,7 @@ export class EventStore {
       try {
         listener(change);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "EventStore: a change listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );

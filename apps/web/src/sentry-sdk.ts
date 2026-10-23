@@ -13,6 +13,7 @@ import {
   httpContextIntegration,
   init,
   linkedErrorsIntegration,
+  reportingObserverIntegration,
   startInactiveSpan,
 } from "@sentry/browser";
 
@@ -36,5 +37,6 @@ export const sentrySdk = {
   httpContextIntegration,
   init,
   linkedErrorsIntegration,
+  reportingObserverIntegration,
   startInactiveSpan,
 };

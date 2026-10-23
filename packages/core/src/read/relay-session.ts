@@ -6,6 +6,7 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
+import { reportIsolated } from "./report-isolated";
 import type { Scheduler } from "./scheduler";
 
 export type SessionSubscription = { close(): void };
@@ -350,7 +351,7 @@ export class RelaySession {
       try {
         entry.handlers.onClosed(reason ?? "");
       } catch (error) {
-        console.error(
+        reportIsolated(
           "RelaySession: an onClosed handler threw while closing a session; isolating it so the remaining entries are still notified.",
           error,
         );
@@ -519,7 +520,7 @@ export class RelaySession {
       try {
         handlers.onClosed("relay unavailable");
       } catch (error) {
-        console.error(
+        reportIsolated(
           "RelaySession: an onClosed handler threw while sending a REQ; isolating it so the remaining entries keep their subscriptions.",
           error,
         );
@@ -597,7 +598,7 @@ export class RelaySession {
           "too many concurrent REQs: gave up after repeated refusals",
         );
       } catch (error) {
-        console.error(
+        reportIsolated(
           "RelaySession: an onClosed handler threw while giving up a refused REQ.",
           error,
         );

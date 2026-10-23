@@ -3,6 +3,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import type { EventStore, EventStoreChange } from "./event-store";
 import { type NewerPaging, estimateWindow, nextNewer } from "./newer-page";
 import { nextOlder } from "./older-page";
+import { reportIsolated } from "./report-isolated";
 import { type Scheduler, defaultScheduler } from "./scheduler";
 import { SortedEvents, compareEvents } from "./sorted-events";
 import {
@@ -676,13 +677,12 @@ export class SectionReader {
 
   #emit(): void {
     // 1 つの listener が投げても後続の listener への通知を巻き込まない
-    // ように隔離する。専用の報告チャネルが無いので console.error に落とす
-    // —— 主目的は隔離であって報告ではない。
+    // ように隔離する。
     for (const listener of this.#listeners) {
       try {
         listener();
       } catch (error) {
-        console.error(
+        reportIsolated(
           "SectionReader: a listener threw during notify(); isolating it so other listeners keep receiving updates.",
           error,
         );
