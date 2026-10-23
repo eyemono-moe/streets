@@ -1,4 +1,5 @@
 import { type Component, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import type { ConnectAttempt } from "../session";
 import SegmentedControl from "../ui/SegmentedControl";
 import BunkerForm from "./BunkerForm";
@@ -17,7 +18,7 @@ const RemoteSignerLogin: Component<{
   return (
     <div class="flex flex-col gap-3">
       <SegmentedControl
-        label="リモート署名器との繋ぎ方"
+        label={t("welcome.remote.wayLabel")}
         variant="secondary"
         block
         value={way()}
@@ -25,12 +26,12 @@ const RemoteSignerLogin: Component<{
         options={[
           {
             value: "qr",
-            label: "QR コードで繋ぐ",
+            label: t("welcome.remote.qr"),
             icon: "i-material-symbols:qr-code-2-rounded",
           },
           {
             value: "paste",
-            label: "文字列を貼り付ける",
+            label: t("welcome.remote.paste"),
             icon: "i-material-symbols:link-rounded",
           },
         ]}

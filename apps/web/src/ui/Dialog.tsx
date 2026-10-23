@@ -5,6 +5,7 @@ import {
   type ParentComponent,
   splitProps,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import IconButton from "./IconButton";
 import { Portal } from "./Portal";
 
@@ -92,7 +93,7 @@ export const DialogClose: Component<{
         variant="filled"
         size="md"
         icon="i-material-symbols:close-rounded"
-        label={props.label ?? "閉じる"}
+        label={props.label ?? t("ui.dialog.close")}
         disabled={props.disabled}
         class={props.class}
       />

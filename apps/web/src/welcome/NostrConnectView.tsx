@@ -1,6 +1,7 @@
 import { QrCode } from "@ark-ui/solid/qr-code";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { useAppWindow } from "../app-window";
+import { t } from "../i18n/locale";
 import { notifyError, notifySuccess } from "../toast";
 import Button, { ButtonLink } from "../ui/Button";
 
@@ -23,9 +24,9 @@ const NostrConnectView: Component<{
         const copy = async () => {
           try {
             await appWindow.navigator.clipboard.writeText(status().uri);
-            notifySuccess("接続用の文字列をコピーしました");
+            notifySuccess(t("welcome.connect.copied"));
           } catch (error) {
-            notifyError(error, "コピーできませんでした");
+            notifyError(error, t("welcome.connect.copyFailed"));
           }
         };
         return (
@@ -42,9 +43,9 @@ const NostrConnectView: Component<{
             <p class="c-secondary text-center text-caption" aria-live="polite">
               <Show
                 when={status().resumed}
-                fallback="署名器のアプリで読み取り、承認してください。承認を待っています…"
+                fallback={t("welcome.connect.waiting")}
               >
-                前に開いた接続の承認を待っています。署名器のアプリで承認したのに繋がらないときは、もう一度「この端末の署名器で開く」から開いてください。
+                {t("welcome.connect.resumed")}
               </Show>
             </p>
             <div class="flex flex-wrap justify-center gap-2">
@@ -53,14 +54,14 @@ const NostrConnectView: Component<{
                 icon="i-material-symbols:content-copy-outline-rounded"
                 onClick={() => void copy()}
               >
-                コピー
+                {t("welcome.connect.copy")}
               </Button>
               <ButtonLink
                 size="sm"
                 icon="i-material-symbols:smartphone-outline"
                 href={status().uri}
               >
-                この端末の署名器で開く
+                {t("welcome.connect.openHere")}
               </ButtonLink>
             </div>
           </div>
@@ -70,14 +71,14 @@ const NostrConnectView: Component<{
     <Match when={props.status.phase === "failed"}>
       <div class="flex flex-col items-center gap-3 py-6">
         <p class="c-secondary text-center text-caption">
-          署名器と繋がりませんでした。承認されないまま時間が経ったか、接続が切れました。
+          {t("welcome.connect.failed")}
         </p>
         <Button
           size="sm"
           icon="i-material-symbols:refresh-rounded"
           onClick={() => props.onRetry()}
         >
-          もう一度
+          {t("welcome.connect.retry")}
         </Button>
       </div>
     </Match>
