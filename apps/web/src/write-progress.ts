@@ -45,26 +45,44 @@ const track = async <T>(
       });
     }
   };
+  // 1 本が受け取った時点で書き込みは返るが、トーストは残りのリレーの結果が
+  // 揃うまで追い、揃ってから消える時間を決める。
+  let settled = false;
+  let finished = false;
+  const finishIfDone = () => {
+    if (finished || !settled) return;
+    const summary =
+      progress?.phase === "sending"
+        ? summarizeRelays(progress.relays)
+        : undefined;
+    if (summary && !summary.finished) return;
+    finished = true;
+    show({ label, progress, outcome: { kind: "done" } }, "success");
+    if (id)
+      toaster.update(id, {
+        type: "success",
+        duration:
+          (summary?.rejected ?? 0) > 0
+            ? TROUBLE_DURATION_MS
+            : SAVED_DURATION_MS,
+      });
+  };
   try {
     const result = await run((next) => {
+      if (finished) return;
       progress = next;
       if (next.phase === "signing") {
         // 署名器の確認中は承認待ちのトーストに譲り、同じ待ちを 2 枚に重ねない。
         if (id) toaster.remove(id);
         id = undefined;
       } else {
-        show({ label, progress });
+        show({ label, progress }, settled ? "success" : "loading");
+        finishIfDone();
       }
     });
-    const troubled =
-      progress?.phase === "sending" &&
-      summarizeRelays(progress.relays).rejected > 0;
-    show({ label, progress, outcome: { kind: "done" } }, "success");
-    if (id)
-      toaster.update(id, {
-        type: "success",
-        duration: troubled ? TROUBLE_DURATION_MS : SAVED_DURATION_MS,
-      });
+    settled = true;
+    show({ label, progress }, "success");
+    finishIfDone();
     return result;
   } catch (cause) {
     markReported(cause);
@@ -139,19 +157,21 @@ const trackQuietly = async <T>(
 
 const trackedReplace =
   (writer: Pick<Writer, "replace">, label: string): Writer["replace"] =>
-  (kind, identifier, mutate, hooks) =>
+  (kind, identifier, mutate, hooks, options) =>
     track(label, (onProgress) =>
       writer.replace(
         kind,
         identifier,
         mutate,
         onProgress ? withProgress(hooks, onProgress) : hooks,
+        { ...options, settle: "first-accept" },
       ),
     );
 
 /**
- * 書き込みの進み具合をトーストに出す `Writer`。1 回の書き込みにつき 1 枚を出し、
- * リレーごとの結果が届くたびに差し替える。設定で切っているときは、そのまま通す。
+ * 書き込みの進み具合をトーストに出す `Writer`。1 本のリレーが受け取った時点で
+ * 返すので、呼び出し側（ダイアログ・ボタン）は遅いリレーを待たない。トーストは
+ * 1 回の書き込みにつき 1 枚を出し、残りのリレーの結果が届くたびに差し替える。
  * `label` は何を書いたか（「リアクション」「リレーの設定」など）。
  */
 export const trackWrites = (writer: Tracked, label: string): Tracked => ({
@@ -160,7 +180,7 @@ export const trackWrites = (writer: Tracked, label: string): Tracked => ({
       writer.publish(
         draft,
         onProgress ? withProgress(hooks, onProgress) : hooks,
-        options,
+        { ...options, settle: "first-accept" },
       ),
     ),
   replace: trackedReplace(writer, label),

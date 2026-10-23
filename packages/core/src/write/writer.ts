@@ -66,6 +66,8 @@ export type PublishOptions = {
   settle?: "all" | "first-accept";
 };
 
+export type ReplaceOptions = Pick<PublishOptions, "settle">;
+
 export type Writer = {
   publish(
     draft: EventDraft,
@@ -81,6 +83,7 @@ export type Writer = {
     identifier: string | undefined,
     mutate: Replacement,
     hooks?: WriteHooks,
+    options?: ReplaceOptions,
   ): Promise<WriteResult>;
 };
 
@@ -144,6 +147,45 @@ export const createWriter = ({
       if (replacementTails.get(key) === tail) replacementTails.delete(key);
     }
   };
+  // first-accept で先に返した置換が、まだ送っている旧送信先。後続の置換は
+  // 前の書き込みの結果を待たずに始まるので、ここに無いと削除したリレーへ
+  // 新しい版が送られず、遅れて届いた古い版だけが残る。
+  const inflightPreviousTargets = new Map<string, Set<readonly RelayUrl[]>>();
+  // 旧送信先の記録は、送り始めた順に当てる。後の書き込みの結果は前の書き込みの
+  // 送信先も含んでいるので、前の結果が後から当たると後の結果を上書きしてしまう。
+  const deliveryTails = new Map<string, Promise<void>>();
+  const recordDelivery = (
+    replacementKey: string,
+    previousTargets: readonly RelayUrl[],
+    all: Promise<WriteResult>,
+  ): Promise<void> => {
+    const inflight =
+      inflightPreviousTargets.get(replacementKey) ??
+      new Set<readonly RelayUrl[]>();
+    inflight.add(previousTargets);
+    inflightPreviousTargets.set(replacementKey, inflight);
+    const rejectedOf = all.then(
+      (result) => result.rejected,
+      (error: unknown) =>
+        error instanceof WriteFailedError ? error.rejected : [],
+    );
+    const tail = (deliveryTails.get(replacementKey) ?? Promise.resolve())
+      .then(() => rejectedOf)
+      .then((rejected) => {
+        rememberFailedPreviousTargets(
+          replacementKey,
+          previousTargets,
+          rejected,
+        );
+        inflight.delete(previousTargets);
+        if (inflight.size === 0) inflightPreviousTargets.delete(replacementKey);
+      });
+    deliveryTails.set(replacementKey, tail);
+    return tail.finally(() => {
+      if (deliveryTails.get(replacementKey) === tail)
+        deliveryTails.delete(replacementKey);
+    });
+  };
   const rememberFailedPreviousTargets = (
     replacementKey: string,
     previousTargets: readonly RelayUrl[],
@@ -171,7 +213,7 @@ export const createWriter = ({
     replaced: NostrEvent | undefined,
     additionalRelays: readonly RelayUrl[] = [],
     settle: PublishOptions["settle"] = "all",
-  ): Promise<WriteResult> => {
+  ): Promise<{ result: Promise<WriteResult>; all: Promise<WriteResult> }> => {
     // 署名の例外はそのまま伝播させる。ここで包み直すと、呼び出し側が
     // 「拡張機能が無い」と「リレーが全部落ちている」を別の文言で
     // 出せなくなる。この行より前では何も挿入していない。
@@ -213,10 +255,10 @@ export const createWriter = ({
         }
         return { event: signed, ...result, replaced };
       });
-    if (settle === "all") return all;
+    if (settle === "all") return { result: all, all };
     // 1 本でも受け取っていれば `all` は投げない（全滅のときだけ投げる）ので、
     // 先に終えた後で `all` が拒否されたまま放置されることはない。
-    return Promise.race([
+    const result = Promise.race([
       all,
       accepted.then((relays) => ({
         event: signed,
@@ -231,21 +273,24 @@ export const createWriter = ({
         replaced,
       })),
     ]);
+    return { result, all };
   };
 
   return {
-    publish: (draft, hooks, options) =>
-      send(
-        { ...draft, pubkey: pubkey(), created_at: now() },
-        hooks,
-        undefined,
-        options?.relays,
-        options?.settle,
-      ),
+    publish: async (draft, hooks, options) =>
+      (
+        await send(
+          { ...draft, pubkey: pubkey(), created_at: now() },
+          hooks,
+          undefined,
+          options?.relays,
+          options?.settle,
+        )
+      ).result,
 
     // `identifier` は NIP-33 addressable event の `d`。mutation が返した
     // tags よりこの引数を正として、下でちょうど 1 個に正規化する。
-    replace: (kind, identifier, mutate, hooks) => {
+    replace: (kind, identifier, mutate, hooks, options) => {
       const author = pubkey();
       const replacementKey = JSON.stringify([kind, author, identifier]);
       return enqueueReplacement(replacementKey, async () => {
@@ -273,6 +318,7 @@ export const createWriter = ({
           ...new Set([
             ...publisher.targets(author),
             ...(pendingReplaceTargets.get(replacementKey) ?? []),
+            ...[...(inflightPreviousTargets.get(replacementKey) ?? [])].flat(),
           ]),
         ];
         // 再取得の待機中に logout / account 切替が起きた場合、旧 account の
@@ -304,29 +350,22 @@ export const createWriter = ({
             ? current.created_at + 1
             : stamped;
 
-        try {
-          const result = await send(
-            { ...addressedDraft, pubkey: author, created_at: createdAt },
-            hooks,
-            current,
-            previousTargets,
-          );
-          rememberFailedPreviousTargets(
-            replacementKey,
-            previousTargets,
-            result.rejected,
-          );
-          return result;
-        } catch (error) {
-          if (error instanceof WriteFailedError) {
-            rememberFailedPreviousTargets(
-              replacementKey,
-              previousTargets,
-              error.rejected,
-            );
-          }
-          throw error;
-        }
+        const sent = await send(
+          { ...addressedDraft, pubkey: author, created_at: createdAt },
+          hooks,
+          current,
+          previousTargets,
+          options?.settle,
+        );
+        const delivered = recordDelivery(
+          replacementKey,
+          previousTargets,
+          sent.all,
+        );
+        // 全部を待つ書き込みは、旧送信先を覚えてから返す。返した直後の次の置換が
+        // 覚える前の一覧を読まないようにするため。
+        if (options?.settle !== "first-accept") await delivered;
+        return sent.result;
       });
     },
   };
