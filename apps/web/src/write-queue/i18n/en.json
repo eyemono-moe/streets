@@ -2,8 +2,5 @@
   "sending": "Sending ({{count}})",
   "saved": "Saved",
   "labelCount": "{{label}} ×{{count}}",
-  "labelSeparator": ", ",
-  "unsaved": "Not on any relay yet: {{count}}",
-  "delivering": "Saved. Sending to the remaining relays",
-  "details": "Details"
+  "labelSeparator": ", "
 }

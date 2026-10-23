@@ -6,7 +6,6 @@ import {
   isWriteUnsaved,
   shouldShowWriteQueue,
   summarizeWriteQueue,
-  visibleWrites,
   writeQueueTransition,
 } from "@streets/core/view/write-queue";
 import type { WriteProgress } from "@streets/core/write/write-progress";
@@ -59,7 +58,7 @@ const sync = () => {
   const summary = summarizeWriteQueue(queue);
   if (summary?.tone === "saved") {
     apply({ type: "write-queue/acknowledged" });
-    put("success", SAVED_DURATION_MS, { writeQueue: { summary, writes: [] } });
+    put("success", SAVED_DURATION_MS, { writeQueue: summary });
     showingSaved = true;
     return;
   }
@@ -68,10 +67,7 @@ const sync = () => {
     !closedByUser &&
     shouldShowWriteQueue(queue, performance.now(), QUIET_DELAY_MS)
   ) {
-    const writes = structuredClone(visibleWrites(unwrap(queue)));
-    put("loading", Number.POSITIVE_INFINITY, {
-      writeQueue: { summary, writes },
-    });
+    put("loading", Number.POSITIVE_INFINITY, { writeQueue: summary });
     showingSaved = false;
     return;
   }

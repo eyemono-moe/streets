@@ -226,7 +226,7 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
           >
             {(queue) => (
               <div class="min-w-0 flex-1">
-                <WriteQueueToast meta={queue()} />
+                <WriteQueueToast summary={queue()} />
               </div>
             )}
           </Match>

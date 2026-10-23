@@ -155,18 +155,36 @@ export const shouldShowWriteQueue = (
     (write) => !write.quiet || now - write.startedAt >= delayMs,
   );
 
+export type RelayCounts = { done: number; failed: number; pending: number };
+
+/** 同じ名前の書き込みをまとめたもの。`counts` はその書き込みのリレーの数の合計。 */
+export type LabelGroup = LabelCount & { counts?: RelayCounts };
+
 export type WriteQueueSummary =
   | {
       tone: "working";
       /** 送っている件数。 */
       total: number;
-      /** そのうち、まだどのリレーにも届いていない件数。 */
-      unsaved: number;
-      labels: LabelCount[];
-      /** 輪に出す、全部の書き込みのリレーの数の合計。 */
-      counts?: { done: number; failed: number; pending: number };
+      labels: LabelGroup[];
+      /** 見出しの輪に出す、全部の書き込みのリレーの数の合計。 */
+      counts?: RelayCounts;
     }
   | { tone: "saved"; labels: LabelCount[] };
+
+/** 送り先が決まる前（確かめている・送る前）の書き込みしか無ければ undefined。 */
+const sumRelays = (writes: readonly QueuedWrite[]): RelayCounts | undefined => {
+  let sum: RelayCounts | undefined;
+  for (const write of writes) {
+    const summary = relaySummary(write);
+    if (!summary) continue;
+    sum = {
+      done: (sum?.done ?? 0) + summary.accepted,
+      failed: (sum?.failed ?? 0) + summary.rejected,
+      pending: (sum?.pending ?? 0) + summary.pending,
+    };
+  }
+  return sum;
+};
 
 export const summarizeWriteQueue = (
   state: WriteQueueState,
@@ -176,25 +194,13 @@ export const summarizeWriteQueue = (
     if (state.saved.length === 0) return undefined;
     return { tone: "saved", labels: countLabels(state.saved) };
   }
-  const counts = writes.reduce(
-    (sum, write) => {
-      const summary = relaySummary(write);
-      return summary
-        ? {
-            done: sum.done + summary.accepted,
-            failed: sum.failed + summary.rejected,
-            pending: sum.pending + summary.pending,
-          }
-        : sum;
-    },
-    { done: 0, failed: 0, pending: 0 },
-  );
   return {
     tone: "working",
     total: writes.length,
-    unsaved: writes.filter(isWriteUnsaved).length,
-    labels: countLabels(writes.map((write) => write.label)),
-    counts:
-      counts.done + counts.failed + counts.pending > 0 ? counts : undefined,
+    labels: countLabels(writes.map((write) => write.label)).map((group) => ({
+      ...group,
+      counts: sumRelays(writes.filter((write) => write.label === group.label)),
+    })),
+    counts: sumRelays(writes),
   };
 };

@@ -11,7 +11,7 @@ import type {
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import WriteQueueToast from "./WriteQueueToast";
 
-type Args = { state: WriteQueueState; open?: boolean };
+type Args = { state: WriteQueueState };
 
 /** トーストの枠はアプリと同じ見た目にして、中身だけを差し替えて並べる。 */
 const Story = (props: Args) => {
@@ -19,15 +19,7 @@ const Story = (props: Args) => {
   return (
     <div class="p-6">
       <div class="w-80 rounded-2 border border-primary bg-primary p-3 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-        {summary ? (
-          <WriteQueueToast
-            meta={{
-              summary,
-              writes: summary.tone === "working" ? props.state.writes : [],
-            }}
-            defaultDetailsOpen={props.open}
-          />
-        ) : null}
+        {summary ? <WriteQueueToast summary={summary} /> : null}
       </div>
     </div>
   );
@@ -138,13 +130,6 @@ export const まだ届いていない書き込みがある: S = {
   },
 };
 
-export const 内訳を開く: S = {
-  args: {
-    ...まだ届いていない書き込みがある.args,
-    open: true,
-  },
-};
-
 /** 断られたリレーがあっても、残りへ送っている間は列に残る。 */
 export const 断ったリレーがある: S = {
   args: {
@@ -158,7 +143,6 @@ export const 断ったリレーがある: S = {
         ),
       ),
     ),
-    open: true,
   },
 };
 
@@ -168,7 +152,22 @@ export const 保存しました: S = {
   },
 };
 
-/** 名前が長くても折り返す。 */
+const slow = (outcome: RelayProgress["state"] = "accepted") =>
+  sending(relay("yabu.me", outcome), relay("slow.example.invalid", "pending"));
+
+/** 件数が増えても、伸びるのは種類の数だけ。 */
+export const 件数が多い: S = {
+  args: {
+    state: queue(
+      ...Array.from({ length: 7 }, () => write("投稿", slow(), true)),
+      ...Array.from({ length: 3 }, () => write("リアクション", slow(), true)),
+      write("フォロー", { phase: "checking" }),
+      write("ブックマーク", slow("pending")),
+    ),
+  },
+};
+
+/** 種類が多いと、チップが折り返す。 */
 export const 種類が多い: S = {
   args: {
     state: queue(

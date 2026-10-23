@@ -2,8 +2,5 @@
   "sending": "{{count}} 件を送信中",
   "saved": "保存しました",
   "labelCount": "{{label}} {{count}}",
-  "labelSeparator": "・",
-  "unsaved": "{{count}} 件はまだどのリレーにも届いていません",
-  "delivering": "保存しました。残りのリレーへ送っています",
-  "details": "内訳"
+  "labelSeparator": "・"
 }

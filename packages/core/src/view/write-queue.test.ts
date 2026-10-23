@@ -185,19 +185,7 @@ describe("summarizeWriteQueue", () => {
     });
   });
 
-  it("まだどのリレーにも届いていない件数を数える", () => {
-    const state = run(
-      start("1"),
-      start("2"),
-      start("3"),
-      sending("1", "accepted", "pending"),
-      sending("2", "pending", "pending"),
-    );
-    // 3 はまだ送る前（確かめている）なので、届いていない方に数える。
-    expect(summarizeWriteQueue(state)).toMatchObject({ unsaved: 2 });
-  });
-
-  it("輪には全部の書き込みのリレーの数を足して出す", () => {
+  it("見出しの輪には、全部の書き込みのリレーの数を足して出す", () => {
     const state = run(
       start("1"),
       start("2"),
@@ -206,6 +194,40 @@ describe("summarizeWriteQueue", () => {
     );
     expect(summarizeWriteQueue(state)).toMatchObject({
       counts: { done: 2, failed: 1, pending: 1 },
+    });
+  });
+
+  it("種類ごとの輪には、その種類の書き込みのリレーの数だけを足す", () => {
+    const state = run(
+      start("1", "投稿"),
+      start("2", "リアクション"),
+      start("3", "投稿"),
+      sending("1", "accepted", "pending"),
+      sending("2", "pending", "pending"),
+      sending("3", "accepted", "rejected"),
+    );
+    expect(summarizeWriteQueue(state)).toMatchObject({
+      labels: [
+        { label: "投稿", count: 2, counts: { done: 2, failed: 1, pending: 1 } },
+        {
+          label: "リアクション",
+          count: 1,
+          counts: { done: 0, failed: 0, pending: 2 },
+        },
+      ],
+    });
+  });
+
+  it("送り先が決まる前の種類には、輪の数を持たせない", () => {
+    // 輪は数が無い間は回り続ける。0/0 を渡すと止まった空の輪になる。
+    const state = run(start("1", "フォロー"), {
+      type: "write-queue/progress",
+      id: "1",
+      progress: { phase: "checking" },
+    });
+    expect(summarizeWriteQueue(state)).toMatchObject({
+      labels: [{ label: "フォロー", count: 1, counts: undefined }],
+      counts: undefined,
     });
   });
 
