@@ -5,6 +5,7 @@ import { POLL_RESPONSE_KIND } from "../nostr/poll";
 import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { AddressRequests, RequestOptions } from "./address-requests";
+import type { DeletionRequests } from "./deletion-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventHint, EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
@@ -99,6 +100,11 @@ export type ReadLookups = {
    */
   watchEngagements(targetId: string, onChange: () => void): () => void;
   /**
+   * その投稿に向けた削除依頼を取りにいくだけで、知らせない。届けば store が投稿を隠し、
+   * 一覧から外れる。ふつうのカラムは削除依頼を購読していないので、描いた投稿ごとに呼ぶ。
+   */
+  requestDeletions(event: NostrEvent): void;
+  /**
    * 投票への回答を取りにいき、手元の回答が変わるたびに知らせる。`settled` は
    * 一度取り終えたか（まだなら「集計中」、取り終えて 0 件なら「まだ誰も投票していない」）。
    */
@@ -114,6 +120,7 @@ export type CreateReadLookupsOptions = {
   addresses: AddressRequests;
   profiles: ProfileRequests;
   engagements: EngagementRequests;
+  deletions: DeletionRequests;
   polls: PollRequests;
   followLists: FollowListRequests;
 };
@@ -124,6 +131,7 @@ export const createReadLookups = ({
   addresses,
   profiles,
   engagements,
+  deletions,
   polls,
   followLists,
 }: CreateReadLookupsOptions): ReadLookups => ({
@@ -309,6 +317,10 @@ export const createReadLookups = ({
       offBatch();
       offStore();
     };
+  },
+
+  requestDeletions(event) {
+    deletions.request(event);
   },
 
   watchPollResponses(poll, onChange) {

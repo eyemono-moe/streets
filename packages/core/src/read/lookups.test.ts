@@ -152,6 +152,7 @@ const setup = () => {
     addresses: addresses.requests,
     profiles: profiles.requests,
     engagements: engagements.requests,
+    deletions: { request() {}, forget() {}, dispose() {} },
     polls: polls.requests,
     followLists: followLists.requests,
   });

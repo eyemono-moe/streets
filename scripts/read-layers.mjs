@@ -15,6 +15,7 @@ const LAYERS = {
   batcher: [
     "read/batched-fetch.ts",
     "read/address-requests.ts",
+    "read/deletion-requests.ts",
     "read/engagement-requests.ts",
     "read/event-requests.ts",
     "read/follow-list-requests.ts",
