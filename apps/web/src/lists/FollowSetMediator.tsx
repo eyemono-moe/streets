@@ -25,7 +25,7 @@ import {
   followSetFormTransition,
   isFollowSetFormDirty,
 } from "@streets/core/lists/follow-set-form";
-import { buildDeletion } from "@streets/core/nostr/build/deletion";
+import { buildDeletion } from "@streets/core/nostr/deletion";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { PrivatePartStatus } from "@streets/core/nostr/private-tags";
 import type { SubscriptionManager } from "@streets/core/read/subscription-manager";

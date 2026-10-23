@@ -61,4 +61,5 @@ export const createGuestActions = (): EventActions => ({
   setFollow: refuse,
   broadcastTargets: () => ({ mine: [], author: [] }),
   broadcast: refuse,
+  deleteEvent: refuse,
 });

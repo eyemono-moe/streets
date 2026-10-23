@@ -24,6 +24,7 @@ import {
   removeFavoriteChannel,
 } from "@streets/core/nostr/channel";
 import { favoriteChannels } from "@streets/core/nostr/channel";
+import { buildDeletion } from "@streets/core/nostr/deletion";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { Nip05Lookup } from "@streets/core/nostr/nip05";
@@ -146,6 +147,7 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
+    deleteEvent: (target) => send(() => viewer.event(buildDeletion(target))),
     vote: (target, choices) =>
       send(() => {
         const poll = parsePoll(target);

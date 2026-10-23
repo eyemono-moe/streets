@@ -31,6 +31,7 @@ import {
   PUBLIC_CHATS_KIND,
   favoriteChannels,
 } from "@streets/core/nostr/channel";
+import { buildDeletion } from "@streets/core/nostr/deletion";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import {
@@ -169,6 +170,11 @@ export type EventActions = {
   };
   /** 署名済みのイベントを、そのまま `relays` へ送り直す。 */
   broadcast(target: NostrEvent, relays: readonly RelayUrl[]): Promise<void>;
+  /**
+   * 自分のイベントの削除を依頼する（kind:5）。自分の write リレーに加えて、そのイベントを
+   * 受け取ったリレーへも送る。
+   */
+  deleteEvent(target: NostrEvent): Promise<void>;
 };
 
 export type WriteStack = {
@@ -449,6 +455,17 @@ export const createWriteStack = (options: {
       await trackSends("ブロードキャスト", (onProgress) =>
         broadcast(manager.pool, event, relays, onProgress),
       );
+    },
+    async deleteEvent(event) {
+      if (event.pubkey !== options.viewer) {
+        throw new Error("ほかの人の投稿は削除できません");
+      }
+      // 自分の write リレーだけでは、別のリレーに残った投稿が消えない（NIP-09 は対象を持つ
+      // リレーへも送るよう求める）。数を絞らないのは、どれも投稿を読むのに一度繋いだリレーで、
+      // 削除依頼は投稿のたびに送るものではないため。
+      await tracked("投稿の削除").publish(buildDeletion(event), undefined, {
+        relays: seenRelays(event.id),
+      });
     },
     followeeIds,
     following: (pubkey) => followeeIds().includes(pubkey),

@@ -123,7 +123,7 @@ export const チャンネルでの発言: Story = {
 
 const mine = viewer.note("自分の投稿");
 
-/** 自分はフォローもミュートもできないので、その項目を出さない。 */
+/** 自分はフォローもミュートもできないので、その項目を出さない。最後に「削除」を出す。 */
 export const 自分の投稿: Story = {
   args: { event: mine, scene: scene(mine) },
 };

@@ -1,6 +1,7 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vite-plus/test";
+import { buildDeletion } from "../nostr/deletion";
 import { computeEventId } from "../nostr/event";
 import type { NostrEvent } from "../nostr/event";
 import { buildReplyTo } from "../nostr/reply";
@@ -272,11 +273,47 @@ describe("publish", () => {
       fetchLatest: async () => undefined,
     });
 
-    await expect(
-      writer.publish({ kind: 5, tags: [["e", target.id]], content: "" }),
-    ).rejects.toBeInstanceOf(WriteFailedError);
+    await expect(writer.publish(buildDeletion(target))).rejects.toBeInstanceOf(
+      WriteFailedError,
+    );
 
     expect(store.get(target.id)).toEqual(target);
+  });
+
+  it("自分の投稿の削除依頼は、届く前に投稿を隠し、受け取ったリレーへも送る", async () => {
+    // 捕まえる変異: 送り終えるまで投稿を出したままにする / relays を落とす（ほかのリレーに投稿が残る）
+    const store = new EventStore();
+    const signer = createFakeSigner(SK);
+    const target = await signer.signEvent({
+      pubkey: PUBKEY,
+      kind: 1,
+      created_at: 1_699_999_900,
+      tags: [],
+      content: "delete me",
+    });
+    store.put(target, "wss://seen.example/" as RelayUrl);
+    let visibleWhileSending: boolean | undefined;
+    let additional: readonly RelayUrl[] | undefined;
+    const writer = createWriter({
+      signer,
+      store,
+      publisher: stubPublisher(async (_event, options) => {
+        visibleWhileSending = store.get(target.id) !== undefined;
+        additional = options?.additionalRelays;
+        return ok;
+      }),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.publish(buildDeletion(target), undefined, {
+      relays: store.seenRelays(target.id),
+    });
+
+    expect(visibleWhileSending).toBe(false);
+    expect(additional).toEqual(["wss://seen.example/"]);
+    expect(store.get(target.id)).toBeUndefined();
   });
 
   it("1 本でも accepted なら残す", async () => {
