@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vite-plus/test";
-import { findKinds, kindLabel } from "./kind-support";
+import { findKinds, kindName } from "./kind-support";
 
-describe("kindLabel", () => {
-  it("一覧にある kind は、その呼び名を返す", () => {
-    expect(kindLabel(1)).toBe("投稿");
-    expect(kindLabel(30_023)).toBe("長文記事");
+describe("kindName", () => {
+  it("一覧にある kind は、その言語の呼び名を返す", () => {
+    expect(kindName(1, "ja")).toBe("投稿");
+    expect(kindName(30_023, "ja")).toBe("長文記事");
+    expect(kindName(30_023, "en")).toBe("Article");
   });
 
-  it("一覧に無い kind を投稿と呼ばない", () => {
+  it("一覧に無い kind は名前を作らない", () => {
     // 捕まえる変異: 既定を「投稿」にして、知らない kind が投稿に見える
-    expect(kindLabel(99_999)).toBe("イベント");
+    expect(kindName(99_999, "ja")).toBeUndefined();
   });
 });
 

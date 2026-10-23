@@ -1,4 +1,3 @@
-import { kindLabel } from "@streets/core/nostr/kind-support";
 import type { RelayStatus } from "@streets/core/read/connection-pool";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
@@ -7,7 +6,7 @@ import type {
   TrafficSummary,
 } from "@streets/core/relay/relay-traffic";
 import { type Component, For, type JSX, Show } from "solid-js";
-import { locale, plural, t } from "../i18n/locale";
+import { kindLabel, locale, plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import RelaySummary from "./RelaySummary";

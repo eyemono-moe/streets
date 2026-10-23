@@ -30,13 +30,10 @@ const externalLabel = (kind: string | undefined): Message => {
   return { key: EXTERNAL_LABELS[kind] ?? "comment.scope.external" };
 };
 
-// 種類の要約（`summary`）は「Streets について」の資料で、日本語のまま。
-const eventLabel = (kind: number | undefined): Message => {
-  const summary = KIND_SUPPORT.find((entry) => entry.kind === kind)?.summary;
-  return summary
-    ? { key: "comment.scope.event", args: { summary } }
+const eventLabel = (kind: number | undefined): Message =>
+  KIND_SUPPORT.some((entry) => entry.kind === kind) && kind !== undefined
+    ? { key: "comment.scope.event", args: { kind } }
     : { key: "comment.scope.comment" };
-};
 
 const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 

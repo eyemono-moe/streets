@@ -1,4 +1,4 @@
-import { KIND_SUPPORT } from "@streets/core/nostr/kind-support";
+import { kindName as nameOfKind } from "@streets/core/nostr/kind-support";
 import {
   type SearchQuery,
   formatSearchQuery,
@@ -9,7 +9,7 @@ import {
   useUserCandidates,
   userSource,
 } from "../completion/sources";
-import { t } from "../i18n/locale";
+import { locale, t } from "../i18n/locale";
 import Completion from "../ui/Completion";
 import ExperimentalBadge from "../ui/ExperimentalBadge";
 import Switch from "../ui/Switch";
@@ -32,10 +32,8 @@ const fromDateInput = (value: string): number | undefined => {
 
 /** 欄に入れた kind が何を指すか。一覧に無い番号は、打ち間違いに気づけるようにそう書く。 */
 const kindName = (kind: number): string => {
-  const entry = KIND_SUPPORT.find((known) => known.kind === kind);
-  return entry
-    ? `${kind} ${entry.summary}`
-    : t("deck.searchForm.unknownKind", { kind });
+  const name = nameOfKind(kind, locale());
+  return name ? `${kind} ${name}` : t("deck.searchForm.unknownKind", { kind });
 };
 
 const Field: Component<{ id: string; label: string; children: unknown }> = (

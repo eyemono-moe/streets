@@ -1,5 +1,6 @@
 import * as i18n from "@solid-primitives/i18n";
 import type { Message } from "@streets/core/i18n/message";
+import { kindName } from "@streets/core/nostr/kind-support";
 import {
   LOCALE_STORAGE_KEY,
   type Locale,
@@ -80,6 +81,10 @@ export const plural = (
   return translate([key, form].join("."), { ...args, count });
 };
 
+/** kind の名前。一覧に無い kind を「投稿」と呼ぶと別物を投稿と偽るので、汎用の呼び名にする。 */
+export const kindLabel = (kind: number): string =>
+  kindName(kind, locale()) ?? t("app.kind.unknown");
+
 /**
  * core が返した文言を引く。core のキーは `core` の辞書にある（`dictionaries.ts` が
  * キーの抜けを型で落とす）。
@@ -89,6 +94,8 @@ export const message = (
   args: Record<string, string | number> = {},
 ): string => {
   const merged = { ...text.args, ...args };
+  // core は kind の名前を言語で引けないので、番号を `kind` で渡す。名前は `{{ kindName }}`。
+  if (typeof merged.kind === "number") merged.kindName = kindLabel(merged.kind);
   // キーの一覧は core が持ち、辞書の型とは `dictionaries.ts` で突き合わせている。
   if (text.count !== undefined) {
     return plural(`core.${text.key}` as PluralKey, text.count, merged);

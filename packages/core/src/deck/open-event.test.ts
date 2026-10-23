@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
+import { columnTitle } from "./column-kinds";
 import { columnForEvent, columnForNoteRef } from "./open-event";
 
 const PUBKEY = "a".repeat(64);
@@ -26,7 +27,9 @@ describe("columnForEvent", () => {
     // 捕まえる変異: id で開き、書き直されると古い版を指したままになる
     const column = columnForEvent(event(30_078, [["d", "app"]]));
     expect(column.id).toBe(`address:30078:${PUBKEY}:app`);
-    expect(column.title).toBe("アプリの設定");
+    expect(columnTitle(column)).toEqual({
+      message: { key: "column.title.kind", args: { kind: 30_078 } },
+    });
   });
 
   it("長文記事は読むカラムで開く", () => {
