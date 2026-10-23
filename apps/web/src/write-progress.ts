@@ -2,11 +2,11 @@ import type {
   RelayProgress,
   WriteProgress,
 } from "@streets/core/write/write-progress";
-import { summarizeRelays } from "@streets/core/write/write-progress";
 import type { WriteHooks, Writer } from "@streets/core/write/writer";
-import { SAVED_DURATION_MS, TROUBLE_DURATION_MS, toaster } from "./toast";
+import { TROUBLE_DURATION_MS, toaster } from "./toast";
 import { actionErrorMessage, markReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
+import { enqueueWrite } from "./write-queue/queue";
 import type { WriteToastMeta } from "./WriteProgressToast";
 
 type Tracked = Pick<Writer, "publish" | "replace">;
@@ -24,121 +24,22 @@ const withProgress = (
 
 const track = async <T>(
   label: string,
+  quiet: boolean,
   run: (onProgress?: (progress: WriteProgress) => void) => Promise<T>,
 ): Promise<T> => {
   if (!showWriteProgress()) return run();
+  const write = enqueueWrite(label, quiet);
   let progress: WriteProgress | undefined;
-  const meta = (write: WriteToastMeta["write"]): WriteToastMeta => ({ write });
-  let id: string | undefined;
-  const show = (
-    write: WriteToastMeta["write"],
-    type: "loading" | "success" | "error" = "loading",
-  ) => {
-    if (id) {
-      toaster.update(id, { type, meta: meta(write) });
-    } else {
-      id = toaster.create({
-        type,
-        title: label,
-        duration: Number.POSITIVE_INFINITY,
-        meta: meta(write),
-      });
-    }
-  };
-  // 1 本が受け取った時点で書き込みは返るが、トーストは残りのリレーの結果が
-  // 揃うまで追い、揃ってから消える時間を決める。
-  let settled = false;
-  let finished = false;
-  const finishIfDone = () => {
-    if (finished || !settled) return;
-    const summary =
-      progress?.phase === "sending"
-        ? summarizeRelays(progress.relays)
-        : undefined;
-    if (summary && !summary.finished) return;
-    finished = true;
-    show({ label, progress, outcome: { kind: "done" } }, "success");
-    if (id)
-      toaster.update(id, {
-        type: "success",
-        duration:
-          (summary?.rejected ?? 0) > 0
-            ? TROUBLE_DURATION_MS
-            : SAVED_DURATION_MS,
-      });
-  };
-  try {
-    const result = await run((next) => {
-      if (finished) return;
-      progress = next;
-      if (next.phase === "signing") {
-        // 署名器の確認中は承認待ちのトーストに譲り、同じ待ちを 2 枚に重ねない。
-        if (id) toaster.remove(id);
-        id = undefined;
-      } else {
-        show({ label, progress }, settled ? "success" : "loading");
-        finishIfDone();
-      }
-    });
-    settled = true;
-    show({ label, progress }, "success");
-    finishIfDone();
-    return result;
-  } catch (cause) {
-    markReported(cause);
-    show(
-      {
-        label,
-        progress,
-        outcome: { kind: "failed", message: actionErrorMessage(cause) },
-      },
-      "error",
-    );
-    if (id)
-      toaster.update(id, {
-        type: "error",
-        duration: TROUBLE_DURATION_MS,
-      });
-    throw cause;
-  }
-};
-
-/**
- * 成功を知らせない書き込み。書いたものは画面に出るので、うまくいったときは何も出さない。
- * 終えた後に届いた残りのリレーの結果も見て、断ったリレーがあればそのときだけ出す。
- */
-const trackQuietly = async <T>(
-  label: string,
-  run: (onProgress?: (progress: WriteProgress) => void) => Promise<T>,
-): Promise<T> => {
-  if (!showWriteProgress()) return run();
-  let progress: WriteProgress | undefined;
-  let settled = false;
-  let reported = false;
-  const reportTrouble = () => {
-    if (reported || progress?.phase !== "sending") return;
-    const summary = summarizeRelays(progress.relays);
-    if (!summary.finished || summary.rejected === 0) return;
-    reported = true;
-    toaster.create({
-      type: "success",
-      title: label,
-      duration: TROUBLE_DURATION_MS,
-      meta: {
-        write: { label, progress, outcome: { kind: "done" } },
-      } satisfies WriteToastMeta,
-    });
-  };
   try {
     const result = await run((next) => {
       progress = next;
-      if (settled) reportTrouble();
+      write.progress(next);
     });
-    settled = true;
-    reportTrouble();
+    write.returned();
     return result;
   } catch (cause) {
     markReported(cause);
+    write.failed();
     toaster.create({
       type: "error",
       title: label,
@@ -158,7 +59,7 @@ const trackQuietly = async <T>(
 const trackedReplace =
   (writer: Pick<Writer, "replace">, label: string): Writer["replace"] =>
   (kind, identifier, mutate, hooks, options) =>
-    track(label, (onProgress) =>
+    track(label, false, (onProgress) =>
       writer.replace(
         kind,
         identifier,
@@ -169,14 +70,14 @@ const trackedReplace =
     );
 
 /**
- * 書き込みの進み具合をトーストに出す `Writer`。1 本のリレーが受け取った時点で
- * 返すので、呼び出し側（ダイアログ・ボタン）は遅いリレーを待たない。トーストは
- * 1 回の書き込みにつき 1 枚を出し、残りのリレーの結果が届くたびに差し替える。
+ * 書き込みを列に積み、進み具合を列のトーストに出す `Writer`。1 本のリレーが
+ * 受け取った時点で返すので、呼び出し側（ダイアログ・ボタン）は遅いリレーを
+ * 待たない。全部のリレーの結果が揃ったら「保存しました」と知らせる。
  * `label` は何を書いたか（「リアクション」「リレーの設定」など）。
  */
 export const trackWrites = (writer: Tracked, label: string): Tracked => ({
   publish: (draft, hooks, options) =>
-    track(label, (onProgress) =>
+    track(label, false, (onProgress) =>
       writer.publish(
         draft,
         onProgress ? withProgress(hooks, onProgress) : hooks,
@@ -187,16 +88,15 @@ export const trackWrites = (writer: Tracked, label: string): Tracked => ({
 });
 
 /**
- * 投稿・リアクションのように、書いたものがすぐ画面に出る書き込み。1 本のリレーが
- * 受け取った時点で終え、うまくいったときはトーストを出さない。断ったリレーがある・
- * 全部失敗したときだけ、`trackWrites` と同じトーストで知らせる。
+ * 投稿・リアクションのように、書いたものがすぐ画面に出る書き込み。`trackWrites` と
+ * 同じく列に積むが、うまくいったときは知らせず、すぐ終われば列のトーストも出さない。
  */
 export const trackQuickWrites = (
   writer: Pick<Writer, "publish">,
   label: string,
 ): Pick<Writer, "publish"> => ({
   publish: (draft, hooks, options) =>
-    trackQuietly(label, (onProgress) =>
+    track(label, true, (onProgress) =>
       writer.publish(
         draft,
         onProgress ? withProgress(hooks, onProgress) : hooks,
@@ -213,7 +113,7 @@ export const trackSends = <T>(
   label: string,
   run: (onProgress?: (relays: RelayProgress[]) => void) => Promise<T>,
 ): Promise<T> =>
-  track(label, (onProgress) =>
+  track(label, false, (onProgress) =>
     run(
       onProgress
         ? (relays) => onProgress({ phase: "sending", relays })
