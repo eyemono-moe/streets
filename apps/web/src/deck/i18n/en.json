@@ -358,5 +358,7 @@
     "kindsPlaceholder": "1 (posts if left empty)",
     "excludeBots": "Exclude bots",
     "peopleNote": "People you specify are written back in the search box as hex public keys (they refer to the same people)."
-  }
+  },
+  "firstDeckName": "Main",
+  "newDeckName": "Deck {{ n }}"
 }

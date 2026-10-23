@@ -1,5 +1,4 @@
 import {
-  followSetName,
   mayBeLegacyMuteSet,
   readFollowSet,
 } from "@streets/core/lists/follow-set";
@@ -7,6 +6,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { type Component, For, Show } from "solid-js";
 import Avatar from "../note/Avatar";
 import type { EventSize } from "../note/Event";
+import { followSetName } from "./follow-set-name";
 import { useFollowSets } from "./FollowSetMediator";
 import {
   LegacyMuteNotice,

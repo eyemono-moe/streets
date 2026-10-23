@@ -3,7 +3,7 @@ import { isColumnPicker } from "@streets/core/deck/deck-ui";
 import { SHORTCUT_LABELS } from "@streets/core/settings/keymap";
 import type { SearchEntry } from "@streets/core/signal/search";
 import { COLUMN_ADD_PRESETS } from "../deck/column-add-presets";
-import { t } from "../i18n/locale";
+import { t, message } from "../i18n/locale";
 import type { UiEvent } from "../ui-events";
 
 export type PaletteAction = SearchEntry & {
@@ -56,7 +56,7 @@ const actions = (): PaletteAction[] => {
     {
       id: "compose",
       kind: "action",
-      title: SHORTCUT_LABELS.compose,
+      title: message(SHORTCUT_LABELS.compose),
       section,
       keywords: [...t("signal.actions.compose.keywords")],
       shortcodes: ["compose"],
@@ -66,7 +66,7 @@ const actions = (): PaletteAction[] => {
     {
       id: "search",
       kind: "action",
-      title: SHORTCUT_LABELS.search,
+      title: message(SHORTCUT_LABELS.search),
       section,
       keywords: [...t("signal.actions.search.keywords")],
       shortcodes: ["search"],
@@ -75,7 +75,7 @@ const actions = (): PaletteAction[] => {
     {
       id: "add-column",
       kind: "action",
-      title: SHORTCUT_LABELS["add-column"],
+      title: message(SHORTCUT_LABELS["add-column"]),
       section,
       keywords: [...t("signal.actions.addColumn.keywords")],
       shortcodes: ["add-column"],

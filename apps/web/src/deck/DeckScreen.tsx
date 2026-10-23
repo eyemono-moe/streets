@@ -170,6 +170,7 @@ import ColumnAccentBar from "./ColumnAccentBar";
 import ColumnArrangePanel from "./ColumnArrangePanel";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
+import { deckName } from "./deck-name";
 import {
   createDeckStore,
   createGuestDeckStore,
@@ -353,7 +354,7 @@ const DeckScreen: Component<{
   const deckSummaries = () =>
     deckStore.value()?.decks.map((deck) => ({
       id: deck.id,
-      name: deck.name,
+      name: deckName(deck),
       columns: deck.columns.length,
     })) ?? [];
   // カラムの操作は、開いているデッキにだけ当てる。
@@ -1171,7 +1172,9 @@ const DeckScreen: Component<{
             onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
           >
             <NewDeckPanel
-              placeholder={nextDeckName(set())}
+              placeholder={nextDeckName(set(), (n) =>
+                t("deck.newDeckName", { n }),
+              )}
               current={currentDeck()?.name ?? ""}
             />
           </SidePanel>

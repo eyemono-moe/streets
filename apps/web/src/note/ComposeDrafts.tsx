@@ -4,7 +4,7 @@ import {
   formatEventTimeFull,
 } from "@streets/core/view/format-time";
 import { type Component, For, Show } from "solid-js";
-import { t } from "../i18n/locale";
+import { t, locale } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import Name from "./Name";
@@ -84,9 +84,9 @@ const DraftRow: Component<{
         <span class="c-secondary flex items-center gap-1 text-caption">
           <time
             datetime={savedAt().toISOString()}
-            title={formatEventTimeFull(savedAt())}
+            title={formatEventTimeFull(savedAt(), locale())}
           >
-            {formatEventTime(savedAt(), props.now)}
+            {formatEventTime(savedAt(), props.now, locale())}
           </time>
           <Show when={!props.draft.kept}>
             <span>{t("note.drafts.autoSaved")}</span>

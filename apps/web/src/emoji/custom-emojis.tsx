@@ -29,7 +29,7 @@ import {
   createSignal,
   useContext,
 } from "solid-js";
-import { t } from "../i18n/locale";
+import { t, messageOrText } from "../i18n/locale";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import type { PickerGroup } from "./emoji-data";
@@ -209,7 +209,7 @@ export const CustomEmojisMediator: ParentComponent<{
   const groups = createMemo<PickerGroup[]>(() =>
     catalog().map((group) => ({
       id: group.id,
-      title: group.title,
+      title: messageOrText(group.title),
       emojis: group.emojis.map((emoji) => ({
         kind: "custom" as const,
         shortcode: emoji.shortcode,
@@ -257,7 +257,7 @@ export const StaticCustomEmojis: ParentComponent<{
         groups: () =>
           catalog().map((group) => ({
             id: group.id,
-            title: group.title,
+            title: messageOrText(group.title),
             emojis: group.emojis.map((emoji) => ({
               kind: "custom" as const,
               shortcode: emoji.shortcode,

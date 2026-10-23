@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import type { RelayListEntry } from "../read/relay-list";
 import type { RelayUrl } from "../relay/relay-connection";
 
@@ -5,13 +6,19 @@ export type RelaySuggestion = {
   url: RelayUrl;
   group: "account" | "followees";
   /** 行の右に添える一言（「読み書き」「12 人」など）。 */
-  detail: string;
+  detail: Message;
   /** もう足してあるか。 */
   added: boolean;
 };
 
-const usage = (entry: RelayListEntry): string =>
-  entry.read && entry.write ? "読み書き" : entry.read ? "読み込み" : "書き込み";
+const usage = (entry: RelayListEntry): Message => ({
+  key:
+    entry.read && entry.write
+      ? "relay.usage.readWrite"
+      : entry.read
+        ? "relay.usage.read"
+        : "relay.usage.write",
+});
 
 /** `wss://` などを外し、大文字・小文字を無視して比べる。 */
 const bare = (text: string) =>
@@ -63,7 +70,7 @@ export const relaySuggestions = (input: {
       .map(([url, count]): RelaySuggestion => ({
         url,
         group: "followees",
-        detail: `${count} 人`,
+        detail: { key: "relay.followeeCount", count },
         added: selected.has(url),
       })),
   ];

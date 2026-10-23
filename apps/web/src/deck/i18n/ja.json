@@ -358,5 +358,7 @@
     "kindsPlaceholder": "1（省略すると投稿）",
     "excludeBots": "botを除く",
     "peopleNote": "人の指定は、入力欄では 16 進の公開鍵として書き戻されます（指すものは同じです）。"
-  }
+  },
+  "firstDeckName": "メイン",
+  "newDeckName": "デッキ {{ n }}"
 }

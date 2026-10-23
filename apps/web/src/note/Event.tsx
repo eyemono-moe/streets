@@ -23,7 +23,7 @@ import {
 import { Dynamic } from "solid-js/web";
 import ArticleCard from "../article/ArticleCard";
 import EmojiSetCard from "../emoji/EmojiSetCard";
-import { t } from "../i18n/locale";
+import { t, message } from "../i18n/locale";
 import FollowSetCard from "../lists/FollowSetCard";
 import ListSetCard from "../lists/ListSetCard";
 import PollBlock from "../poll/PollBlock";
@@ -226,7 +226,7 @@ const CommentScopeLines: Component<{ scope: CommentScope }> = (props) => (
         class="i-material-symbols:mode-comment-outline-rounded size-3.5 shrink-0"
         aria-hidden="true"
       />
-      <span>{props.scope.label}</span>
+      <span>{message(props.scope.label)}</span>
     </p>
     <Show when={props.scope.type === "external" && props.scope} keyed>
       {(scope) => (

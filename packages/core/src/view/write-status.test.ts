@@ -22,30 +22,36 @@ const ng = (relay: RelayUrl, reason = "blocked"): RelayProgress => ({
 
 describe("writeStatus", () => {
   it("送る前の段は、何を待っているかを言う", () => {
-    expect(writeStatus({ phase: "checking" }).text).toBe(
-      "最新の状態を確認しています",
-    );
-    expect(writeStatus({ phase: "signing" }).text).toBe("署名を待っています");
+    expect(writeStatus({ phase: "checking" }).text).toEqual({
+      key: "write.status.checking",
+    });
+    expect(writeStatus({ phase: "signing" }).text).toEqual({
+      key: "write.status.signing",
+    });
   });
 
   it("まだどこにも届いていなければ、結果の出た数を数える", () => {
     expect(writeStatus(sending(ng(A), pending(B), pending(C)))).toMatchObject({
       tone: "working",
-      text: "送信しています（1/3）",
+      text: { key: "write.status.sending", args: { done: 1, total: 3 } },
     });
   });
 
   it("1 本受け取った時点で保存したと言う。残りは待たない", () => {
     expect(writeStatus(sending(ok(A), pending(B), pending(C)))).toMatchObject({
       tone: "saved",
-      text: "保存しました（1/3 件のリレー）",
+      text: {
+        key: "write.status.savedSome",
+        args: { accepted: 1 },
+        count: 3,
+      },
     });
   });
 
   it("全部受け取れば、ただ保存したと言う", () => {
     expect(writeStatus(sending(ok(A), ok(B)))).toMatchObject({
       tone: "saved",
-      text: "保存しました",
+      text: { key: "write.status.saved" },
       failures: [],
     });
   });
@@ -54,8 +60,8 @@ describe("writeStatus", () => {
     const status = writeStatus(sending(ok(A), ng(B, "rate limited")));
     expect(status).toMatchObject({
       tone: "partial",
-      text: "保存しました。1 件のリレーには届きませんでした",
-      failures: [{ relay: B, reason: "rate limited" }],
+      text: { key: "write.status.partial", count: 1 },
+      failures: [{ relay: B, reason: { detail: "rate limited" } }],
       // 前置きの無い理由は、そのまま出す
     });
   });
@@ -78,23 +84,32 @@ describe("writeStatus", () => {
 });
 
 describe("describeRejection", () => {
-  it("NIP-01 の前置きを言い換え、リレーの説明は括弧で残す", () => {
-    expect(describeRejection("rate-limited: slow down")).toBe(
-      "短い間に送りすぎて断られました（slow down）",
-    );
-    expect(describeRejection("blocked:")).toBe("このリレーに断られました");
-    expect(describeRejection("blocked")).toBe("このリレーに断られました");
+  it("NIP-01 の前置きを言い換え、リレーの説明は残す", () => {
+    expect(describeRejection("rate-limited: slow down")).toEqual({
+      reason: { key: "write.rejection.rateLimited" },
+      detail: "slow down",
+    });
+    expect(describeRejection("blocked:")).toEqual({
+      reason: { key: "write.rejection.blocked" },
+    });
+    expect(describeRejection("blocked")).toEqual({
+      reason: { key: "write.rejection.blocked" },
+    });
   });
 
   it("接続の失敗を言い換える", () => {
     expect(
       describeRejection("publish timed out for wss://a/ after 10000ms"),
-    ).toBe("時間内に応答がありませんでした");
-    expect(describeRejection("socket closed")).toBe("つながりませんでした");
+    ).toEqual({ reason: { key: "write.rejection.timeout" } });
+    expect(describeRejection("socket closed")).toEqual({
+      reason: { key: "write.rejection.unreachable" },
+    });
   });
 
   it("知らない理由はそのまま出す", () => {
-    expect(describeRejection("something odd")).toBe("something odd");
-    expect(describeRejection("")).toBe("理由は分かりません");
+    expect(describeRejection("something odd")).toEqual({
+      detail: "something odd",
+    });
+    expect(describeRejection("")).toEqual({});
   });
 });

@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { EventDraft } from "./build/draft";
 import type { NostrEvent } from "./event";
@@ -169,11 +170,18 @@ export const buildPollResponse = (
 export const pollDeadlineLabel = (
   poll: Poll,
   nowSeconds: number,
-): string | undefined => {
+): Message | undefined => {
   if (poll.endsAt === undefined) return undefined;
   const left = poll.endsAt - nowSeconds;
-  if (left <= 0) return "締め切りました";
-  if (left < 60 * 60) return `あと ${Math.max(1, Math.floor(left / 60))} 分`;
-  if (left < 24 * 60 * 60) return `あと ${Math.floor(left / 3600)} 時間`;
-  return `あと ${Math.floor(left / 86_400)} 日`;
+  if (left <= 0) return { key: "poll.deadline.closed" };
+  if (left < 60 * 60) {
+    return {
+      key: "poll.deadline.minutes",
+      count: Math.max(1, Math.floor(left / 60)),
+    };
+  }
+  if (left < 24 * 60 * 60) {
+    return { key: "poll.deadline.hours", count: Math.floor(left / 3600) };
+  }
+  return { key: "poll.deadline.days", count: Math.floor(left / 86_400) };
 };

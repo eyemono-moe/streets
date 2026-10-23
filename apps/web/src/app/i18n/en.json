@@ -45,7 +45,6 @@
     "signerDisconnected": "Not connected to your signer. Check that the signer app is running, then reconnect",
     "signerUnavailable": "Your signer isn't available. Please log in again",
     "noUploadServer": "No upload server for images. Add one under \"Images\" in settings",
-    "notUploadServer": "{{ server }} didn't respond as an image upload server. Check the URL",
     "emoji": {
       "missingChars": "Some characters can't be drawn ({{ chars }})",
       "denied": "This emoji can't be made",
@@ -95,5 +94,10 @@
   },
   "toast": {
     "close": "Close"
+  },
+  "writeProgress": {
+    "separator": ": ",
+    "reasonWithDetail": "{{ reason }} ({{ detail }})",
+    "unknownReason": "Reason unknown"
   }
 }

@@ -41,16 +41,20 @@ describe("commentScope", () => {
       ),
     ).toEqual({
       type: "event",
-      label: "長文記事へのコメント",
+      label: {
+        key: "comment.scope.event",
+        args: { summary: "長文記事" },
+      },
       target: { form: "address", address: ARTICLE, relay: "wss://r.example/" },
     });
   });
 
   it("K が無くても、住所から記事だと分かる", () => {
     // 捕まえる変異: K だけで kind を決める（K を落とすクライアントのコメントが「コメント」とだけ出る）
-    expect(commentScope(comment([["A", ARTICLE]]))?.label).toBe(
-      "長文記事へのコメント",
-    );
+    expect(commentScope(comment([["A", ARTICLE]]))?.label).toEqual({
+      key: "comment.scope.event",
+      args: { summary: "長文記事" },
+    });
   });
 
   it("知らない kind の根は「コメント」とだけ言う", () => {
@@ -62,7 +66,7 @@ describe("commentScope", () => {
           ["K", "34236"],
         ]),
       )?.label,
-    ).toBe("コメント");
+    ).toEqual({ key: "comment.scope.comment" });
   });
 
   it("Web ページへのコメントは URL を開けるようにする", () => {
@@ -75,7 +79,7 @@ describe("commentScope", () => {
       ),
     ).toEqual({
       type: "external",
-      label: "Web ページへのコメント",
+      label: { key: "comment.scope.web" },
       value: "https://example.com/a",
       url: "https://example.com/a",
     });

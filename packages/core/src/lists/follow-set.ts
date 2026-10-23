@@ -1,3 +1,4 @@
+import type { Message } from "../i18n/message";
 import type { NostrEvent } from "../nostr/event";
 import {
   type ItemVisibility,
@@ -96,9 +97,14 @@ export const decodeFollowSet = async (
   };
 };
 
-/** 題名が無いリストは `d` で呼ぶ（ほかのクライアントもそうしている）。 */
+/** 題名が無いリストは `d` で呼ぶ（ほかのクライアントもそうしている）。`d` も空なら空文字。 */
 export const followSetName = (set: Pick<FollowSet, "title" | "identifier">) =>
-  set.title ?? (set.identifier || "名前のないリスト");
+  set.title ?? set.identifier;
+
+/** 画面に出す名前。題名も `d` も無いリストには、名前が無いと言う文言を当てる。 */
+export const followSetLabel = (
+  set: Pick<FollowSet, "title" | "identifier">,
+): Message | string => followSetName(set) || { key: "lists.unnamed" };
 
 /**
  * 一部のクライアントは、`d` が `mute` のリストをミュートの指定として扱う

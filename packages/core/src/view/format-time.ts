@@ -1,6 +1,12 @@
-// ロケールを固定する。実行環境のロケールに従うと、同じ入力でも
+import type { Message } from "../i18n/message";
+import type { Locale } from "../settings/locale-setting";
+
+// 言語の設定から決める。実行環境のロケールに従うと、同じ入力でも
 // CI と手元で表示が食い違う。
-const LOCALE = "ja-JP";
+const INTL_LOCALES: Record<Locale, string> = { ja: "ja-JP", en: "en-US" };
+
+// `hour12: false` だと、英語では 0 時が「24:05」になる。
+const HOUR_CYCLE = "h23";
 
 const isSameDay = (a: Date, b: Date): boolean =>
   a.getFullYear() === b.getFullYear() &&
@@ -11,28 +17,32 @@ const isSameYear = (a: Date, b: Date): boolean =>
   a.getFullYear() === b.getFullYear();
 
 /** 同日は `HH:mm`、同年は `MM/dd HH:mm`、それ以外は `yyyy/MM/dd HH:mm`。 */
-export const formatEventTime = (date: Date, now: Date): string => {
+export const formatEventTime = (
+  date: Date,
+  now: Date,
+  locale: Locale,
+): string => {
   if (isSameDay(date, now)) {
-    return date.toLocaleString(LOCALE, {
-      hour12: false,
+    return date.toLocaleString(INTL_LOCALES[locale], {
+      hourCycle: HOUR_CYCLE,
       hour: "2-digit",
       minute: "2-digit",
     });
   }
   if (isSameYear(date, now)) {
-    return date.toLocaleString(LOCALE, {
+    return date.toLocaleString(INTL_LOCALES[locale], {
       month: "2-digit",
       day: "2-digit",
-      hour12: false,
+      hourCycle: HOUR_CYCLE,
       hour: "2-digit",
       minute: "2-digit",
     });
   }
-  return date.toLocaleString(LOCALE, {
+  return date.toLocaleString(INTL_LOCALES[locale], {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour12: false,
+    hourCycle: HOUR_CYCLE,
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -47,21 +57,35 @@ const DAY_MS = 24 * HOUR_MS;
  * それより古ければ `formatEventTime` と同じ日付。端末の時計が遅れていて未来に
  * なった投稿も「いま」にする —— 「-3分」と出しても読み手には意味が無い。
  */
-export const formatRelativeEventTime = (date: Date, now: Date): string => {
+export const formatRelativeEventTime = (
+  date: Date,
+  now: Date,
+  locale: Locale,
+): Message | string => {
   const elapsed = now.getTime() - date.getTime();
-  if (elapsed < MINUTE_MS) return "いま";
-  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)}分`;
-  if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)}時間`;
-  return formatEventTime(date, now);
+  if (elapsed < MINUTE_MS) return { key: "time.relative.now" };
+  if (elapsed < HOUR_MS) {
+    return {
+      key: "time.relative.minutes",
+      args: { value: Math.floor(elapsed / MINUTE_MS) },
+    };
+  }
+  if (elapsed < DAY_MS) {
+    return {
+      key: "time.relative.hours",
+      args: { value: Math.floor(elapsed / HOUR_MS) },
+    };
+  }
+  return formatEventTime(date, now, locale);
 };
 
 /** `title` 属性用の完全な日時。 */
-export const formatEventTimeFull = (date: Date): string =>
-  date.toLocaleString(LOCALE, {
+export const formatEventTimeFull = (date: Date, locale: Locale): string =>
+  date.toLocaleString(INTL_LOCALES[locale], {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour12: false,
+    hourCycle: HOUR_CYCLE,
     hour: "2-digit",
     minute: "2-digit",
   });

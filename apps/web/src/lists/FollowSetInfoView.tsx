@@ -2,7 +2,6 @@ import {
   FOLLOW_SET_KIND,
   type FollowSet,
   type FollowSetMember,
-  followSetName,
   mayBeLegacyMuteSet,
 } from "@streets/core/lists/follow-set";
 import { decodeUserInput, encodeNaddr } from "@streets/core/nostr/nip19";
@@ -19,6 +18,7 @@ import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
+import { followSetName } from "./follow-set-name";
 import { privatePartNotice } from "./FollowSetMediator";
 import { LegacyMuteNotice, memberCountLabel } from "./FollowSetSummary";
 import ListPicture from "./ListPicture";

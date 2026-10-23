@@ -1,5 +1,5 @@
+import { MessageError } from "@streets/core/i18n/message";
 import { UploadFailedError } from "@streets/core/media/blossom";
-import { NotUploadServerError } from "@streets/core/media/upload-servers";
 import {
   InvalidPrivateItemsError,
   PrivateItemsUnavailableError,
@@ -12,10 +12,11 @@ import {
 import { RefetchFailedError } from "@streets/core/write/fetch-latest";
 import { WriteFailedError } from "@streets/core/write/writer";
 import { EmojiCreateFailedError } from "./emoji/maker/api";
-import { plural, t } from "./i18n/locale";
+import { message, plural, t } from "./i18n/locale";
 import { NoUploadServerError } from "./media/uploader";
 
 export const actionErrorMessage = (error: unknown): string => {
+  if (error instanceof MessageError) return message(error.text);
   if (error instanceof WriteFailedError) {
     return plural("app.errors.writeFailed", error.rejected.length);
   }
@@ -39,11 +40,6 @@ export const actionErrorMessage = (error: unknown): string => {
   }
   if (error instanceof NoUploadServerError) {
     return t("app.errors.noUploadServer");
-  }
-  if (error instanceof NotUploadServerError) {
-    return t("app.errors.notUploadServer", {
-      server: error.server.replace(/^https:\/\//, ""),
-    });
   }
   if (error instanceof EmojiCreateFailedError) {
     switch (error.reason) {
@@ -82,7 +78,10 @@ export const uploadErrorMessage = (error: unknown): string => {
   if (error instanceof UploadFailedError) {
     return error.status === 413
       ? t("app.errors.upload.tooLarge")
-      : t("app.errors.upload.failed", { message: error.message });
+      : t("app.errors.upload.failed", {
+          message: error.text ? message(error.text) : error.message,
+        });
   }
+  if (error instanceof MessageError) return message(error.text);
   return error instanceof Error ? error.message : String(error);
 };

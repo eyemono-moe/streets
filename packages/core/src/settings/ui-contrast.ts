@@ -1,3 +1,5 @@
+import type { Message } from "../i18n/message";
+
 /** 文字と背景の明るさの差の倍率。標準が 1。端末ごとの設定。 */
 export type UiContrast = number;
 
@@ -28,8 +30,8 @@ export const loadUiContrast = (raw: string | null): UiContrast => {
 };
 
 /** 設定に出す値の表記。標準からの差を割合で示す。 */
-export const formatUiContrast = (contrast: UiContrast): string => {
+export const formatUiContrast = (contrast: UiContrast): Message | string => {
   const percent = Math.round((contrast - UI_CONTRAST_DEFAULT) * 100);
-  if (percent === 0) return "標準";
+  if (percent === 0) return { key: "display.contrast.standard" };
   return `${percent > 0 ? "+" : "-"}${Math.abs(percent)}%`;
 };

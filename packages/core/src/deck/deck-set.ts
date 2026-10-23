@@ -32,10 +32,13 @@ export const updateDeckIn = (
  * 新しいデッキの名前の候補。「デッキ 2」「デッキ 3」…のうち、使われていない最初のもの。
  * 名前は重なってもよいが、同じ名前が並ぶと切り替えの一覧で見分けられない。
  */
-export const nextDeckName = (set: DeckSet): string => {
+export const nextDeckName = (
+  set: DeckSet,
+  nameFor: (n: number) => string,
+): string => {
   const names = new Set(set.decks.map((deck) => deck.name));
   for (let n = set.decks.length + 1; ; n += 1) {
-    const name = `デッキ ${n}`;
+    const name = nameFor(n);
     if (!names.has(name)) return name;
   }
 };

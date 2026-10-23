@@ -45,7 +45,6 @@
     "signerDisconnected": "署名器と繋がっていません。署名器のアプリが動いているか確かめて、繋ぎ直してください",
     "signerUnavailable": "署名器を利用できません。ログインし直してください",
     "noUploadServer": "画像のアップロード先がありません。設定の「画像」で追加してください",
-    "notUploadServer": "{{ server }} は画像のアップロード先として応答しませんでした。URL を確かめてください",
     "emoji": {
       "missingChars": "描けない文字があります（{{ chars }}）",
       "denied": "この絵文字は作れません",
@@ -95,5 +94,10 @@
   },
   "toast": {
     "close": "閉じる"
+  },
+  "writeProgress": {
+    "separator": "：",
+    "reasonWithDetail": "{{ reason }}（{{ detail }}）",
+    "unknownReason": "理由は分かりません"
   }
 }

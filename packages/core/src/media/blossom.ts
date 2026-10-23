@@ -1,5 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
+import type { Message } from "../i18n/message";
 import {
   type EventDraft,
   type Mutation,
@@ -83,7 +84,7 @@ export const setBlossomServers =
 
 export type ServerInputResult =
   | { ok: true; url: BlossomServer }
-  | { ok: false; message: string };
+  | { ok: false; message: Message };
 
 /** 入力されたアップロード先の URL を確かめる。`https://` を省いて打つ人が多いので補う。 */
 export const parseServerInput = (
@@ -92,7 +93,7 @@ export const parseServerInput = (
 ): ServerInputResult => {
   const text = input.trim();
   if (text === "" || text === "https://") {
-    return { ok: false, message: "アップロード先の URL を入力してください" };
+    return { ok: false, message: { key: "media.server.urlRequired" } };
   }
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text)
     ? text
@@ -101,11 +102,11 @@ export const parseServerInput = (
   if (!url) {
     return {
       ok: false,
-      message: "https:// で始まる URL を入力してください",
+      message: { key: "media.server.httpsRequired" },
     };
   }
   if (existing.includes(url)) {
-    return { ok: false, message: "このアップロード先はもう入っています" };
+    return { ok: false, message: { key: "media.server.duplicate" } };
   }
   return { ok: true, url };
 };
@@ -124,11 +125,18 @@ export type BlobDescriptor = {
 export class UploadFailedError extends Error {
   readonly server: BlossomServer;
   readonly status?: number;
-  constructor(server: BlossomServer, message: string, status?: number) {
-    super(message);
+  /** こちらで決めた理由。サーバーが返した理由（文字列）のときは無い。 */
+  readonly text?: Message;
+  constructor(
+    server: BlossomServer,
+    reason: string | Message,
+    status?: number,
+  ) {
+    super(typeof reason === "string" ? reason : reason.key);
     this.name = "UploadFailedError";
     this.server = server;
     this.status = status;
+    if (typeof reason !== "string") this.text = reason;
   }
 }
 
@@ -236,7 +244,7 @@ export const uploadBlob = async (options: {
   if (!blob) {
     throw new UploadFailedError(
       options.server,
-      "アップロード先の返事を読み取れませんでした",
+      { key: "media.upload.unreadableResponse" },
       response.status,
     );
   }

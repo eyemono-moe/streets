@@ -1,0 +1,229 @@
+{
+  "column": {
+    "title": {
+      "home": "ホーム",
+      "timeslip": "タイムスリップ",
+      "followeesActivity": "みんなのアクティビティ",
+      "notifications": "通知",
+      "bookmarks": "ブックマーク",
+      "article": "長文記事",
+      "thread": "スレッド",
+      "activity": "アクティビティ",
+      "followees": "{{ name }} のフォロー",
+      "followers": "{{ name }} のフォロワー",
+      "info": "{{ name }}の情報",
+      "followSets": "リスト",
+      "channels": "チャンネル",
+      "welcome": "Streets へようこそ",
+      "relays": {
+        "one": "リレー（{{ count }}）",
+        "other": "リレー（{{ count }}）"
+      },
+      "note": "ノート"
+    },
+    "alert": {
+      "directUnreachable": {
+        "one": "読み込みに使うリレーに接続できません ({{ count }} 本)",
+        "other": "読み込みに使うリレーに接続できません ({{ count }} 本)"
+      },
+      "directUnreachableAction": "設定の「リレー」で読み込みリレーを確かめるか、読み方を「人ごとに選ぶ」に戻してください",
+      "relaysBlocked": {
+        "one": "指定したリレーのうち {{ count }} 本は、繋がないリレーにしているため読みません",
+        "other": "指定したリレーのうち {{ count }} 本は、繋がないリレーにしているため読みません"
+      },
+      "relaysBlockedAction": "設定の「リレー」で繋がないリレーから外すか、カラムの設定でそのリレーを外してください",
+      "relaysUnreachable": {
+        "one": "指定したリレーに接続できません ({{ count }} 本)",
+        "other": "指定したリレーに接続できません ({{ count }} 本)"
+      },
+      "relaysUnreachableAction": "カラムの設定でリレーの URL を確認してください",
+      "relayListMissing": "あなたのリレー設定 (kind:10002) が見つからないか取得できなかったため、既定のリレーで待っています",
+      "relayListMissingAction": "通知が届かない場合は、リレー設定を publish しているか確認してください",
+      "readRelaysUnreachable": {
+        "one": "あなたの設定した read リレーに接続できません ({{ count }} 本)",
+        "other": "あなたの設定した read リレーに接続できません ({{ count }} 本)"
+      },
+      "readRelaysUnreachableAction": "リレー設定 (kind:10002) の read リレーを確認してください",
+      "unroutable": "この人のリレー設定が見つからないため、既定のリレーから読んでいます",
+      "unroutableAction": "投稿が出ない場合は、設定の「リレー」で読み方を「読み込みリレーだけ」に切り替えてください"
+    }
+  },
+  "write": {
+    "rejection": {
+      "blocked": "このリレーに断られました",
+      "rateLimited": "短い間に送りすぎて断られました",
+      "invalid": "このリレーが受け付けない形でした",
+      "pow": "このリレーが求める計算（PoW）が足りませんでした",
+      "restricted": "このリレーには書き込めません",
+      "authRequired": "このリレーはログイン（認証）が必要です",
+      "duplicate": "同じものがもう届いていました",
+      "error": "リレーの中でエラーが起きました",
+      "timeout": "時間内に応答がありませんでした",
+      "unreachable": "つながりませんでした",
+      "budget": "同時につなげる数の上限に達していました"
+    },
+    "status": {
+      "checking": "最新の状態を確認しています",
+      "signing": "署名を待っています",
+      "noneReached": "どのリレーにも届きませんでした",
+      "sending": "送信しています（{{ done }}/{{ total }}）",
+      "savedSome": {
+        "one": "保存しました（{{ accepted }}/{{ count }} 件のリレー）",
+        "other": "保存しました（{{ accepted }}/{{ count }} 件のリレー）"
+      },
+      "partial": {
+        "one": "保存しました。{{ count }} 件のリレーには届きませんでした",
+        "other": "保存しました。{{ count }} 件のリレーには届きませんでした"
+      },
+      "saved": "保存しました"
+    },
+    "error": {
+      "unverifiable": "署名を確かめられないイベントは送れません",
+      "encrypted": "暗号化されたイベントは送り直せません",
+      "deleted": "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
+      "verifyFailed": "投稿の検証に失敗しました (拡張機能の応答が壊れています)。"
+    }
+  },
+  "signer": {
+    "wait": {
+      "profile": "プロフィールの署名を待っています",
+      "post": "投稿の署名を待っています",
+      "follow": "フォローの署名を待っています",
+      "delete": "投稿の削除の署名を待っています",
+      "repost": "リポストの署名を待っています",
+      "reaction": "リアクションの署名を待っています",
+      "mute": "ミュートの署名を待っています",
+      "relayList": "リレーの設定の署名を待っています",
+      "bookmark": "ブックマークの署名を待っています",
+      "relayAuth": "リレーへのログインの署名を待っています",
+      "settings": "設定の署名を待っています",
+      "unknown": "操作の署名を待っています"
+    },
+    "bunker": {
+      "unparsable": "bunker URI を解析できません",
+      "notBunker": "bunker:// から始まるURIを入力してください",
+      "unsupported": "bunker URI に未対応の要素があります",
+      "invalidPubkey": "remote signer の公開鍵が不正です",
+      "relayScheme": "relay は ws:// または wss:// で指定してください",
+      "relayRequired": "relay が1本以上必要です",
+      "relayTooMany": "relay は{{ max }}本までにしてください",
+      "secretEmpty": "secret が空です"
+    }
+  },
+  "comment": {
+    "scope": {
+      "web": "Web ページへのコメント",
+      "hashtag": "ハッシュタグへのコメント",
+      "geo": "場所へのコメント",
+      "isbn": "本へのコメント",
+      "isan": "映像作品へのコメント",
+      "doi": "論文へのコメント",
+      "podcast": "ポッドキャストへのコメント",
+      "external": "外部のものへのコメント",
+      "event": "{{ summary }}へのコメント",
+      "comment": "コメント"
+    }
+  },
+  "time": {
+    "relative": {
+      "now": "いま",
+      "minutes": "{{ value }}分",
+      "hours": "{{ value }}時間"
+    }
+  },
+  "emoji": {
+    "group": {
+      "own": "自分の絵文字"
+    },
+    "preset": {
+      "pop": "ポップ",
+      "clear": "くっきり",
+      "sumi": "墨",
+      "yuru": "ゆる",
+      "alert": "警告",
+      "neon": "ネオン"
+    }
+  },
+  "media": {
+    "server": {
+      "urlRequired": "アップロード先の URL を入力してください",
+      "httpsRequired": "https:// で始まる URL を入力してください",
+      "duplicate": "このアップロード先はもう入っています"
+    },
+    "upload": {
+      "unreadableResponse": "アップロード先の返事を読み取れませんでした",
+      "notNip96": "NIP-96 のアップロード先として応答しませんでした",
+      "notUploadServer": "{{ server }} は画像のアップロード先として応答しませんでした。URL を確かめてください"
+    }
+  },
+  "poll": {
+    "deadline": {
+      "closed": "締め切りました",
+      "minutes": {
+        "one": "あと {{ count }} 分",
+        "other": "あと {{ count }} 分"
+      },
+      "hours": {
+        "one": "あと {{ count }} 時間",
+        "other": "あと {{ count }} 時間"
+      },
+      "days": {
+        "one": "あと {{ count }} 日",
+        "other": "あと {{ count }} 日"
+      }
+    }
+  },
+  "shortcut": {
+    "compose": "投稿パネルを開く",
+    "search": "検索パネルを開く",
+    "addColumn": "カラム追加パネルを開く",
+    "palette": "コマンドパレットを開く"
+  },
+  "relay": {
+    "input": {
+      "urlRequired": "リレーの URL を入力してください",
+      "wssRequired": "wss:// で始まるリレーの URL を入力してください",
+      "duplicate": "このリレーはもう入っています"
+    },
+    "usage": {
+      "readWrite": "読み書き",
+      "read": "読み込み",
+      "write": "書き込み"
+    },
+    "followeeCount": {
+      "one": "{{ count }} 人",
+      "other": "{{ count }} 人"
+    }
+  },
+  "profile": {
+    "error": {
+      "url": "https:// で始まる URL を入力してください",
+      "nip05": "name@example.com の形で入力してください",
+      "lightningAddress": "name@wallet.example の形で入力してください（ウォレットのアプリに表示されています）"
+    }
+  },
+  "display": {
+    "contrast": {
+      "standard": "標準"
+    }
+  },
+  "sync": {
+    "error": {
+      "storage": "この端末へ同期データを保存できませんでした。ブラウザのストレージ設定を確認してください",
+      "nip44Unavailable": "このログインの方法では、デッキを暗号化して同期できません",
+      "invalidRemote": "リレー上の同期データを読み取れませんでした",
+      "load": "同期データを取得できませんでした。接続を確認して再試行してください",
+      "save": "同期データを保存できませんでした。署名器と接続を確認して再試行してください"
+    }
+  },
+  "zap": {
+    "error": {
+      "invalidInvoice": "請求書の形が不正です",
+      "declined": "送り先のサーバーに断られました",
+      "noInvoice": "請求書が返ってきませんでした"
+    }
+  },
+  "lists": {
+    "unnamed": "名前のないリスト"
+  }
+}

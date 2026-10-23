@@ -1,7 +1,7 @@
 import type { ActiveSigner } from "@streets/core/signer/active-signer";
 import { signingWaitMessage } from "@streets/core/view/signer-wait";
 import { createSignal, onCleanup } from "solid-js";
-import { t } from "./i18n/locale";
+import { t, message } from "./i18n/locale";
 
 const WAIT_DELAY_MS = 2500;
 /**
@@ -81,7 +81,7 @@ export const observeSigner = (
   getPublicKey: () => signer.getPublicKey(),
   signEvent: (template) =>
     wait.track(
-      signingWaitMessage(template.kind),
+      message(signingWaitMessage(template.kind)),
       () => signer.signEvent(template),
       template.kind === RELAY_AUTH_KIND ? BACKGROUND_WAIT_DELAY_MS : undefined,
     ),
