@@ -561,7 +561,7 @@ const EventMenu: Component<{
           items={[
             {
               value: "delete",
-              label: "削除",
+              label: t("note.eventMenu.delete"),
               icon: "i-material-symbols:delete-outline-rounded",
               danger: true,
               todo: deleting(),

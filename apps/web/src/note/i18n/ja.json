@@ -172,7 +172,8 @@
     "muteMore": "ミュート…",
     "postedFrom": "{{ client }} から投稿",
     "label": "この投稿の操作",
-    "thisEvent": "このイベント"
+    "thisEvent": "このイベント",
+    "delete": "削除"
   },
   "linkCard": {
     "loading": "リンクの情報を読み込んでいます"
@@ -229,5 +230,11 @@
     "close": "閉じる",
     "openOriginalVideo": "元の動画を開く",
     "openOriginalImage": "元の画像を開く"
+  },
+  "deleteDialog": {
+    "title": "この投稿を削除しますか",
+    "description": "投稿を届けたリレーに、削除を依頼します。依頼に従わないリレーや、すでに投稿を受け取ったアプリには残ることがあります。削除は取り消せません。",
+    "cancel": "やめる",
+    "confirm": "削除する"
   }
 }

@@ -15,7 +15,8 @@
     "chatMute": "Chat mute",
     "favorite": "Favorite",
     "broadcast": "Broadcast",
-    "follow": "Follow"
+    "follow": "Follow",
+    "delete": "Delete post"
   },
   "actions": {
     "cannotRepost": "This post can't be reposted",
@@ -31,7 +32,8 @@
     "pin": "Couldn't save the pin",
     "follow": "Couldn't save the follow",
     "favorite": "Couldn't save the favorite",
-    "broadcast": "Couldn't send it again"
+    "broadcast": "Couldn't send it again",
+    "delete": "Couldn't request deletion"
   },
   "errors": {
     "writeFailed": {
