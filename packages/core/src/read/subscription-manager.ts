@@ -27,6 +27,7 @@ import {
   sameReadRouting,
 } from "./read-routing";
 import { orderAuthorRelays } from "./relay-selector";
+import { reportIsolated } from "./report-isolated";
 import type { RoutingTable } from "./routing-table";
 import { type Scheduler, defaultScheduler } from "./scheduler";
 
@@ -747,7 +748,7 @@ export class SubscriptionManager {
         iterations += 1;
         if (iterations >= REPLAN_MAX_ITERATIONS && this.#dirty) {
           // 収束しなかった —— ハングさせるより打ち切って報告する方が安全。
-          console.error(
+          reportIsolated(
             `SubscriptionManager: replan() did not converge after ${REPLAN_MAX_ITERATIONS} iterations; giving up for this call instead of looping forever. This usually means a delivery callback keeps triggering replan() without ever reaching a stable plan.`,
           );
           break;
@@ -767,7 +768,7 @@ export class SubscriptionManager {
     try {
       callback();
     } catch (error) {
-      console.error(
+      reportIsolated(
         "SubscriptionManager: a delivery callback threw; isolating it so other sections keep receiving updates.",
         error,
       );

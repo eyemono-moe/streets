@@ -27,6 +27,7 @@ import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
+import { reportError } from "../../telemetry";
 import VirtualList from "../../ui/VirtualList";
 import { createBlockSection, useColumnScope } from "../column-scope";
 import { type ListWindow, NewerEdge, listWindow } from "../list-window";
@@ -124,6 +125,7 @@ export const ActionFeedView: Component<{
             <ErrorBoundary
               fallback={(error) => {
                 console.error("反応を描けませんでした", row.key, error);
+                reportError(error, "action-render");
                 return <BrokenEvent />;
               }}
             >

@@ -6,6 +6,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { reportError } from "../telemetry";
 import {
   NewerItemsProvider,
   type NewerItemsReport,
@@ -150,6 +151,7 @@ const ColumnBody: ParentComponent<{
                     props.columnId,
                     error,
                   );
+                  reportError(error, "column-render");
                   return (
                     <div class="c-secondary flex flex-col items-start gap-2 p-4 text-caption">
                       <p>このカラムを表示できませんでした。</p>

@@ -27,6 +27,30 @@ const TRACES_SAMPLE_RATE: Record<string, number> = {
  */
 const ONCE_PER_LOAD_OPS = new Set(["pageload", "ui.load"]);
 
+/** 文字列は 1 段下まで落とす。ブラウザの報告の中身は平らなオブジェクトで届く。 */
+const scrubExtra = (extra: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(extra).map(([key, value]) => {
+      if (typeof value === "string") return [key, scrubUrl(value)];
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        return [
+          key,
+          Object.fromEntries(
+            Object.entries(value).map(([inner, raw]) => [
+              inner,
+              typeof raw === "string" ? scrubUrl(raw) : raw,
+            ]),
+          ),
+        ];
+      }
+      return [key, value];
+    }),
+  );
+
 export const startTelemetry = async () => {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn || import.meta.env.DEV) return;
@@ -69,6 +93,10 @@ export const startTelemetry = async () => {
       Sentry.httpContextIntegration(),
       Sentry.cultureContextIntegration(),
       Sentry.browserSessionIntegration(),
+      // ブラウザが止めたこと（動画の再生器を作れなかった、など）は例外にならず、
+      // コンソールに出るだけなので、ここで拾う。古い API の警告（deprecation）は
+      // 直せないものも多く、枠を食うので取らない。
+      Sentry.reportingObserverIntegration({ types: ["crash", "intervention"] }),
       // 入力された文字や本文が混ざらないよう、操作の記録は取らない。コンソールの
       // 記録（Console）も同じ理由で入れない。
       Sentry.breadcrumbsIntegration({ dom: false }),
@@ -86,6 +114,8 @@ export const startTelemetry = async () => {
       for (const entry of event.exception?.values ?? []) {
         if (entry.value) entry.value = scrubText(entry.value);
       }
+      // ブラウザの報告（ReportingObserver）は、ページの URL と報告の中身をここに入れる。
+      if (event.extra) event.extra = scrubExtra(event.extra);
       // 誰が使っているかは要らない。
       event.user = undefined;
       return event;
