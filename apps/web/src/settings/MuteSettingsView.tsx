@@ -17,10 +17,10 @@ import {
 } from "solid-js";
 import { useUserCandidates, userSource } from "../completion/sources";
 import { t } from "../i18n/locale";
+import VisibilityAddButton from "../lists/VisibilityAddButton";
 import Avatar from "../note/Avatar";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
 import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -188,32 +188,15 @@ const AddMute: Component<{
         submit();
       }}
     >
-      <div class="flex flex-wrap items-center gap-2">
-        <SegmentedControl
-          label={t("settings.mute.typeLabel")}
-          options={types()}
-          value={type()}
-          onChange={(next) => {
-            setType(next);
-            setError(undefined);
-          }}
-        />
-        <SegmentedControl
-          label={t("settings.mute.visibility")}
-          variant="secondary"
-          value={visibility()}
-          options={[
-            {
-              value: "private",
-              label: t("settings.mute.private"),
-              disabled: !props.privateReady,
-              hint: t("settings.mute.privateUnavailable"),
-            },
-            { value: "public", label: t("settings.mute.public") },
-          ]}
-          onChange={setChosen}
-        />
-      </div>
+      <SegmentedControl
+        label={t("settings.mute.typeLabel")}
+        options={types()}
+        value={type()}
+        onChange={(next) => {
+          setType(next);
+          setError(undefined);
+        }}
+      />
       <div class="flex items-center gap-2">
         <Completion
           sources={type() === "pubkey" ? people : []}
@@ -235,13 +218,12 @@ const AddMute: Component<{
             />
           )}
         </Completion>
-        <Button
+        <VisibilityAddButton
           type="submit"
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-        >
-          {t("settings.mute.add")}
-        </Button>
+          value={visibility()}
+          privateReady={props.privateReady}
+          onChange={setChosen}
+        />
       </div>
       <Show
         when={error()}

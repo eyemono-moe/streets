@@ -271,9 +271,7 @@
       "other": "繋がないリレー {{ count }} 件"
     },
     "removeLabel": "{{ relay }} を一覧から外す",
-    "remove": "一覧から外す",
-    "visibility": "公開範囲",
-    "privateUnavailable": "今のログインの方法では、非公開の項目を扱えません"
+    "remove": "一覧から外す"
   },
   "searchRelays": {
     "saved": "検索するリレーを保存しました",
@@ -343,12 +341,9 @@
     "menuHint": "イベントやユーザーは、投稿の右上のメニューからもミュートできます。",
     "already": "もうミュートしています",
     "typeLabel": "ミュートするものの種類",
-    "visibility": "公開範囲",
     "private": "非公開",
     "public": "公開",
-    "privateUnavailable": "今のログインの方法では、非公開のミュートを扱えません",
     "peopleLabel": "人の候補",
-    "add": "追加",
     "unmute": "ミュートを解除",
     "openEvent": "このイベントを開く"
   },

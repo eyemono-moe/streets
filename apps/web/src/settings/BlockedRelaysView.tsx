@@ -13,9 +13,9 @@ import { type Component, For, Show, createSignal } from "solid-js";
 import RelayInput from "../deck/RelayInput";
 import { t, plural } from "../i18n/locale";
 import { VISIBILITY_LABEL } from "../lists/visibility";
+import VisibilityAddButton from "../lists/VisibilityAddButton";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
-import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
 
 /**
@@ -161,23 +161,15 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
               visibility: visibility(),
             })
           }
-          options={
-            <SegmentedControl
-              label={t("settings.blockedRelays.visibility")}
-              variant="secondary"
+          addButton={(add) => (
+            <VisibilityAddButton
               value={visibility()}
-              options={[
-                {
-                  value: "private",
-                  label: VISIBILITY_LABEL.private,
-                  disabled: !privateReady(),
-                  hint: t("settings.blockedRelays.privateUnavailable"),
-                },
-                { value: "public", label: VISIBILITY_LABEL.public },
-              ]}
+              privateReady={privateReady()}
               onChange={setChosen}
+              disabled={props.saving}
+              onClick={add}
             />
-          }
+          )}
         />
         <p class="c-secondary text-caption">{visibilityHint(visibility())}</p>
       </div>

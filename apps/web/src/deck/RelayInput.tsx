@@ -36,8 +36,8 @@ const RelayInput: Component<{
   selected: readonly RelayUrl[];
   onAdd: (url: RelayUrl) => void;
   disabled?: boolean;
-  /** 見出しと入力欄の間に置く、足し方の選択（公開範囲など）。 */
-  options?: JSX.Element;
+  /** 「追加」の代わりに置くボタン（公開範囲を選んで足すものなど）。押したら `add` を呼ぶ。 */
+  addButton?: (add: () => void) => JSX.Element;
 }> = (props) => {
   const followeeRelays = useFolloweeWriteRelays();
   const [query, setQuery] = createSignal("");
@@ -104,7 +104,6 @@ const RelayInput: Component<{
       <Combobox.Label class="c-secondary font-600 text-caption">
         {t("deck.relayInput.label")}
       </Combobox.Label>
-      {props.options}
       <Combobox.Control class="flex items-center gap-2">
         <Combobox.Input
           class={`${textInputClass} min-w-0 flex-1`}
@@ -121,14 +120,21 @@ const RelayInput: Component<{
             }
           }}
         />
-        <Button
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-          disabled={props.disabled}
-          onClick={addTyped}
+        <Show
+          when={props.addButton}
+          fallback={
+            <Button
+              variant="primary"
+              icon="i-material-symbols:add-rounded"
+              disabled={props.disabled}
+              onClick={addTyped}
+            >
+              {t("deck.relayInput.add")}
+            </Button>
+          }
         >
-          {t("deck.relayInput.add")}
-        </Button>
+          {(button) => button()(addTyped)}
+        </Show>
       </Combobox.Control>
       <Show when={error()}>
         {(text) => <span class="c-danger text-caption">{message(text())}</span>}
