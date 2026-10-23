@@ -8,7 +8,10 @@ import type { RoutingTable } from "./routing-table";
  * そのイベントを受け取ったリレー。書いたばかりの投稿の `local` のような、
  * リレーでない印は落とす。
  */
-export const relaysSeenOn = (store: EventStore, id: string): RelayUrl[] =>
+export const relaysSeenOn = (
+  store: Pick<EventStore, "seenRelays">,
+  id: string,
+): RelayUrl[] =>
   store
     .seenRelays(id)
     .map(normalizeRelayUrl)

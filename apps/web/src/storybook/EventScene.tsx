@@ -336,6 +336,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
     addresses,
     profiles: inertRequests(),
     engagements: inertRequests(),
+    deletions: inertRequests(),
     polls: settledPolls(),
     // 手元の一覧だけで答える。取りにいかない。
     followLists: { request() {}, dispose() {} },

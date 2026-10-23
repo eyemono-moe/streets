@@ -1,5 +1,6 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
 import { createAddressRequests } from "./address-requests";
+import { createDeletionRequests } from "./deletion-requests";
 import {
   type CreateEngagementRequestsOptions,
   type EngagementRequests,
@@ -106,6 +107,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     scheduler,
   };
   const engagements = createEngagementRequests(engagementRequestsOptions);
+  const deletions = createDeletionRequests({ store, manager, scheduler });
 
   const offSweep = store.onSweep((dropped) => {
     const ids = dropped.map((event) => event.id);
@@ -117,6 +119,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       ),
     ];
     events.forget(ids);
+    deletions.forget(ids);
     engagements.forget(targets);
     polls.forget(targets);
   });
@@ -166,6 +169,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       addresses,
       profiles,
       engagements,
+      deletions,
       polls,
       followLists,
     }),
@@ -184,6 +188,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       polls.dispose();
       followLists.dispose();
       engagements.dispose();
+      deletions.dispose();
       manager.dispose();
       options.persistence.dispose();
     },

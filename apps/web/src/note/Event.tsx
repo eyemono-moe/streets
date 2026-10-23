@@ -18,6 +18,7 @@ import {
   type ParentComponent,
   Show,
   Switch,
+  createEffect,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import ArticleCard from "../article/ArticleCard";
@@ -439,14 +440,28 @@ const viewFor = (kind: number, layout: EventView["layout"]) => {
   return view.layout === layout ? view.View : undefined;
 };
 
-const EventContent: Component<ContentProps> = (props) => (
-  <Show
-    when={viewFor(props.event.kind, "framed")}
-    fallback={<Unsupported {...props} />}
-  >
-    {(View) => <Dynamic component={View()} {...props} />}
-  </Show>
-);
+/**
+ * 描いた投稿に向けた削除依頼を取りにいく。届けば store が投稿を隠し、カラムから外れる。
+ * ふつうのカラムは削除依頼を購読していないので、描いたものだけをここで確かめる。
+ */
+const useDeletionSync = (event: () => NostrEvent) => {
+  const { lookups } = useReadLayer();
+  createEffect(() => lookups.requestDeletions(event()));
+};
+
+const EventContent: Component<ContentProps> = (props) => {
+  // リポスト元は `EventBody` を通らずここへ来るので、`EventBody` とは別に確かめる。
+  // 両方を通る投稿は要求器が 2 度目を捨てる。
+  useDeletionSync(() => props.event);
+  return (
+    <Show
+      when={viewFor(props.event.kind, "framed")}
+      fallback={<Unsupported {...props} />}
+    >
+      {(View) => <Dynamic component={View()} {...props} />}
+    </Show>
+  );
+};
 
 /** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
 const DRAG_SLOP = 4;
@@ -461,6 +476,7 @@ const isInteractive = (target: EventTarget | null) =>
 /** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
 const EventBody: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
+  useDeletionSync(() => props.event);
   let downAt: { x: number; y: number } | undefined;
 
   /**
