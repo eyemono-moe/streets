@@ -25,6 +25,7 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
+import { t } from "../../i18n/locale";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
 import VirtualList from "../../ui/VirtualList";
@@ -112,7 +113,7 @@ export const ActionFeedView: Component<{
           itemKey={(row) => row.key}
           followsStart={props.windowing?.followsStart}
           newer={{
-            noun: "反応",
+            noun: "reaction",
             authorOf: rowAuthor,
             pending: props.windowing?.pending,
             latest: props.windowing?.latest,
@@ -169,10 +170,12 @@ export const ActionFeedView: Component<{
       {props.footer}
     </Match>
     <Match when={props.settled}>
-      <p class="c-secondary p-4 text-caption">まだ反応がありません。</p>
+      <p class="c-secondary p-4 text-caption">
+        {t("columns.blocks.empty.reactions")}
+      </p>
     </Match>
     <Match when={true}>
-      <p class="c-secondary p-4 text-caption">読み込み中…</p>
+      <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
     </Match>
   </Switch>
 );

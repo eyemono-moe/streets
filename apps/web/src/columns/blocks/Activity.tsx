@@ -5,6 +5,7 @@ import type {
 } from "@streets/core/view/event-activity";
 import { eventActivity } from "@streets/core/view/event-activity";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
+import { t } from "../../i18n/locale";
 import Event from "../../note/Event";
 import { ReactionChip } from "../../note/ReactionList";
 import ProfileRow from "../../profile/ProfileRow";
@@ -22,19 +23,21 @@ const Result: Component<{
     <Match when={props.count > 0}>
       <Show when={props.incomplete}>
         <p class="c-secondary bg-secondary px-3 py-2 text-caption">
-          一部のリレーからは取得できませんでした。
+          {t("columns.blocks.activity.partial")}
         </p>
       </Show>
       {props.children}
     </Match>
     <Match when={props.settled && props.incomplete}>
-      <p class="c-secondary p-4 text-caption">取得できませんでした。</p>
+      <p class="c-secondary p-4 text-caption">
+        {t("columns.blocks.activity.failed")}
+      </p>
     </Match>
     <Match when={props.settled}>
       <p class="c-secondary p-4 text-caption">{props.empty}</p>
     </Match>
     <Match when={true}>
-      <p class="c-secondary p-4 text-caption">読み込み中…</p>
+      <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
     </Match>
   </Switch>
 );
@@ -83,13 +86,13 @@ export const ActivityView: Component<{
   const tabs = (): ColumnTab[] => [
     {
       value: "reposts",
-      label: "リポスト",
+      label: t("columns.blocks.activity.reposts"),
       count: props.activity.reposts.length,
       content: () => (
         <Result
           {...common()}
           count={props.activity.reposts.length}
-          empty="リポストはまだありません。"
+          empty={t("columns.blocks.activity.repostsEmpty")}
         >
           <People people={props.activity.reposts} />
         </Result>
@@ -97,13 +100,13 @@ export const ActivityView: Component<{
     },
     {
       value: "quotes",
-      label: "引用",
+      label: t("columns.blocks.activity.quotes"),
       count: props.activity.quotes.length,
       content: () => (
         <Result
           {...common()}
           count={props.activity.quotes.length}
-          empty="引用はまだありません。"
+          empty={t("columns.blocks.activity.quotesEmpty")}
         >
           <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
             <For each={props.activity.quotes}>
@@ -115,13 +118,13 @@ export const ActivityView: Component<{
     },
     {
       value: "reactions",
-      label: "リアクション",
+      label: t("columns.blocks.activity.reactions"),
       count: props.activity.reactions.length,
       content: () => (
         <Result
           {...common()}
           count={props.activity.reactions.length}
-          empty="リアクションはまだありません。"
+          empty={t("columns.blocks.activity.reactionsEmpty")}
         >
           <Reactions people={props.activity.reactions} />
         </Result>
@@ -131,7 +134,8 @@ export const ActivityView: Component<{
 
   return (
     <ColumnTabs
-      label="アクティビティの種類"
+      label={t("columns.blocks.activity.label")}
+      name="activity"
       defaultValue="reposts"
       tabs={tabs()}
     />

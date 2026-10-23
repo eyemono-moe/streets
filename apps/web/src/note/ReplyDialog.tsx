@@ -9,6 +9,7 @@ import {
 import { type Component, Show, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
 import { useNoteSources } from "../completion/sources";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Completion from "../ui/Completion";
 import {
@@ -58,7 +59,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
         <DialogContent class="w-full max-w-130 rounded-3 border border-control">
           <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="flex-1 font-600 text-body">
-              {article() ? "記事にコメントする" : "返信する"}
+              {article() ? t("note.reply.titleArticle") : t("note.reply.title")}
             </DialogTitle>
             <DialogClose disabled={props.state.sending} />
           </div>
@@ -98,7 +99,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                     >
                       {(current) => (
                         <p class="c-secondary break-words font-600 text-body">
-                          {current().title ?? "題名の無い記事"}
+                          {current().title ?? t("note.reply.untitledArticle")}
                         </p>
                       )}
                     </Show>
@@ -115,7 +116,10 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                     <Avatar pubkey={actions().viewer} size="normal" />
                   )}
                 </Show>
-                <Completion sources={sources} label="入れる候補">
+                <Completion
+                  sources={sources}
+                  label={t("note.compose.completion")}
+                >
                   {(attach) => (
                     <textarea
                       ref={(element) => {
@@ -123,10 +127,10 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                         emojiInsertion.ref(element);
                       }}
                       autofocus
-                      aria-label="返信の本文"
+                      aria-label={t("note.reply.body")}
                       class="c-primary placeholder:c-secondary min-h-10 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
                       disabled={props.state.sending}
-                      placeholder="返信を書く"
+                      placeholder={t("note.reply.placeholder")}
                       value={props.state.content}
                       onInput={(event) =>
                         dispatch({
@@ -155,7 +159,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
             </DialogBody>
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}
-              label="返信"
+              label={t("note.reply.submit")}
               sending={props.state.sending}
               contentWarning={props.state.contentWarning}
               disabled={!canSend(props.state)}

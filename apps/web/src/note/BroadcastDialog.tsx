@@ -5,6 +5,7 @@ import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, Match, Switch, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
+import { t } from "../i18n/locale";
 import { useRelayEdit } from "../settings/RelayMediator";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -20,17 +21,21 @@ import SegmentedControl from "../ui/SegmentedControl";
 
 export type BroadcastTarget = "mine" | "author" | "custom";
 
-const TARGETS: { value: BroadcastTarget; label: string }[] = [
-  { value: "mine", label: "自分" },
-  { value: "author", label: "投稿した人" },
-  { value: "custom", label: "選ぶ" },
+const targets = (): { value: BroadcastTarget; label: string }[] => [
+  { value: "mine", label: t("note.broadcast.targets.mine") },
+  { value: "author", label: t("note.broadcast.targets.author") },
+  { value: "custom", label: t("note.broadcast.targets.custom") },
 ];
 
-const DESCRIPTIONS: Record<BroadcastTarget, string> = {
-  mine: "自分が書き込みに使っているリレーへ送ります。",
-  author:
-    "投稿した人が書き込みに使っているリレーと、返信先など投稿の中で名前を挙げた人に届くリレーへ送ります。ほかの人がこの投稿を探しに行くところです。",
-  custom: "候補から選ぶか、URL を入れたリレーへ送ります。",
+const description = (target: BroadcastTarget): string => {
+  switch (target) {
+    case "mine":
+      return t("note.broadcast.descriptions.mine");
+    case "author":
+      return t("note.broadcast.descriptions.author");
+    case "custom":
+      return t("note.broadcast.descriptions.custom");
+  }
 };
 
 /** 送り先を選んで、見かけたイベントを送り直す。 */
@@ -62,22 +67,20 @@ export const BroadcastDialogView: Component<{
         <DialogContent class="w-full max-w-110 rounded-3 border border-control">
           <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
             <DialogTitle class="break-anywhere min-w-0 flex-1 font-600 text-body">
-              ほかのリレーにも送る
+              {t("note.broadcast.title")}
             </DialogTitle>
             <DialogClose />
           </div>
           <DialogBody class="flex flex-col gap-4 px-4">
-            <p class="c-secondary text-caption">
-              この投稿を、中身を変えずにほかのリレーへ送ります。一部のリレーにしか無く、ほかの人から見えないときに使います。
-            </p>
+            <p class="c-secondary text-caption">{t("note.broadcast.intro")}</p>
             <SegmentedControl
-              label="送り先"
-              options={TARGETS}
+              label={t("note.broadcast.destination")}
+              options={targets()}
               value={target()}
               onChange={setTarget}
               block
             />
-            <p class="c-secondary text-caption">{DESCRIPTIONS[target()]}</p>
+            <p class="c-secondary text-caption">{description(target())}</p>
             <Switch>
               <Match when={target() === "custom"}>
                 <RelayColumnEditor
@@ -85,12 +88,12 @@ export const BroadcastDialogView: Component<{
                   followeeWriteRelays={props.followeeWriteRelays}
                   selected={custom()}
                   onChange={setCustom}
-                  listLabel="送り先"
+                  listLabel={t("note.broadcast.destination")}
                 />
               </Match>
               <Match when={relays().length === 0}>
                 <p class="c-secondary text-caption">
-                  送り先のリレーが分かりません。
+                  {t("note.broadcast.unknownDestination")}
                 </p>
               </Match>
               <Match when={relays().length > 0}>
@@ -108,7 +111,7 @@ export const BroadcastDialogView: Component<{
           </DialogBody>
           <div class="flex shrink-0 justify-end gap-2 p-4">
             <Button variant="secondary" onClick={props.onClose}>
-              キャンセル
+              {t("note.broadcast.cancel")}
             </Button>
             <Button
               variant="primary"
@@ -118,7 +121,9 @@ export const BroadcastDialogView: Component<{
                 props.onClose();
               }}
             >
-              {relays().length > 1 ? `${relays().length} 本に送る` : "送る"}
+              {relays().length > 1
+                ? t("note.broadcast.sendToMany", { count: relays().length })
+                : t("note.broadcast.send")}
             </Button>
           </div>
         </DialogContent>

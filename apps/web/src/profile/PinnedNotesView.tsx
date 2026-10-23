@@ -1,4 +1,5 @@
 import { type Component, For, Match, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import { EventRefView, type EventSize } from "../note/Event";
 
 /**
@@ -27,10 +28,10 @@ const PinnedNotesView: Component<{
       </div>
     </Match>
     <Match when={props.settled}>
-      <p class="c-secondary p-4 text-caption">ピン留めした投稿はありません。</p>
+      <p class="c-secondary p-4 text-caption">{t("profile.pinned.empty")}</p>
     </Match>
     <Match when={true}>
-      <p class="c-secondary p-4 text-caption">読み込み中…</p>
+      <p class="c-secondary p-4 text-caption">{t("profile.pinned.loading")}</p>
     </Match>
   </Switch>
 );

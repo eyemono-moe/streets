@@ -8,6 +8,7 @@ import { usageOf } from "@streets/core/settings/relay-edit";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import { useAppWindow } from "../app-window";
+import { t } from "../i18n/locale";
 import { ProfileName } from "../note/Name";
 import { useProfileDetails } from "../note/use-profile";
 import { useReadLayer } from "../read-layer";
@@ -32,10 +33,10 @@ export type AuthorRelaysState =
 
 const usageLabel = (entry: RelayListEntry) =>
   entry.read && entry.write
-    ? "読み込み・書き込み"
+    ? t("profile.relays.usage.readWrite")
     : entry.read
-      ? "読み込み"
-      : "書き込み";
+      ? t("profile.relays.usage.read")
+      : t("profile.relays.usage.write");
 
 const stateFrom = (
   hasEvent: boolean,
@@ -67,8 +68,8 @@ export const AuthorRelaysDialogView: Component<{
   const appWindow = useAppWindow();
   const copy = (entry: RelayListEntry) => {
     void appWindow.navigator.clipboard.writeText(entry.url).then(
-      () => notifySuccess("URL をコピーしました"),
-      (cause) => notifyError(cause, "URL をコピーできませんでした"),
+      () => notifySuccess(t("profile.relays.copied")),
+      (cause) => notifyError(cause, t("profile.relays.copyFailed")),
     );
   };
 
@@ -79,21 +80,21 @@ export const AuthorRelaysDialogView: Component<{
           <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
             <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
               <DialogTitle class="break-anywhere min-w-0 flex-1 font-600 text-body">
-                {props.title ?? "このユーザーが使っているリレー"}
+                {props.title ?? t("profile.relays.title.default")}
               </DialogTitle>
               <DialogClose />
             </div>
             <DialogBody class="px-4 pb-4">
               <Switch>
                 <Match when={props.state.phase === "loading"}>
-                  <p class="c-secondary text-caption">読み込み中…</p>
+                  <p class="c-secondary text-caption">
+                    {t("profile.relays.loading")}
+                  </p>
                 </Match>
                 <Match when={props.state.phase === "empty" && props.state}>
                   {(state) => (
                     <div class="flex flex-col gap-1 text-caption">
-                      <p class="c-secondary">
-                        リレー設定は公開されていません。
-                      </p>
+                      <p class="c-secondary">{t("profile.relays.empty")}</p>
                       <Show
                         when={
                           (
@@ -105,7 +106,7 @@ export const AuthorRelaysDialogView: Component<{
                         }
                       >
                         <p class="c-secondary">
-                          一部のリレーからは取得できませんでした。
+                          {t("profile.relays.incomplete")}
                         </p>
                       </Show>
                     </div>
@@ -113,7 +114,7 @@ export const AuthorRelaysDialogView: Component<{
                 </Match>
                 <Match when={props.state.phase === "failed"}>
                   <p class="c-secondary text-caption">
-                    リレー設定を取得できませんでした。
+                    {t("profile.relays.failed")}
                   </p>
                 </Match>
                 <Match when={props.state.phase === "ready" && props.state}>
@@ -126,7 +127,7 @@ export const AuthorRelaysDialogView: Component<{
                       <>
                         <Show when={ready.incomplete}>
                           <p class="c-secondary mb-2 text-caption">
-                            一部のリレーからは取得できませんでした。
+                            {t("profile.relays.incomplete")}
                           </p>
                         </Show>
                         <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
@@ -147,7 +148,9 @@ export const AuthorRelaysDialogView: Component<{
                                       <div class="ml-auto flex items-center gap-1">
                                         <IconButton
                                           icon="i-material-symbols:content-copy-outline-rounded"
-                                          label={`${entry.url} をコピー`}
+                                          label={t("profile.relays.copy", {
+                                            url: entry.url,
+                                          })}
                                           onClick={() => copy(entry)}
                                         />
                                         <RelayUseButton
@@ -182,12 +185,13 @@ const AuthorRelaysDialog: Component<{ pubkey: string; onClose: () => void }> = (
   const profile = useProfileDetails(() => props.pubkey);
   const title = () => (
     <>
+      {t("profile.relays.title.before")}
       <ProfileName
         pubkey={props.pubkey}
         profile={profile()?.profile}
         tags={profile()?.tags}
       />
-      さんが使っているリレー
+      {t("profile.relays.title.after")}
     </>
   );
   // EventScene はネットワークを持たない。ダイアログ自体の各状態は View の

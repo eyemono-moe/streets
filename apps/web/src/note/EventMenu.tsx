@@ -31,6 +31,7 @@ import { useSending } from "../actions-mediator";
 import { canHover } from "../can-hover";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
@@ -83,11 +84,11 @@ type MenuItem = {
   todo?: boolean;
 };
 
-const AUTHOR_RELAYS: MenuItem = {
+const authorRelaysItem = (): MenuItem => ({
   value: "author-relays",
-  label: "リレー設定",
+  label: t("note.eventMenu.authorRelays"),
   icon: "i-material-symbols:hub-outline",
-};
+});
 
 /**
  * ボトムシートの中では、項目を Menu.Item ではなく button で描く。Ark UI の Menu はポップアップしか
@@ -191,7 +192,9 @@ const EventItems: Component<{
           ? [
               {
                 value: "repost",
-                label: reposted ? "リポスト済み" : "リポスト",
+                label: reposted
+                  ? t("note.eventActions.reposted")
+                  : t("note.eventActions.repostAction"),
                 icon: meta.icon,
                 todo: reposted || reposting(),
               },
@@ -201,7 +204,7 @@ const EventItems: Component<{
           ...repost,
           {
             value: "quote",
-            label: "引用",
+            label: t("note.eventActions.quote"),
             icon: "i-material-symbols:format-quote-rounded",
           },
         ];
@@ -211,7 +214,11 @@ const EventItems: Component<{
         return [
           {
             value: id,
-            label: `${reactionLabel(defaultReaction())}${reacted ? "（済み）" : ""}`,
+            label: reacted
+              ? t("note.eventActions.reacted", {
+                  label: reactionLabel(defaultReaction()),
+                })
+              : reactionLabel(defaultReaction()),
             icon: meta.icon,
             todo: reacted || liking(),
           },
@@ -223,7 +230,9 @@ const EventItems: Component<{
         return [
           {
             value: id,
-            label: zappable ? "Zap する" : "この人は Zap を受け取れません",
+            label: zappable
+              ? t("note.eventActions.zapAction")
+              : t("note.eventActions.zapUnavailable"),
             icon: meta.icon,
             todo: !zappable,
           },
@@ -332,12 +341,12 @@ const EventMenu: Component<{
     // 自分もリストに入れられる（自分の投稿もそのリストのカラムに流したいことがある）。
     const addToList: MenuItem = {
       value: "add-to-list",
-      label: "リストに追加",
+      label: t("note.eventMenu.addToList"),
       icon: "i-material-symbols:playlist-add-rounded",
       todo: lists === undefined,
     };
     // 自分はフォローできず、ミュートしても自分の投稿は隠さない。押せても意味が無いので出さない。
-    if (mine()) return [addToList, AUTHOR_RELAYS];
+    if (mine()) return [addToList, authorRelaysItem()];
     const muted = authorMuteEntry() !== undefined;
     const muteAuthor: MenuItem[] =
       props.onMute && !muted
@@ -345,7 +354,9 @@ const EventMenu: Component<{
         : [
             {
               value: "mute-author",
-              label: muted ? "ミュートを解除" : "ミュート",
+              label: muted
+                ? t("note.eventMenu.unmuteAuthor")
+                : t("note.eventMenu.muteAuthor"),
               icon: muted
                 ? "i-material-symbols:person-outline-rounded"
                 : "i-material-symbols:person-off-outline-rounded",
@@ -355,7 +366,9 @@ const EventMenu: Component<{
     return [
       {
         value: "follow",
-        label: following() ? "フォローを解除" : "フォロー",
+        label: following()
+          ? t("note.eventMenu.unfollow")
+          : t("note.eventMenu.follow"),
         icon: following()
           ? "i-material-symbols:person-remove-outline-rounded"
           : "i-material-symbols:person-add-outline-rounded",
@@ -364,7 +377,7 @@ const EventMenu: Component<{
       },
       addToList,
       ...muteAuthor,
-      AUTHOR_RELAYS,
+      authorRelaysItem(),
     ];
   };
   const authorLabel = () => (
@@ -523,7 +536,7 @@ const EventMenu: Component<{
           items={[
             {
               value: "mute",
-              label: "ミュート…",
+              label: t("note.eventMenu.muteMore"),
               icon: "i-material-symbols:visibility-off-outline-rounded",
             },
           ]}
@@ -535,7 +548,7 @@ const EventMenu: Component<{
             items={[
               {
                 value: "client",
-                label: `${ref().name} から投稿`,
+                label: t("note.eventMenu.postedFrom", { client: ref().name }),
                 icon: "i-material-symbols:apps-rounded",
               },
             ]}
@@ -601,7 +614,7 @@ const EventMenu: Component<{
                     trigger = el;
                   }}
                   icon="i-material-symbols:more-vert"
-                  label="この投稿の操作"
+                  label={t("note.eventMenu.label")}
                 />
               )}
             />
@@ -610,7 +623,7 @@ const EventMenu: Component<{
                 <Menu.Content class={`${menuContentClass} w-64`}>
                   <Menu.ItemGroup>
                     <Menu.ItemGroupLabel class={menuGroupLabelClass}>
-                      このイベント
+                      {t("note.eventMenu.thisEvent")}
                     </Menu.ItemGroupLabel>
                     {eventSection()}
                   </Menu.ItemGroup>
@@ -689,7 +702,7 @@ const EventMenu: Component<{
                     trigger = el;
                   }}
                   icon="i-material-symbols:more-vert"
-                  label="この投稿の操作"
+                  label={t("note.eventMenu.label")}
                 />
               )}
             />
@@ -700,7 +713,9 @@ const EventMenu: Component<{
                   <Drawer.Grabber class="flex shrink-0 justify-center py-2">
                     <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-ui-4" />
                   </Drawer.Grabber>
-                  <Drawer.Title class="sr-only">この投稿の操作</Drawer.Title>
+                  <Drawer.Title class="sr-only">
+                    {t("note.eventMenu.label")}
+                  </Drawer.Title>
                   {/* 項目が多いときは、シートの中だけ流す。ホームバーを避けて下に余白を取る。 */}
                   <div class="min-h-0 overflow-y-auto overscroll-contain px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                     <div role="group" aria-labelledby={`${labelId}-event`}>
@@ -708,7 +723,7 @@ const EventMenu: Component<{
                         id={`${labelId}-event`}
                         class={sheetGroupLabelClass}
                       >
-                        このイベント
+                        {t("note.eventMenu.thisEvent")}
                       </span>
                       {eventSection()}
                     </div>

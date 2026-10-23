@@ -34,6 +34,7 @@ import {
 import { type ParentComponent, Show, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { fallbackRelays } from "../fallback-relay-setting";
+import { t } from "../i18n/locale";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError, notifySuccess } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -53,9 +54,7 @@ class ZapError extends Error {}
 const getJson = async (url: string, signal: AbortSignal): Promise<unknown> => {
   const response = await fetch(url, { signal });
   if (!response.ok) {
-    throw new ZapError(
-      `送り先のサーバーが答えませんでした（${response.status}）`,
-    );
+    throw new ZapError(t("zap.errors.noResponse", { status: response.status }));
   }
   return response.json();
 };
@@ -109,7 +108,7 @@ export const ZapMediator: ParentComponent<{
     if (phase() !== "paying") return;
     stopWaiting();
     apply({ type: "zap/paid" });
-    notifySuccess("Zap を送りました");
+    notifySuccess(t("zap.sent"));
   };
 
   const waitForReceipt = (
@@ -141,7 +140,7 @@ export const ZapMediator: ParentComponent<{
 
   const prepare = async (draft: ZapDraft, signal: AbortSignal) => {
     const sats = zapAmountSats(draft);
-    if (sats === undefined) throw new ZapError("金額を読めませんでした");
+    if (sats === undefined) throw new ZapError(t("zap.errors.badAmount"));
     const amountMsat = sats * 1000;
     const target = zapRecipient(draft.target);
     // 送り先は送る直前の kind:0 から決める。手元の版が新しく見えても、その間に
@@ -177,14 +176,14 @@ export const ZapMediator: ParentComponent<{
       props.store.latestReplaceable(0, target)?.content,
     );
     if (!endpoint) {
-      throw new ZapError("この人は Zap の受け取り先を設定していません");
+      throw new ZapError(t("zap.errors.noEndpoint"));
     }
     const info = parseZapPayInfo(await getJson(endpoint.url, signal));
-    if (!info) throw new ZapError("この送り先は Zap を受け付けていません");
+    if (!info) throw new ZapError(t("zap.errors.notAccepted"));
     if (amountMsat < info.minSendable || amountMsat > info.maxSendable) {
       const min = Math.ceil(info.minSendable / 1000);
       const max = Math.floor(info.maxSendable / 1000);
-      throw new ZapError(`この送り先に送れるのは ${min}〜${max} sats です`);
+      throw new ZapError(t("zap.errors.outOfRange", { min, max }));
     }
     signal.throwIfAborted();
     const relays = zapReceiptRelays({
@@ -218,7 +217,7 @@ export const ZapMediator: ParentComponent<{
     if ("error" in answer) throw new ZapError(answer.error);
     // 選んだ金額と違う請求書は払わせない。
     if (bolt11AmountMsat(answer.invoice) !== amountMsat) {
-      throw new ZapError("請求書の金額が、選んだ金額と合いません");
+      throw new ZapError(t("zap.errors.invoiceMismatch"));
     }
     return { invoice: answer.invoice, relays };
   };
@@ -233,7 +232,7 @@ export const ZapMediator: ParentComponent<{
     } catch (error) {
       if (controller.signal.aborted) return;
       apply({ type: "zap/failed" });
-      notifyError(error, "Zap を送れませんでした");
+      notifyError(error, t("zap.errors.sendFailed"));
       return;
     }
     if (controller.signal.aborted || phase() !== "preparing") return;

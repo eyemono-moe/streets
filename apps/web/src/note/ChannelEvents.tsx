@@ -9,6 +9,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import { type Component, Show } from "solid-js";
 import ChannelPicture from "../chat/ChannelPicture";
+import { t } from "../i18n/locale";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -90,13 +91,13 @@ export const ChannelCard: Component<{ event: NostrEvent; size: EventSize }> = (
             class="i-material-symbols:edit-square-outline-rounded size-3.5 shrink-0"
             aria-hidden="true"
           />
-          チャンネルの情報を書き換えました
+          {t("note.channel.metadataChanged")}
         </p>
       </Show>
       <Show
         when={channel()}
         fallback={
-          <p class="c-secondary text-caption">チャンネルを読み込み中…</p>
+          <p class="c-secondary text-caption">{t("note.channel.loading")}</p>
         }
       >
         {(current) => (
@@ -111,10 +112,10 @@ export const ChannelCard: Component<{ event: NostrEvent; size: EventSize }> = (
             />
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="c-primary truncate font-600 text-body">
-                {current().metadata.name ?? "名前の無いチャンネル"}
+                {current().metadata.name ?? t("note.channel.unnamed")}
               </span>
               <span class="c-secondary truncate text-caption">
-                {current().metadata.about ?? "説明がありません"}
+                {current().metadata.about ?? t("note.channel.noAbout")}
               </span>
             </div>
             {/* 本文に埋め込んだとき（compact）も開けるようにする。 */}
@@ -123,7 +124,7 @@ export const ChannelCard: Component<{ event: NostrEvent; size: EventSize }> = (
               icon="i-material-symbols:forum-outline-rounded"
               onClick={() => open(current(), props.event)}
             >
-              開く
+              {t("note.channel.open")}
             </Button>
           </div>
         )}
@@ -155,7 +156,7 @@ export const ChannelMessageCard: Component<{
               class="i-material-symbols:forum-outline-rounded size-3.5 shrink-0"
               aria-hidden="true"
             />
-            チャンネルでの発言
+            {t("note.channel.message")}
           </p>
         }
       >
@@ -170,7 +171,9 @@ export const ChannelMessageCard: Component<{
               aria-hidden="true"
             />
             <span class="min-w-0 truncate">
-              {current().metadata.name ?? "名前の無いチャンネル"} での発言
+              {t("note.channel.messageIn", {
+                name: current().metadata.name ?? t("note.channel.unnamed"),
+              })}
             </span>
           </button>
         )}

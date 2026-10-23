@@ -1,5 +1,6 @@
 import type { ChannelEntry } from "@streets/core/view/channel-directory";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
+import { locale, plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
@@ -9,11 +10,11 @@ import ChannelPicture from "./ChannelPicture";
 
 /** 最後の発言の時刻。今日なら時刻、それ以外は日付。直近に無ければ「しばらく前」。 */
 const lastLabel = (at: number | undefined): string => {
-  if (at === undefined) return "しばらく前";
+  if (at === undefined) return t("chat.list.longAgo");
   const date = new Date(at * 1000);
   return date.toDateString() === new Date().toDateString()
-    ? date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
-    : date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+    ? date.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString(locale(), { month: "numeric", day: "numeric" });
 };
 
 const ChannelRow: Component<{
@@ -22,7 +23,7 @@ const ChannelRow: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   const name = () =>
-    props.entry.channel.metadata.name ?? "名前の無いチャンネル";
+    props.entry.channel.metadata.name ?? t("chat.list.unnamed");
   return (
     // 行全体を押せるように、開くボタンを行いっぱいに広げ、★ はその上に重ねる。
     <li class="relative bg-primary">
@@ -38,7 +39,7 @@ const ChannelRow: Component<{
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="c-primary truncate font-600 text-body">{name()}</span>
           <span class="c-secondary truncate text-caption">
-            {props.entry.channel.metadata.about ?? "説明がありません"}
+            {props.entry.channel.metadata.about ?? t("chat.list.noAbout")}
           </span>
         </span>
         <span class="c-secondary shrink-0 text-caption">
@@ -55,8 +56,8 @@ const ChannelRow: Component<{
           active={props.entry.favorite}
           label={
             props.entry.favorite
-              ? `${name()} をお気に入りから外す`
-              : `${name()} をお気に入りに入れる`
+              ? t("chat.list.unfavorite", { name: name() })
+              : t("chat.list.favorite", { name: name() })
           }
           aria-pressed={props.entry.favorite}
           onClick={() =>
@@ -100,8 +101,10 @@ const Section: Component<{
           when={props.limit !== undefined && props.entries.length > props.limit}
         >
           <p class="c-secondary text-caption">
-            ほかに {props.entries.length - (props.limit ?? 0)}{" "}
-            件あります。名前で絞り込んでください。
+            {plural(
+              "chat.list.more",
+              props.entries.length - (props.limit ?? 0),
+            )}
           </p>
         </Show>
       </Match>
@@ -109,7 +112,7 @@ const Section: Component<{
         <p class="c-secondary text-caption">{props.empty}</p>
       </Match>
       <Match when={true}>
-        <p class="c-secondary text-caption">読み込み中…</p>
+        <p class="c-secondary text-caption">{t("chat.list.loading")}</p>
       </Match>
     </Switch>
   </section>
@@ -139,21 +142,21 @@ const ChannelListView: Component<{
   const tabs = (): ColumnTab[] => [
     {
       value: "recent",
-      label: "お気に入り・最近",
+      label: t("chat.list.tabs.recent"),
       content: () => (
         <div class="flex flex-col gap-3 p-3">
           <Section
-            title="お気に入りのチャンネル"
+            title={t("chat.list.favorites.title")}
             entries={props.favorites}
             settled={props.favoritesSettled}
-            empty="★ を押したチャンネルがここに並びます。"
+            empty={t("chat.list.favorites.empty")}
             onOpen={props.onOpen}
           />
           <Section
-            title="最近アクティブなチャンネル"
+            title={t("chat.list.active.title")}
             entries={props.active}
             settled={props.activeSettled}
-            empty="この 7 日間に発言のあったチャンネルはありません。"
+            empty={t("chat.list.active.empty")}
             onOpen={props.onOpen}
           />
         </div>
@@ -161,30 +164,32 @@ const ChannelListView: Component<{
     },
     {
       value: "all",
-      label: "すべて",
+      label: t("chat.list.tabs.all"),
       content: () => (
         <div class="flex flex-col gap-3 p-3">
           <SearchInput
-            label="チャンネルを名前で絞り込む"
-            placeholder="名前で絞り込む"
+            label={t("chat.list.search.label")}
+            placeholder={t("chat.list.search.placeholder")}
             value={props.query}
             onValueChange={props.onQuery}
             clearable
           />
           <Section
-            title="すべてのチャンネル（名前順）"
+            title={t("chat.list.all.title")}
             limit={RESULT_LIMIT}
             trailing={
               <Show when={props.allSettled}>
-                <span class="font-400">{props.results.length} 件</span>
+                <span class="font-400">
+                  {plural("chat.list.count", props.results.length)}
+                </span>
               </Show>
             }
             entries={props.results}
             settled={props.allSettled}
             empty={
               props.query.trim()
-                ? "名前や説明に合うチャンネルが見つかりませんでした。"
-                : "チャンネルが見つかりませんでした。"
+                ? t("chat.list.all.emptySearch")
+                : t("chat.list.all.empty")
             }
             onOpen={props.onOpen}
           />
@@ -204,13 +209,14 @@ const ChannelListView: Component<{
               icon="i-material-symbols:add-rounded"
               onClick={() => create()()}
             >
-              チャンネルを作る
+              {t("chat.list.create")}
             </Button>
           </div>
         )}
       </Show>
       <ColumnTabs
-        label="チャンネルの一覧"
+        label={t("chat.list.label")}
+        name="channels"
         scroll="column"
         tabs={tabs()}
         defaultValue={props.initialTab ?? "recent"}

@@ -1,0 +1,19 @@
+{
+  "noUploadServer": "画像のアップロード先が設定されていません",
+  "crop": {
+    "title": "{{ name }} を切り抜く",
+    "animatedNotice": "切り抜くと、動きは止まって 1 枚の絵になります",
+    "zoomOut": "縮小",
+    "zoomIn": "拡大",
+    "resetAll": "全体に戻す",
+    "resetFrame": "枠を戻す",
+    "cancel": "やめる",
+    "done": "決定"
+  },
+  "imageUrl": {
+    "uploadFailed": "画像をアップロードできませんでした",
+    "uploadUnavailable": "画像をアップロードできません",
+    "uploading": "アップロード中…",
+    "choose": "画像を選ぶ"
+  }
+}

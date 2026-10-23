@@ -5,6 +5,7 @@ import { columnPartOpen } from "../column-part-memory";
 import ColumnDigit from "../deck/ColumnDigit";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -39,8 +40,8 @@ export const ColumnHeaderActions: Component<{
           }
           label={
             columnPartOpen(props.column.id, "profile")
-              ? "ユーザー詳細を隠す"
-              : "ユーザー詳細を表示"
+              ? t("columns.header.hideProfile")
+              : t("columns.header.showProfile")
           }
           aria-expanded={columnPartOpen(props.column.id, "profile")}
           aria-controls={`column-profile-${props.column.id}`}
@@ -66,11 +67,11 @@ export const ColumnHeaderActions: Component<{
             icon="i-material-symbols:bookmark-outline-rounded"
             onClick={() => dispatch({ type: "deck/keep-temp" })}
           >
-            カラムに残す
+            {t("columns.header.keepTemporary")}
           </Button>
           <IconButton
             icon="i-material-symbols:close-rounded"
-            label="閉じる"
+            label={t("columns.header.close")}
             onClick={() => dispatch({ type: "deck/close-temp" })}
           />
         </>
@@ -79,7 +80,7 @@ export const ColumnHeaderActions: Component<{
       <Show when={props.poppedOut}>
         <IconButton
           icon="i-material-symbols:pip-exit-outline-rounded"
-          label="デッキに戻す"
+          label={t("columns.header.backToDeck")}
           active
           onClick={() => dispatch({ type: "deck/pop-in" })}
         />
@@ -92,7 +93,7 @@ export const ColumnHeaderActions: Component<{
               ? "i-material-symbols:close-rounded"
               : "i-material-symbols:more-horiz"
           }
-          label="カラムの設定"
+          label={t("columns.header.settings")}
           aria-expanded={props.open}
           onClick={() =>
             dispatch({ type: "deck/toggle-settings", id: props.column.id })
@@ -135,7 +136,7 @@ export const ColumnHeader: Component<{
       </span>
       <button
         type="button"
-        title="先頭へ戻る"
+        title={t("columns.header.scrollToTop")}
         class="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
         onClick={() => props.onTitle()}
       >
@@ -178,12 +179,12 @@ export const StackedColumnHeader: Component<{
     >
       <IconButton
         icon="i-material-symbols:chevron-left-rounded"
-        label="戻る"
+        label={t("columns.header.back")}
         onClick={() => dispatch({ type: "stack/back" })}
       />
       <button
         type="button"
-        title="先頭へ戻る"
+        title={t("columns.header.scrollToTop")}
         class="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
         onClick={() => props.onTitle()}
       >
@@ -191,8 +192,9 @@ export const StackedColumnHeader: Component<{
           <ColumnTitle column={props.column} />
         </h2>
         <p class="c-secondary w-full truncate text-caption">
+          {t("columns.header.backToBefore")}
           <ColumnTitle column={props.stacked.backTo} />
-          に戻る
+          {t("columns.header.backToAfter")}
         </p>
       </button>
       <Show when={columnView(props.column.source).HeaderActions}>
@@ -202,7 +204,7 @@ export const StackedColumnHeader: Component<{
       </Show>
       <IconButton
         icon="i-material-symbols:open-in-new-rounded"
-        label="デッキのカラムとして開く"
+        label={t("columns.header.openInDeck")}
         onClick={() => {
           dispatch({ type: "stack/back" });
           dispatch({ type: "deck/add-column", column: props.column });

@@ -35,6 +35,7 @@ import ChatComposer from "../../chat/ChatComposer";
 import ChatMuteDialog from "../../chat/ChatMuteDialog";
 import ChatView from "../../chat/ChatView";
 import { useListsUnderWarning } from "../../content-warning-setting";
+import { t } from "../../i18n/locale";
 import { onceTrue } from "../../lazy-part";
 import { ComposeMediator } from "../../note/ComposeMediator";
 import { useReadLayer } from "../../read-layer";
@@ -158,7 +159,7 @@ const ChannelChat: Component<{
         () => applyMute({ type: "chat-mute/sent" }),
         (cause) => {
           applyMute({ type: "chat-mute/failed" });
-          notifyError(cause, "ミュートできませんでした");
+          notifyError(cause, t("columns.blocks.channel.muteFailed"));
         },
       );
   };
@@ -171,8 +172,8 @@ const ChannelChat: Component<{
     if (state.kind === "message" && !target) {
       applyMute({ type: "chat-mute/failed" });
       notifyError(
-        new Error("発言を読み込めていません"),
-        "ミュートできませんでした",
+        new Error(t("columns.blocks.channel.messageNotLoaded")),
+        t("columns.blocks.channel.muteFailed"),
       );
       return;
     }
@@ -219,7 +220,7 @@ const ChannelChat: Component<{
   return (
     <Mediates handle={handle}>
       <ComposeMediator
-        failure="チャンネルに書けませんでした"
+        failure={t("columns.blocks.channel.writeFailed")}
         send={async (text, media, emoji) => {
           if (!actions) throw new Error("ログインしていません");
           await actions.channelMessage(
@@ -265,11 +266,11 @@ const ChannelChat: Component<{
                     onClick={() =>
                       dispatch({
                         type: "deck/login",
-                        what: "チャンネルへの書き込み",
+                        what: t("columns.blocks.channel.loginReason"),
                       })
                     }
                   >
-                    ログインして書き込む
+                    {t("columns.blocks.channel.loginToWrite")}
                   </Button>
                 </div>
               )

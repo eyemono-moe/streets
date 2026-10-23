@@ -4,6 +4,7 @@ import { type ComposeState, canSend } from "@streets/core/view/compose";
 import { type Component, Show } from "solid-js";
 import { useNoteSources } from "../completion/sources";
 import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
+import { t } from "../i18n/locale";
 import {
   ComposeAttachments,
   ImageButton,
@@ -47,11 +48,13 @@ const ChatComposer: Component<{
               aria-hidden="true"
             />
             <span class="min-w-0 flex-1 truncate">
-              {profileLabel(replyProfile(), target().pubkey)} に返信
+              {t("chat.composer.replyingTo", {
+                name: profileLabel(replyProfile(), target().pubkey),
+              })}
             </span>
             <IconButton
               icon="i-material-symbols:close-rounded"
-              label="返信をやめる"
+              label={t("chat.composer.cancelReply")}
               onClick={() => dispatch({ type: "chat/cancel-reply" })}
             />
           </div>
@@ -62,7 +65,7 @@ const ChatComposer: Component<{
         disabled={props.state.sending}
       />
       {/* 狭いカラムでも書く欄を広く取れるよう、欄を上に、操作を下の行に置く。 */}
-      <Completion sources={sources} label="入れる候補">
+      <Completion sources={sources} label={t("chat.composer.completion")}>
         {(attach) => (
           <textarea
             ref={(element) => {
@@ -70,7 +73,9 @@ const ChatComposer: Component<{
               emojiInsertion.ref(element);
             }}
             rows={1}
-            aria-label={`${props.channelName} にメッセージを送信`}
+            aria-label={t("chat.composer.ariaLabel", {
+              name: props.channelName,
+            })}
             class="c-primary placeholder:c-secondary max-h-40 min-h-9 w-full resize-none rounded-2 border border-secondary bg-primary px-3 py-1.5 text-body outline-none placeholder:truncate focus-visible:ring-2 focus-visible:ring-accent-5"
             // 空の間は置き文字に合わせて伸ばさない。狭いカラムで置き文字が折り返し、
             // 何も書いていないのに欄が 2 行になる。
@@ -78,7 +83,7 @@ const ChatComposer: Component<{
               "[field-sizing:content]": props.state.content !== "",
             }}
             disabled={props.state.sending}
-            placeholder="このチャンネルにメッセージを送信"
+            placeholder={t("chat.composer.placeholder")}
             value={props.state.content}
             onInput={(event) =>
               dispatch({
@@ -107,7 +112,7 @@ const ChatComposer: Component<{
           type="submit"
           variant="primary"
           icon="i-material-symbols:send-rounded"
-          label="送る"
+          label={t("chat.composer.send")}
           size="md"
           circle
           class="ml-auto"

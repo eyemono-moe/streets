@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { articleExcerpt, parseArticle } from "@streets/core/nostr/long-form";
 import { type Component, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import type { EventSize } from "../note/Event";
 
 /**
@@ -28,10 +29,10 @@ const ArticleCard: Component<{ event: NostrEvent; size: EventSize }> = (
                 class="i-material-symbols:article-outline-rounded size-3.5 shrink-0"
                 aria-hidden="true"
               />
-              記事
+              {t("article.label")}
             </span>
             <span class="c-primary break-words font-700 text-body">
-              {article().title ?? "題名の無い記事"}
+              {article().title ?? t("article.untitled")}
             </span>
             <Show when={articleExcerpt(article())}>
               {(excerpt) => (

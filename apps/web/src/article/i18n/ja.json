@@ -1,0 +1,13 @@
+{
+  "label": "記事",
+  "untitled": "題名の無い記事",
+  "dates": {
+    "publishedAndUpdated": "{{ published }} 公開 · {{ updated }} 更新"
+  },
+  "comments": {
+    "title": "コメント",
+    "empty": "まだコメントはありません。",
+    "loading": "読み込み中…"
+  },
+  "openImage": "画像を開く"
+}

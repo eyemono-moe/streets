@@ -17,6 +17,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useDispatch } from "../ui-events";
 import ContentWarningGate from "./ContentWarningGate";
@@ -122,7 +123,9 @@ const CollapsibleBody: ParentComponent<{
               aria-hidden="true"
             />
             <span>
-              {props.longBody === "open" ? "続きを読む" : "さらに表示"}
+              {props.longBody === "open"
+                ? t("note.content.readMore")
+                : t("note.content.showMore")}
             </span>
           </span>
         </button>

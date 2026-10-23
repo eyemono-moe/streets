@@ -2,6 +2,7 @@ import { CHANNEL_CREATE_KIND, type Channel } from "@streets/core/nostr/channel";
 import { encodeNevent } from "@streets/core/nostr/nip19";
 import { type Component, For, Show } from "solid-js";
 import { useAppWindow } from "../app-window";
+import { t } from "../i18n/locale";
 import ProfileRow from "../profile/ProfileRow";
 import RelaySummary from "../settings/RelaySummary";
 import { notifyError } from "../toast";
@@ -33,7 +34,7 @@ const ChannelInfoView: Component<{
     try {
       await appWindow.navigator.clipboard.writeText(`nostr:${nevent}`);
     } catch (cause) {
-      notifyError(cause, "リンクをコピーできませんでした");
+      notifyError(cause, t("chat.info.copyFailed"));
     }
   };
   return (
@@ -41,9 +42,7 @@ const ChannelInfoView: Component<{
       when={props.channel}
       fallback={
         <p class="c-secondary p-4 text-caption">
-          {props.settled
-            ? "チャンネルの情報が見つかりませんでした。"
-            : "読み込み中…"}
+          {props.settled ? t("chat.info.notFound") : t("chat.info.loading")}
         </p>
       }
     >
@@ -55,7 +54,7 @@ const ChannelInfoView: Component<{
               class="size-16 rounded-3"
             />
             <h3 class="c-primary break-anywhere font-700 text-h3">
-              {channel().metadata.name ?? "名前の無いチャンネル"}
+              {channel().metadata.name ?? t("chat.info.unnamed")}
             </h3>
             <Show when={channel().metadata.about}>
               {(about) => (
@@ -67,7 +66,7 @@ const ChannelInfoView: Component<{
           </div>
           <Show when={props.signedIn}>
             <Switch
-              label="お気に入り"
+              label={t("chat.info.favorite")}
               aside={<StorageHint scope="account" />}
               checked={props.favorite}
               onChange={(on) =>
@@ -76,20 +75,22 @@ const ChannelInfoView: Component<{
             />
           </Show>
           <section class="flex flex-col gap-1.5">
-            <h4 class="c-secondary font-600 text-caption">作った人</h4>
+            <h4 class="c-secondary font-600 text-caption">
+              {t("chat.info.creator")}
+            </h4>
             <div class="overflow-hidden rounded-2 border border-primary">
               <ProfileRow pubkey={channel().creator} />
             </div>
           </section>
           <section class="flex flex-col gap-1.5">
             <h4 class="c-secondary font-600 text-caption">
-              発言を読み書きするリレー
+              {t("chat.info.relays.title")}
             </h4>
             <Show
               when={channel().metadata.relays.length > 0}
               fallback={
                 <p class="c-secondary text-caption">
-                  リレーが書かれていません。見つけたリレーで読み書きします。
+                  {t("chat.info.relays.empty")}
                 </p>
               }
             >
@@ -115,14 +116,14 @@ const ChannelInfoView: Component<{
                   })
                 }
               >
-                情報を直す
+                {t("chat.info.edit")}
               </Button>
             </Show>
             <Button
               icon="i-material-symbols:link-rounded"
               onClick={() => void copyLink(channel())}
             >
-              リンクをコピー
+              {t("chat.info.copyLink")}
             </Button>
           </div>
         </div>

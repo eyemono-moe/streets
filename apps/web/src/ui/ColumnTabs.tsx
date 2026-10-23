@@ -17,7 +17,7 @@ export type ColumnTab = {
   content: () => JSX.Element;
 };
 
-/** 開いていたタブを覚えておく先。タブの並びは `label` で見分ける。 */
+/** 開いていたタブを覚えておく先。タブの並びは `name` で見分ける。 */
 export type TabMemory = {
   recall: (tabs: string) => string | undefined;
   remember: (tabs: string, value: string) => void;
@@ -44,6 +44,8 @@ export const TabMemoryProvider: ParentComponent<{ value: TabMemory }> = (
 const ColumnTabs: Component<{
   tabs: readonly ColumnTab[];
   label: string;
+  /** 開いていたタブを覚えるときの名前。`label` は言語を切り替えると変わるので使わない。 */
+  name: string;
   defaultValue?: string;
   /**
    * `inner` はタブの中身だけをスクロールする（タブがカラムの全体を占めるとき）。
@@ -60,7 +62,7 @@ const ColumnTabs: Component<{
   const memory = useContext(TabMemoryContext);
   const initial = untrack(() => {
     const fallback = props.defaultValue ?? props.tabs[0]?.value;
-    const recalled = memory?.recall(props.label);
+    const recalled = memory?.recall(props.name);
     // 覚えていたタブが無くなっていたら、既定のタブで開く。
     if (!recalled || !props.tabs.some((tab) => tab.value === recalled)) {
       return fallback;
@@ -72,7 +74,7 @@ const ColumnTabs: Component<{
     <Tabs.Root
       defaultValue={initial}
       onValueChange={(details) => {
-        memory?.remember(props.label, details.value);
+        memory?.remember(props.name, details.value);
         props.onValueChange?.(details.value);
       }}
       lazyMount
