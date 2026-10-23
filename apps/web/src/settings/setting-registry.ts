@@ -70,6 +70,7 @@ const placements = {
   muteList: { page: "mute" },
   shortcuts: { page: "keyboard" },
   columnDigits: { page: "keyboard" },
+  language: { page: "display" },
   theme: { page: "display" },
   contrast: { page: "display" },
   accent: { page: "display" },

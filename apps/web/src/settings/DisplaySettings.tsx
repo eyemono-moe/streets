@@ -23,6 +23,7 @@ import {
   type DeckLayout,
   loadDeckLayout,
 } from "@streets/core/settings/deck-layout-setting";
+import type { Locale } from "@streets/core/settings/locale-setting";
 import {
   type SwipeMode,
   loadSwipeMode,
@@ -41,6 +42,7 @@ import {
 } from "@streets/core/settings/ui-contrast";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
 import type { Component } from "solid-js";
+import { locale, t } from "../i18n/locale";
 import { DEFAULT_APPEARANCE, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
@@ -50,8 +52,14 @@ import Switch from "../ui/Switch";
 import ActionLayoutField from "./ActionLayoutField";
 import DisplayPreview from "./DisplayPreview";
 import PalettePicker from "./PalettePicker";
+import { settingTitle } from "./setting-registry";
 import SettingsDetails from "./SettingsDetails";
 import SettingsSection from "./SettingsSection";
+
+const LOCALES: { value: Locale; label: string }[] = [
+  { value: "ja", label: "日本語" },
+  { value: "en", label: "English" },
+];
 
 const CONTENT_WARNING_MODES: { value: ContentWarningMode; label: string }[] = [
   { value: "hide", label: "隠す" },
@@ -135,6 +143,22 @@ const DisplaySettings: Component<{
 
   return (
     <div class="flex flex-col gap-7">
+      <SettingsSection
+        id="language"
+        scope="device"
+        description={t("settings.language.description")}
+      >
+        {/* 読めない言語に切り替えても戻せるよう、言語の名前はその言語で書く。 */}
+        <SegmentedControl
+          label={settingTitle("language")}
+          options={LOCALES}
+          value={locale()}
+          onChange={(value) =>
+            dispatch({ type: "deck/set-locale", locale: value })
+          }
+        />
+      </SettingsSection>
+
       <SettingsSection
         id="theme"
         scope="device"

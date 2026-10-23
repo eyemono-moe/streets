@@ -32,7 +32,7 @@ export const setLocalePreference = (value: LocalePreference) => {
 };
 
 // 英語の文言が揃うまでは、ブラウザの言語に従わず日本語にする。英語のブラウザで
-// 半分だけ英語の画面を出さない。英語を選んだときだけ英語にする。
+// 半分だけ英語の画面を出さない。設定で English を選んだときだけ英語にする。
 const followsBrowser = false;
 
 export const locale = (): Locale =>
@@ -51,3 +51,30 @@ export const t = i18n.translator(
   () => dictionaries[locale()],
   i18n.resolveTemplate,
 );
+
+type Dictionary = i18n.Flatten<typeof ja>;
+
+/** `<キー>.one` と `<キー>.other` を両方持つキー。 */
+type PluralKey = {
+  [K in keyof Dictionary]: K extends `${infer P}.other`
+    ? `${P}.one` extends keyof Dictionary
+      ? P
+      : never
+    : never;
+}[keyof Dictionary];
+
+/**
+ * 数で形が変わる文言を引く。`count` は `{{ count }}` にも入る。日本語は形が変わらない
+ * が、キーをそろえるため `one` と `other` の両方を書く。
+ */
+export const plural = (
+  key: PluralKey,
+  count: number,
+  args: Record<string, string | number> = {},
+): string => {
+  const form =
+    new Intl.PluralRules(locale()).select(count) === "one" ? "one" : "other";
+  // キーの型は `one` と `other` の両方があることまでで、組み立てたキーは型が追えない。
+  const translate = t as (key: string, args: Record<string, unknown>) => string;
+  return translate([key, form].join("."), { ...args, count });
+};

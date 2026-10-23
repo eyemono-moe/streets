@@ -1,6 +1,7 @@
 import type { ActiveSigner } from "@streets/core/signer/active-signer";
 import { signingWaitMessage } from "@streets/core/view/signer-wait";
 import { createSignal, onCleanup } from "solid-js";
+import { t } from "./i18n/locale";
 
 const WAIT_DELAY_MS = 2500;
 /**
@@ -89,13 +90,13 @@ export const observeSigner = (
     return nip44
       ? {
           encrypt: (peerPubkey: string, plaintext: string) =>
-            wait.track("非公開の情報の暗号化を待っています", () =>
+            wait.track(t("app.signerWait.encrypting"), () =>
               nip44.encrypt(peerPubkey, plaintext),
             ),
           decrypt: async (peerPubkey: string, ciphertext: string) => {
             await signer.connected();
             return wait.track(
-              "非公開の情報の読み取りを待っています",
+              t("app.signerWait.decrypting"),
               () => nip44.decrypt(peerPubkey, ciphertext),
               BACKGROUND_WAIT_DELAY_MS,
             );
@@ -110,7 +111,7 @@ export const observeSigner = (
           decrypt: async (peerPubkey: string, ciphertext: string) => {
             await signer.connected();
             return wait.track(
-              "非公開の情報の読み取りを待っています",
+              t("app.signerWait.decrypting"),
               () => nip04.decrypt(peerPubkey, ciphertext),
               BACKGROUND_WAIT_DELAY_MS,
             );

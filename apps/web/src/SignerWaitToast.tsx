@@ -1,5 +1,6 @@
 import { Toast } from "@ark-ui/solid/toast";
 import { type Component, For, Show } from "solid-js";
+import { plural, t } from "./i18n/locale";
 import { ButtonLink } from "./ui/Button";
 
 /** 署名器の承認待ちのトーストが持つ中身。`toaster.update` で丸ごと差し替える。 */
@@ -13,10 +14,10 @@ export type SignerWaitToastMeta = {
 };
 
 const title = (meta: SignerWaitToastMeta["signerWait"]): string => {
-  if (meta.authUrl) return "署名器での承認が必要です";
+  if (meta.authUrl) return t("app.signerWait.approvalRequired");
   const [only, ...rest] = meta.messages;
   if (only !== undefined && rest.length === 0) return only;
-  return `署名器の承認を ${meta.messages.length} 件待っています`;
+  return plural("app.signerWait.pending", meta.messages.length);
 };
 
 /** 署名器の承認待ち。画面は止めず、何を待っているかと、承認のページへの道だけを出す。 */
@@ -39,7 +40,7 @@ const SignerWaitToast: Component<{
       </ul>
     </Show>
     <Toast.Description class="c-secondary pl-6.5 text-caption">
-      署名器のアプリやウィンドウで確認してください
+      {t("app.signerWait.confirmHint")}
     </Toast.Description>
     <Show when={props.meta.authUrl}>
       {(url) => (
@@ -52,7 +53,7 @@ const SignerWaitToast: Component<{
             size="sm"
             trailingIcon="i-material-symbols:open-in-new-rounded"
           >
-            署名器で承認する
+            {t("app.signerWait.approve")}
           </ButtonLink>
         </div>
       )}

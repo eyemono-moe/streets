@@ -95,6 +95,7 @@ import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { preloadEmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
 import { fallbackRelays, setFallbackRelays } from "../fallback-relay-setting";
+import { setLocalePreference } from "../i18n/locale";
 import { setImageDownscaling } from "../image-downscaling-setting";
 import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
@@ -1034,6 +1035,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-time-format":
         setTimeFormat(event.format);
+        return true;
+      case "deck/set-locale":
+        setLocalePreference(event.locale);
         return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);

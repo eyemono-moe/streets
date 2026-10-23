@@ -137,6 +137,10 @@
       "title": "Number keys to switch columns",
       "keywords": ["switch columns"]
     },
+    "language": {
+      "title": "Language",
+      "keywords": ["言語", "English", "日本語"]
+    },
     "theme": {
       "title": "Color theme",
       "description": "Choose a light or dark screen",
@@ -228,5 +232,8 @@
       "description": "Sends error details, along with how long screens and actions took to load, to the developers together with information about your device and browser. When signing or logging in fails, it also sends how you log in (the type of extension, and the relays used to talk to your signer). It never sends your private key, public key, event IDs or the text of your posts.",
       "switch": "Send error and performance reports"
     }
+  },
+  "language": {
+    "description": "Choose the language used on the screen."
   }
 }
