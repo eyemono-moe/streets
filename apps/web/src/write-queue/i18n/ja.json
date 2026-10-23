@@ -1,0 +1,6 @@
+{
+  "sending": "{{count}} 件を送信中",
+  "saved": "保存しました",
+  "labelCount": "{{label}} {{count}}",
+  "labelSeparator": "・"
+}

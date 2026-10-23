@@ -54,7 +54,11 @@ const ArcCircle: Component<{ arc: Arc; class: string }> = (props) => (
  * （下地）の割合で塗り、相手の数が増えても区画は増やさない。`counts` が無い間
  * （送り先が決まる前）と、まだ何も結果が出ていない間は回り続ける。
  */
-const ProgressRing: Component<{ counts?: RingCounts }> = (props) => {
+const ProgressRing: Component<{
+  counts?: RingCounts;
+  /** `sm` はチップの中など、文字に並べる小さな輪。 */
+  size?: "sm" | "md";
+}> = (props) => {
   const total = () =>
     props.counts
       ? props.counts.done + props.counts.failed + props.counts.pending
@@ -68,8 +72,8 @@ const ProgressRing: Component<{ counts?: RingCounts }> = (props) => {
 
   return (
     <svg
-      width={SIZE}
-      height={SIZE}
+      width={props.size === "sm" ? 12 : SIZE}
+      height={props.size === "sm" ? 12 : SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       class="-rotate-90 shrink-0"
       aria-hidden="true"

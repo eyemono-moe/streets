@@ -6,6 +6,7 @@ type Args = { counts?: RingCounts };
 
 const Story = (props: Args) => (
   <div class="flex items-center gap-4 p-4">
+    <ProgressRing counts={props.counts} size="sm" />
     <ProgressRing counts={props.counts} />
     <span class="inline-flex scale-[3] p-4">
       <ProgressRing counts={props.counts} />

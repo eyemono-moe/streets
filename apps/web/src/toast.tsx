@@ -8,6 +8,9 @@ import IconButton from "./ui/IconButton";
 import { Portal } from "./ui/Portal";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
+import WriteQueueToast, {
+  type WriteQueueToastMeta,
+} from "./write-queue/WriteQueueToast";
 import WriteProgressToast, { type WriteToastMeta } from "./WriteProgressToast";
 
 /** 済んだ知らせは、目の端で読めれば足りる。 */
@@ -61,7 +64,10 @@ const holding = (id: string) =>
  * 失敗の知らせは 1 か所に集める。ボタンごとに文言を置くと、押した場所ごとに
  * 出方が変わり、狭いカラムでは行が押し出されて本文が動く。
  */
-export const toaster: Pick<AppToaster, "create" | "update" | "remove"> = {
+export const toaster: Pick<
+  AppToaster,
+  "create" | "update" | "remove" | "isVisible"
+> = {
   create: (options) => {
     const id = currentToaster().create(options);
     if (pipOpen()) pipToaster.create({ ...mirrored(options), id });
@@ -71,6 +77,10 @@ export const toaster: Pick<AppToaster, "create" | "update" | "remove"> = {
     if (pipToaster.isVisible(id)) pipToaster.update(id, mirrored(options));
     return holding(id).update(id, options);
   },
+  isVisible: (id) =>
+    multiToaster.isVisible(id) ||
+    singleToaster.isVisible(id) ||
+    pipToaster.isVisible(id),
   remove: (id) => {
     multiToaster.remove(id);
     pipToaster.remove(id);
@@ -205,6 +215,18 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
             {(write) => (
               <div class="min-w-0 flex-1">
                 <WriteProgressToast meta={write()} />
+              </div>
+            )}
+          </Match>
+          <Match
+            when={
+              (toast().meta as Partial<WriteQueueToastMeta> | undefined)
+                ?.writeQueue
+            }
+          >
+            {(queue) => (
+              <div class="min-w-0 flex-1">
+                <WriteQueueToast summary={queue()} />
               </div>
             )}
           </Match>
