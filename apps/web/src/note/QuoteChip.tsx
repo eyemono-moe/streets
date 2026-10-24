@@ -8,9 +8,9 @@ import {
   addressOfNaddr,
 } from "@streets/core/nostr/address";
 import { type EventRef, idRefOfPointer } from "@streets/core/nostr/event-refs";
-import { kindLabel } from "@streets/core/nostr/kind-support";
 import type { Nip19Ref } from "@streets/core/nostr/nip19";
-import { type Component, Match, Switch } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
+import { kindLabel, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import AvatarImage from "../ui/Avatar";
 import Name from "./Name";
@@ -22,6 +22,11 @@ const buttonClass =
 
 const frameClass =
   "inline-flex max-w-full min-w-0 items-stretch gap-1.5 rounded-r-1 bg-quote py-px pr-1.5 pl-0 align-bottom enabled:cursor-pointer enabled:hover:bg-quote-hover focus-visible:ring-2 focus-visible:ring-accent-5 border-0 text-left";
+
+// 名前の前後に置く語。語順が言語で違うので、前後に分けて辞書に持つ。
+const ownerBefore = () => t("note.quoteChip.ownerBefore");
+const ownerAfter = (kind: number) =>
+  t("note.quoteChip.ownerAfter", { kind: kindLabel(kind) });
 
 const Line: Component<{ muted?: boolean }> = (props) => (
   <span
@@ -120,6 +125,11 @@ const QuoteChip: Component<{
             >
               <Line />
               <Icon />
+              <Show when={ownerBefore() !== ""}>
+                <span class="shrink-0 self-center whitespace-nowrap c-secondary">
+                  {ownerBefore()}
+                </span>
+              </Show>
               <AvatarImage
                 pubkey={info().pubkey}
                 picture={profile()?.picture}
@@ -128,9 +138,11 @@ const QuoteChip: Component<{
               <span class="min-w-0 shrink self-center truncate font-700 c-primary">
                 <Name pubkey={info().pubkey} />
               </span>
-              <span class="shrink-0 self-center whitespace-nowrap c-secondary">
-                さんの{kindLabel(info().kind)}
-              </span>
+              <Show when={ownerAfter(info().kind) !== ""}>
+                <span class="shrink-0 self-center whitespace-nowrap c-secondary">
+                  {ownerAfter(info().kind)}
+                </span>
+              </Show>
             </button>
           );
         }}

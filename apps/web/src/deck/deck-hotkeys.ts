@@ -7,6 +7,7 @@ import {
   type ShortcutAction,
 } from "@streets/core/settings/keymap";
 import { type Hotkey, createHotkeys } from "@tanstack/solid-hotkeys";
+import { message } from "../i18n/locale";
 
 const PANEL_OF: Record<Exclude<ShortcutAction, "palette">, DeckPanel> = {
   compose: "compose",
@@ -58,7 +59,7 @@ export const createDeckHotkeys = (options: {
           enabled: options.enabled(),
           // 押しっぱなしでパネルが開いたり閉じたりしないように、1 回で止める。
           requireReset: true,
-          meta: { name: SHORTCUT_LABELS[action], group: "デッキ" },
+          meta: { name: message(SHORTCUT_LABELS[action]), group: "デッキ" },
         },
       }),
     ),

@@ -3,6 +3,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { hidesUnderWarning } from "@streets/core/settings/content-warning-setting";
 import { type ParentComponent, Show, createSignal } from "solid-js";
 import { contentWarningMode } from "../content-warning-setting";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import type { EventSize } from "./Event";
 
@@ -23,7 +24,9 @@ export const hiddenUnderWarning = (event: NostrEvent): boolean =>
 /** 中身の代わりに出す 1 行。 */
 export const warningLabel = (event: NostrEvent): string => {
   const reason = contentWarning(event)?.reason;
-  return reason ? `閲覧注意：${reason}` : "閲覧注意";
+  return reason
+    ? t("note.contentWarning.withReason", { reason })
+    : t("note.contentWarning.label");
 };
 
 /**
@@ -56,7 +59,7 @@ const ContentWarningGate: ParentComponent<{
           class="shrink-0"
           onClick={() => revealWarning(props.event.id)}
         >
-          表示する
+          {t("note.contentWarning.show")}
         </Button>
       </div>
     </Show>

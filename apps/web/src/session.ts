@@ -1,3 +1,4 @@
+import { MessageError } from "@streets/core/i18n/message";
 import type { ConnectionPool } from "@streets/core/read/connection-pool";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { createActiveSigner } from "@streets/core/signer/active-signer";
@@ -41,6 +42,7 @@ import {
 } from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { t, message } from "./i18n/locale";
 import {
   type SignerTags,
   nip07Tags,
@@ -52,7 +54,11 @@ import {
 import { createSignerWait, observeSigner } from "./signer-wait";
 
 const errorText = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+  error instanceof MessageError
+    ? message(error.text)
+    : error instanceof Error
+      ? error.message
+      : String(error);
 
 /** 署名器の側から繋いでもらう 1 回分。 */
 export type ConnectAttempt = {
@@ -105,9 +111,6 @@ const tagsFor = (login: StoredLogin): SignerTags =>
 const NIP07_RESTORE_WAIT_MS = 5_000;
 // 注入された後も、スマホの拡張機能は公開鍵を返さないまま止まることがある。
 const NIP07_RESPONSE_WAIT_MS = 10_000;
-
-const NIP07_NO_RESPONSE =
-  "拡張機能から応答がありません。拡張機能がこのサイトで許可されているか確かめてください。使えるようになれば、そのままログインします。";
 
 export const createSession = (
   pool: ConnectionPool,
@@ -184,12 +187,12 @@ export const createSession = (
             type: "failed",
             message:
               e instanceof SignerUnavailableError
-                ? "NIP-07 対応の拡張機能が見つかりません。"
-                : `ログインに失敗しました: ${errorText(e)}`,
+                ? t("app.session.nip07NotFound")
+                : t("app.session.loginFailed", { message: errorText(e) }),
           });
         }
       },
-      "ログインを待っています",
+      t("app.session.waitingLogin"),
       true,
     );
 
@@ -202,7 +205,7 @@ export const createSession = (
         } catch (e) {
           dispatch({
             type: "failed",
-            message: `リモート署名器に接続できませんでした: ${errorText(e)}`,
+            message: t("app.session.bunkerFailed", { message: errorText(e) }),
           });
           return;
         }
@@ -225,11 +228,11 @@ export const createSession = (
           });
           dispatch({
             type: "failed",
-            message: `リモート署名器に接続できませんでした: ${errorText(e)}`,
+            message: t("app.session.bunkerFailed", { message: errorText(e) }),
           });
         }
       },
-      "ログインを待っています",
+      t("app.session.waitingLogin"),
       true,
     );
 
@@ -290,11 +293,13 @@ export const createSession = (
         } catch (e) {
           if (!(e instanceof Nip07NotReadyError)) {
             reportSignerError(e, "restore", nip07Tags());
-            restoreFailedWith(`ログインの復元に失敗しました: ${errorText(e)}`);
+            restoreFailedWith(
+              t("app.session.restoreFailed", { message: errorText(e) }),
+            );
             return;
           }
           // まだ立ち上がっていないだけのこともあるので、無いとは言い切らない。
-          restoreFailedWith(NIP07_NO_RESPONSE);
+          restoreFailedWith(t("app.session.nip07NoResponse"));
           if (e.reason === "not-injected") {
             stopWatchingNip07 = watchForNip07(restore);
           }
@@ -306,7 +311,7 @@ export const createSession = (
             () => {},
           );
         }
-      }, "ログインの復元を待っています");
+      }, t("app.session.waitingRestore"));
       return;
     }
 
@@ -323,11 +328,9 @@ export const createSession = (
           ...nip46Tags(login.session.relays),
           ...hidden(),
         });
-        restoreFailedWith(
-          "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
-        );
+        restoreFailedWith(t("app.session.signerNotReached"));
       }
-    }, "ログインの復元を待っています");
+    }, t("app.session.waitingRestore"));
   };
 
   const restore = () => {
@@ -341,8 +344,7 @@ export const createSession = (
         storedLogin.clear();
         dispatch({
           type: "failed",
-          message:
-            "保存していたログインを読めませんでした。もう一度ログインしてください。",
+          message: t("app.session.storedLoginUnreadable"),
         });
         return;
       case "login":

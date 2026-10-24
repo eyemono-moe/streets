@@ -2,6 +2,7 @@ import { columnFacets } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import ColumnSettings from "./ColumnSettings";
@@ -24,13 +25,14 @@ const ColumnSettingsPanel: Component<{
           aria-hidden="true"
         />
         <h2 class="c-primary min-w-0 flex-1 truncate font-600 text-body">
+          {t("deck.columnSettingsPanel.titleBefore")}
           <ColumnTitle column={props.column} />
-          の設定
+          {t("deck.columnSettingsPanel.titleAfter")}
         </h2>
         <Show when={pipSupported()}>
           <IconButton
             icon="i-material-symbols:picture-in-picture-alt-outline-rounded"
-            label="ピクチャーインピクチャーで開く"
+            label={t("deck.columnSettingsPanel.popOut")}
             onClick={() =>
               dispatch({ type: "deck/pop-out", id: props.column.id })
             }
@@ -38,7 +40,7 @@ const ColumnSettingsPanel: Component<{
         </Show>
         <IconButton
           icon="i-material-symbols:close-rounded"
-          label="カラムの設定を閉じる"
+          label={t("deck.columnSettingsPanel.close")}
           onClick={() =>
             dispatch({ type: "deck/toggle-settings", id: props.column.id })
           }

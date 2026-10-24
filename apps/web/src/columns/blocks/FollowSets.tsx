@@ -7,7 +7,6 @@ import {
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import {
   type FollowSet,
-  followSetName,
   followSetsIncluding,
   latestFollowSets,
   readFollowSet,
@@ -21,6 +20,8 @@ import {
   createSignal,
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { t } from "../../i18n/locale";
+import { followSetName } from "../../lists/follow-set-name";
 import FollowSetInfoView from "../../lists/FollowSetInfoView";
 import FollowSetListView from "../../lists/FollowSetListView";
 import { useFollowSets } from "../../lists/FollowSetMediator";
@@ -138,7 +139,7 @@ export const FollowSetTimeline: Component<{
       when={list.set() !== undefined || !list.settled()}
       fallback={
         <p class="c-secondary p-4 text-caption">
-          このリストが見つかりません。削除されたか、リレーから取得できませんでした。
+          {t("columns.blocks.followSet.notFound")}
         </p>
       }
     >

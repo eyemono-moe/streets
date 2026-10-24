@@ -1,4 +1,6 @@
 import * as i18n from "@solid-primitives/i18n";
+import type { Message } from "@streets/core/i18n/message";
+import { kindName } from "@streets/core/nostr/kind-support";
 import {
   LOCALE_STORAGE_KEY,
   type Locale,
@@ -31,12 +33,8 @@ export const setLocalePreference = (value: LocalePreference) => {
   }
 };
 
-// 英語の文言が揃うまでは、ブラウザの言語に従わず日本語にする。英語のブラウザで
-// 半分だけ英語の画面を出さない。英語を選んだときだけ英語にする。
-const followsBrowser = false;
-
 export const locale = (): Locale =>
-  resolveLocale(preference(), followsBrowser ? navigator.languages : ["ja"]);
+  resolveLocale(preference(), navigator.languages);
 
 // 切り替えのたびに平らにし直さないよう、起動時に両方作っておく。
 const dictionaries: Record<Locale, i18n.Flatten<typeof ja>> = {
@@ -51,3 +49,72 @@ export const t = i18n.translator(
   () => dictionaries[locale()],
   i18n.resolveTemplate,
 );
+
+type Dictionary = i18n.Flatten<typeof ja>;
+
+/** `<キー>.one` と `<キー>.other` を両方持つキー。 */
+type PluralKey = {
+  [K in keyof Dictionary]: K extends `${infer P}.other`
+    ? `${P}.one` extends keyof Dictionary
+      ? P
+      : never
+    : never;
+}[keyof Dictionary];
+
+/**
+ * 数で形が変わる文言を引く。`count` は `{{ count }}` にも入る。日本語は形が変わらない
+ * が、キーをそろえるため `one` と `other` の両方を書く。
+ */
+export const plural = (
+  key: PluralKey,
+  count: number,
+  args: Record<string, string | number> = {},
+): string => {
+  const form =
+    new Intl.PluralRules(locale()).select(count) === "one" ? "one" : "other";
+  // キーの型は `one` と `other` の両方があることまでで、組み立てたキーは型が追えない。
+  const translate = t as (key: string, args: Record<string, unknown>) => string;
+  return translate([key, form].join("."), { ...args, count });
+};
+
+/** kind の名前。一覧に無い kind を「投稿」と呼ぶと別物を投稿と偽るので、汎用の呼び名にする。 */
+export const kindLabel = (kind: number): string =>
+  kindName(kind, locale()) ?? t("app.kind.unknown");
+
+/**
+ * core が返した文言を引く。core のキーは `core` の辞書にある（`dictionaries.ts` が
+ * キーの抜けを型で落とす）。
+ */
+export const message = (
+  text: Message,
+  args: Record<string, string | number> = {},
+): string => {
+  const merged = { ...text.args, ...args };
+  // core は kind の名前を言語で引けないので、番号を `kind` で渡す。名前は `{{ kindName }}`。
+  if (typeof merged.kind === "number") merged.kindName = kindLabel(merged.kind);
+  // キーの一覧は core が持ち、辞書の型とは `dictionaries.ts` で突き合わせている。
+  if (text.count !== undefined) {
+    return plural(`core.${text.key}` as PluralKey, text.count, merged);
+  }
+  const translate = t as (key: string, args: Record<string, unknown>) => string;
+  return translate(`core.${text.key}`, merged);
+};
+
+/** 文言（core が返すキー）か、書いた人や相手の文字列かを問わず、画面に出す文にする。 */
+export const messageOrText = (text: Message | string): string =>
+  typeof text === "string" ? text : message(text);
+
+/**
+ * 文の中に部品（名前のリンクなど）を挟むとき、挟む位置の前と後ろの文を返す。
+ * 語順が言語で違うので、前後を別のキーに分けずに、1 つの文の `{{ slot }}` で分ける。
+ */
+export const messageAround = (
+  text: Message,
+  slot: string,
+): [before: string, after: string] => {
+  const marker = "\u0000";
+  const [before = "", after = ""] = message(text, { [slot]: marker }).split(
+    marker,
+  );
+  return [before, after];
+};

@@ -4,14 +4,19 @@ import {
   type ReadRedundancy,
 } from "@streets/core/settings/read-redundancy-setting";
 import { type Component, Show } from "solid-js";
+import { t, plural } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
 
-const OPTIONS = READ_REDUNDANCY_CHOICES.map((value) => ({
-  value: String(value),
-  label: value === DEFAULT_READ_REDUNDANCY ? `${value}（既定）` : String(value),
-}));
+const options = () =>
+  READ_REDUNDANCY_CHOICES.map((value) => ({
+    value: String(value),
+    label:
+      value === DEFAULT_READ_REDUNDANCY
+        ? t("settings.readRedundancy.defaultOption", { value })
+        : String(value),
+  }));
 
 export type ReadRedundancyViewProps = {
   value: ReadRedundancy;
@@ -38,32 +43,38 @@ const ReadRedundancyView: Component<ReadRedundancyViewProps> = (props) => {
       scope="device"
       changed={changed()}
       onReset={() => set(DEFAULT_READ_REDUNDANCY)}
-      description="フォローしている人ごとに、その人が書き込みに使っているリレーのうち何本から読むか設定します。増やすと、どれかのリレーに投稿が届いていなくても拾いやすくなりますが、つなぐリレーと通信量が増えます。"
+      description={t("settings.readRedundancy.description")}
     >
       <SegmentedControl
-        label="投稿を探すリレーの数"
+        label={t("settings.readRedundancy.label")}
         variant="secondary"
         block
         value={String(props.value)}
-        options={OPTIONS}
+        options={options()}
         onChange={(value) => set(Number(value) as ReadRedundancy)}
       />
       <Show when={props.relayCount}>
         {(count) => (
           <div class="c-secondary flex flex-col gap-1 rounded-2 border border-primary p-3 text-caption">
             <p>
-              {`いまは ${count()} 本のリレーから読んでいます。`}
+              {plural("settings.readRedundancy.current", count())}
               <Show
                 when={changed()}
                 fallback={
                   <Show when={next()}>
                     {(more) =>
-                      `${more()} 本にすると ${props.preview(more())} 本ほどになります。`
+                      t("settings.readRedundancy.increase", {
+                        more: more(),
+                        preview: props.preview(more()),
+                      })
                     }
                   </Show>
                 }
               >
-                {`既定の ${DEFAULT_READ_REDUNDANCY} 本なら ${props.preview(DEFAULT_READ_REDUNDANCY)} 本です。`}
+                {t("settings.readRedundancy.backToDefault", {
+                  default: DEFAULT_READ_REDUNDANCY,
+                  preview: props.preview(DEFAULT_READ_REDUNDANCY),
+                })}
               </Show>
             </p>
             <Show when={count() >= props.budget}>
@@ -72,7 +83,9 @@ const ReadRedundancyView: Component<ReadRedundancyViewProps> = (props) => {
                   class="i-material-symbols:warning-outline-rounded c-status-warn mt-0.5 size-4 shrink-0"
                   aria-hidden="true"
                 />
-                {`同時につなげる ${props.budget} 本に届いています。収まらない分は、多くの人が使っているリレーから順に選びます。`}
+                {t("settings.readRedundancy.budgetReached", {
+                  budget: props.budget,
+                })}
               </p>
             </Show>
           </div>

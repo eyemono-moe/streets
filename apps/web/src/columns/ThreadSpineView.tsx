@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ThreadSpine } from "@streets/core/view/thread-spine";
 import { type Component, For, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import Event, { EventRefView } from "../note/Event";
 import MutedGate from "../note/MutedGate";
 import { keepInView } from "./keep-in-view";
@@ -25,8 +26,8 @@ const ThreadSpineView: Component<{
       <Show when={!props.spine.reachedRoot && props.spine.focus}>
         <p class="c-secondary bg-primary px-3 py-2 text-caption">
           {props.settled
-            ? "このスレッドの上の方は取得できませんでした。"
-            : "このスレッドの上の方を読み込み中…"}
+            ? t("columns.thread.ancestorsMissing")
+            : t("columns.thread.ancestorsLoading")}
         </p>
       </Show>
       {/* 祖先から焦点までは線でつながる 1 本なので、間に区切りを引かない。タイムラインで返信先を上に置くときと同じ見え方にする。 */}
@@ -66,7 +67,9 @@ const ThreadSpineView: Component<{
         <Show
           when={props.spine.focus}
           fallback={
-            <p class="c-secondary bg-primary p-4 text-caption">読み込み中…</p>
+            <p class="c-secondary bg-primary p-4 text-caption">
+              {t("columns.loading")}
+            </p>
           }
         >
           {(focus) => (

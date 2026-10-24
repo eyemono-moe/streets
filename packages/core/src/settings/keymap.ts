@@ -7,6 +7,8 @@
  * 空文字はそのショートカットを使わないという意味。
  */
 
+import type { Message } from "../i18n/message";
+
 /** 端末ごとの設定。キーボードの配列は、その端末に付いているものだから。 */
 export const KEYMAP_STORAGE_KEY = "streets.v1.keymap";
 
@@ -22,11 +24,11 @@ export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 export type Keymap = Record<ShortcutAction, string>;
 
 /** 設定の画面と、ボタンの説明に出す名前。 */
-export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
-  compose: "投稿パネルを開く",
-  search: "検索パネルを開く",
-  "add-column": "カラム追加パネルを開く",
-  palette: "コマンドパレットを開く",
+export const SHORTCUT_LABELS: Record<ShortcutAction, Message> = {
+  compose: { key: "shortcut.compose" },
+  search: { key: "shortcut.search" },
+  "add-column": { key: "shortcut.addColumn" },
+  palette: { key: "shortcut.palette" },
 };
 
 export const DEFAULT_KEYMAP: Keymap = {

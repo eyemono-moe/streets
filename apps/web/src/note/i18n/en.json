@@ -1,0 +1,240 @@
+{
+  "actionNotice": {
+    "others": {
+      "one": "and {{ count }} other",
+      "other": "and {{ count }} others"
+    },
+    "reposted": "reposted",
+    "liked": "liked",
+    "reactedBefore": "reacted with",
+    "reactedAfter": "",
+    "noTarget": "No target note was specified"
+  },
+  "avatar": {
+    "openColumn": "Open this person's column"
+  },
+  "broadcast": {
+    "title": "Send to other relays too",
+    "intro": "Sends this post to other relays as it is. Use this when only some relays have it and other people can't see it.",
+    "destination": "Destination",
+    "targets": {
+      "mine": "Me",
+      "author": "Author",
+      "custom": "Choose"
+    },
+    "descriptions": {
+      "mine": "Sends to the relays you write to.",
+      "author": "Sends to the relays the author writes to, and to the relays that reach the people mentioned in the post, such as who it replies to. These are the places other people look for this post.",
+      "custom": "Sends to relays you pick from the suggestions or enter by URL."
+    },
+    "unknownDestination": "Couldn't work out which relays to send to.",
+    "cancel": "Cancel",
+    "send": "Send",
+    "sendToMany": "Send to {{ count }} relays"
+  },
+  "channel": {
+    "metadataChanged": "Updated the channel info",
+    "loading": "Loading channel…",
+    "unnamed": "Unnamed channel",
+    "noAbout": "No description",
+    "open": "Open",
+    "message": "Message in a channel",
+    "messageIn": "Message in {{ name }}"
+  },
+  "client": {
+    "title": "App used for this post",
+    "loading": "Loading…",
+    "noDescription": "This post doesn't describe the app.",
+    "descriptionFailed": "Couldn't load the app's description.",
+    "noOpenWay": "There's no way to open this app.",
+    "openWebsite": "Open website",
+    "openInApp": "Open the post in this app"
+  },
+  "compose": {
+    "completion": "Suggestions",
+    "body": "Note text",
+    "placeholder": "What's happening?",
+    "characters": {
+      "one": "{{ count }} character",
+      "other": "{{ count }} characters"
+    },
+    "submit": "Post",
+    "preview": "Preview"
+  },
+  "composeParts": {
+    "unsupported": "{{ label }} (not supported)",
+    "video": "Video",
+    "crop": "Crop {{ name }}",
+    "videoNotCroppable": "Videos can't be cropped",
+    "uploading": "Uploading",
+    "remove": "Remove {{ name }}",
+    "moveEarlier": "Move {{ name }} earlier",
+    "moveLater": "Move {{ name }} later",
+    "noServer": "To attach images, choose where to upload them in Settings under \"Images\"",
+    "cannotAttach": "Can't attach images",
+    "noUploader": "No upload destination is set for images",
+    "attach": "Attach images",
+    "warningOff": "Remove content warning",
+    "warningOn": "Add content warning",
+    "keepDraft": "Save as draft",
+    "warningReason": "Content warning reason",
+    "warningReasonOptional": "Content warning reason (optional)",
+    "sending": "Sending…"
+  },
+  "content": {
+    "readMore": "Read more",
+    "showMore": "Show more"
+  },
+  "contentWarning": {
+    "label": "Content warning",
+    "withReason": "Content warning: {{ reason }}",
+    "show": "Show"
+  },
+  "details": {
+    "title": "Details",
+    "seenOn": "Received from relays",
+    "noRelays": "No relays that delivered this event were recorded.",
+    "jsonCopied": "Copied the JSON",
+    "jsonCopyFailed": "Couldn't copy the JSON",
+    "copyJson": "Copy JSON"
+  },
+  "drafts": {
+    "replyBefore": "Reply to",
+    "replyAfter": "",
+    "quoteBefore": "Quoting a post by",
+    "quoteAfter": "",
+    "contentWarning": "Content warning",
+    "autoSaved": "· Autosaved",
+    "remove": "Delete this draft",
+    "title": "Drafts",
+    "attachedNotice": "Images and videos can't be kept in drafts, so you can't open post drafts while any are attached"
+  },
+  "embed": {
+    "playYoutubeTitled": "Play on YouTube: {{ title }}",
+    "playYoutube": "Play on YouTube",
+    "youtubeVideo": "YouTube video",
+    "xPost": "X post",
+    "showX": "Show X embed"
+  },
+  "event": {
+    "loading": "Loading…",
+    "replyTo": "Replying to",
+    "reposted": "reposted",
+    "repostSourceMissing": "The original post wasn't specified",
+    "repostSourceUnavailable": "Couldn't load the original post",
+    "unsupported": "Unsupported event (kind:{{ kind }})",
+    "unavailable": "Couldn't load this",
+    "broken": "Couldn't show this post",
+    "brokenWithKind": "Couldn't show this post (kind:{{ kind }})"
+  },
+  "eventActions": {
+    "reply": "Reply",
+    "repost": "Repost or quote",
+    "like": "Like",
+    "react": "React with an emoji",
+    "zap": "Zap",
+    "bookmark": "Bookmark",
+    "pin": "Pin to profile",
+    "activity": "View activity",
+    "timeslip": "Time-travel to this moment",
+    "copyLink": "Copy link",
+    "details": "Details (JSON and relays)",
+    "muteEvent": "Mute this event",
+    "broadcast": "Send to other relays too",
+    "reactWith": "React with {{ emoji }}",
+    "linkCopied": "Copied the link",
+    "linkCopyFailed": "Couldn't copy the link",
+    "unmuteEvent": "Unmute this event",
+    "unbookmark": "Remove bookmark",
+    "bookmarkUnavailable": "This message can't be bookmarked",
+    "unpin": "Unpin",
+    "pinUnavailable": "This post can't be pinned",
+    "gate": {
+      "reply": "Log in to reply",
+      "quote": "Log in to quote",
+      "broadcast": "Log in to resend this post to other relays"
+    },
+    "reposted": "Reposted",
+    "repostAction": "Repost",
+    "quote": "Quote",
+    "reacted": "{{ label }} (done)",
+    "reaction": "Reaction",
+    "zapAction": "Zap",
+    "zapUnavailable": "This person can't receive Zaps"
+  },
+  "eventMenu": {
+    "authorRelays": "Relay settings",
+    "addToList": "Add to list",
+    "unmuteAuthor": "Unmute",
+    "muteAuthor": "Mute",
+    "unfollow": "Unfollow",
+    "follow": "Follow",
+    "muteMore": "Mute…",
+    "postedFrom": "Posted from {{ client }}",
+    "label": "Post actions",
+    "thisEvent": "This event",
+    "delete": "Delete"
+  },
+  "linkCard": {
+    "loading": "Loading link info"
+  },
+  "media": {
+    "open": "Open image",
+    "enlarge": "View larger"
+  },
+  "muted": {
+    "label": "Muted post",
+    "show": "Show"
+  },
+  "quote": {
+    "title": "Quote",
+    "body": "Quote text",
+    "placeholder": "Add a comment",
+    "submit": "Quote"
+  },
+  "quoteChip": {
+    "ownerBefore": "by",
+    "ownerAfter": "· {{ kind }}"
+  },
+  "reactions": {
+    "count": {
+      "one": "{{ title }}, {{ count }} reaction",
+      "other": "{{ title }}, {{ count }} reactions"
+    },
+    "countMine": {
+      "one": "{{ title }}, {{ count }} reaction (you reacted)",
+      "other": "{{ title }}, {{ count }} reactions (you reacted)"
+    },
+    "showReactors": "Show who reacted",
+    "pick": "Pick a reaction"
+  },
+  "reply": {
+    "title": "Reply",
+    "titleArticle": "Comment on the article",
+    "untitledArticle": "Untitled article",
+    "body": "Reply text",
+    "placeholder": "Write a reply",
+    "submit": "Reply"
+  },
+  "targetCompose": {
+    "replyFailed": "Couldn't send the reply",
+    "quoteFailed": "Couldn't quote the post"
+  },
+  "viewer": {
+    "imageFailed": "Couldn't load the image",
+    "videoFailed": "Couldn't load the video",
+    "openPost": "Open post",
+    "label": "Enlarged attachment",
+    "previous": "Previous",
+    "next": "Next",
+    "close": "Close",
+    "openOriginalVideo": "Open original video",
+    "openOriginalImage": "Open original image"
+  },
+  "deleteDialog": {
+    "title": "Delete this post?",
+    "description": "This asks the relays that received the post to delete it. It may stay on relays that ignore the request and in apps that already received it. This can't be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  }
+}

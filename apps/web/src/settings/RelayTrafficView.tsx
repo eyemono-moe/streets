@@ -1,4 +1,3 @@
-import { kindLabel } from "@streets/core/nostr/kind-support";
 import type { RelayStatus } from "@streets/core/read/connection-pool";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
@@ -7,6 +6,7 @@ import type {
   TrafficSummary,
 } from "@streets/core/relay/relay-traffic";
 import { type Component, For, type JSX, Show } from "solid-js";
+import { kindLabel, locale, plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import RelaySummary from "./RelaySummary";
@@ -33,13 +33,20 @@ const formatBytes = (bytes: number): string => {
 
 const formatDuration = (ms: number): string => {
   const minutes = Math.floor(ms / 60_000);
-  if (minutes < 1) return `${Math.max(0, Math.round(ms / 1000))} 秒`;
-  if (minutes < 60) return `${minutes} 分`;
-  return `${Math.floor(minutes / 60)} 時間 ${minutes % 60} 分`;
+  if (minutes < 1) {
+    return t("settings.traffic.duration.seconds", {
+      seconds: Math.max(0, Math.round(ms / 1000)),
+    });
+  }
+  if (minutes < 60) return t("settings.traffic.duration.minutes", { minutes });
+  return t("settings.traffic.duration.hours", {
+    hours: Math.floor(minutes / 60),
+    minutes: minutes % 60,
+  });
 };
 
 const formatTime = (ms: number): string =>
-  new Date(ms).toLocaleTimeString("ja-JP", {
+  new Date(ms).toLocaleTimeString(locale(), {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -47,7 +54,7 @@ const formatTime = (ms: number): string =>
 const percent = (part: number, whole: number) =>
   whole === 0 ? 0 : Math.round((part / whole) * 100);
 
-const count = (value: number) => value.toLocaleString("ja-JP");
+const count = (value: number) => value.toLocaleString(locale());
 
 /** リレーごとの通信量。見るだけで、変えられるのは数え直すことだけ。 */
 const RelayTrafficView: Component<RelayTrafficViewProps> = (props) => {
@@ -57,34 +64,46 @@ const RelayTrafficView: Component<RelayTrafficViewProps> = (props) => {
   return (
     <SettingsSection
       id="relayTraffic"
-      description="このタブを開いてから、リレーとやりとりしたデータの量です。回線で圧縮される前のサイズで表示しています。"
+      description={t("settings.traffic.description")}
     >
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="c-secondary text-caption">
-          {`${formatTime(props.since)} から（${formatDuration(props.elapsedMs)}）`}
+          {t("settings.traffic.since", {
+            time: formatTime(props.since),
+            duration: formatDuration(props.elapsedMs),
+          })}
         </span>
         <Button
           size="sm"
           onClick={() => dispatch({ type: "stats/reset-traffic" })}
         >
-          数え直す
+          {t("settings.traffic.reset")}
         </Button>
       </div>
       <dl class="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-2">
-        <Total label="受け取った" value={formatBytes(props.summary.received)} />
-        <Total label="送った" value={formatBytes(props.summary.sent)} />
-        <Total label="イベント" value={count(props.summary.events)} />
         <Total
-          label="重複"
+          label={t("settings.traffic.received")}
+          value={formatBytes(props.summary.received)}
+        />
+        <Total
+          label={t("settings.traffic.sent")}
+          value={formatBytes(props.summary.sent)}
+        />
+        <Total
+          label={t("settings.traffic.events")}
+          value={count(props.summary.events)}
+        />
+        <Total
+          label={t("settings.traffic.duplicates")}
           value={`${percent(props.summary.duplicates, props.summary.events)}%`}
-          note="別のリレーから先に受け取っていたもの"
+          note={t("settings.traffic.duplicatesNote")}
         />
       </dl>
       <Show
         when={props.summary.relays.length > 0}
         fallback={
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            まだどのリレーともやりとりしていません。
+            {t("settings.traffic.none")}
           </p>
         }
       >
@@ -148,8 +167,11 @@ const Amount: Component<{ relay: RelayTrafficSummary; largest: number }> = (
     />
     <span class="c-secondary text-caption">
       {props.relay.events === 0
-        ? "受け取ったイベントはありません"
-        : `イベント ${count(props.relay.events)}・重複 ${percent(props.relay.duplicates, props.relay.events)}%`}
+        ? t("settings.traffic.noEvents")
+        : t("settings.traffic.eventSummary", {
+            events: count(props.relay.events),
+            percent: percent(props.relay.duplicates, props.relay.events),
+          })}
     </span>
   </span>
 );
@@ -173,7 +195,7 @@ const Breakdown: Component<{ relay: RelayTrafficSummary }> = (props) => {
             label: kindLabel(kind.kind),
             count: kind.count,
           })),
-          { label: "そのほか", count: rest },
+          { label: t("settings.traffic.other"), count: rest },
         ]
       : shown.map((kind) => ({
           label: kindLabel(kind.kind),
@@ -182,25 +204,40 @@ const Breakdown: Component<{ relay: RelayTrafficSummary }> = (props) => {
   };
   return (
     <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-3 pb-3 pl-14 text-caption">
-      <Row label="受け取った">
-        {`${formatBytes(props.relay.received)}（イベント ${formatBytes(props.relay.receivedEvents)}・そのほか ${formatBytes(props.relay.received - props.relay.receivedEvents)}）`}
+      <Row label={t("settings.traffic.received")}>
+        {t("settings.traffic.receivedBreakdown", {
+          total: formatBytes(props.relay.received),
+          events: formatBytes(props.relay.receivedEvents),
+          rest: formatBytes(props.relay.received - props.relay.receivedEvents),
+        })}
       </Row>
-      <Row label="送った">{formatBytes(props.relay.sent)}</Row>
-      <Row label="つないでいた時間">
+      <Row label={t("settings.traffic.sent")}>
+        {formatBytes(props.relay.sent)}
+      </Row>
+      <Row label={t("settings.traffic.connectedTime")}>
         {props.relay.reconnects > 0
-          ? `${formatDuration(props.relay.connectedMs)}（つなぎ直し ${props.relay.reconnects} 回）`
+          ? plural(
+              "settings.traffic.connectedWithReconnects",
+              props.relay.reconnects,
+              {
+                duration: formatDuration(props.relay.connectedMs),
+              },
+            )
           : formatDuration(props.relay.connectedMs)}
       </Row>
-      <Row label="同時の購読">
-        {`いま ${props.relay.subscriptions}・いちばん多いとき ${props.relay.peakSubscriptions}`}
+      <Row label={t("settings.traffic.subscriptions")}>
+        {t("settings.traffic.subscriptionsValue", {
+          current: props.relay.subscriptions,
+          peak: props.relay.peakSubscriptions,
+        })}
       </Row>
       <Show when={props.relay.queuedReqs > 0}>
-        <Row label="待たせた取得">
-          {`${props.relay.queuedReqs} 回（リレーが同時に受ける購読の数に達していた）`}
+        <Row label={t("settings.traffic.queued")}>
+          {plural("settings.traffic.queuedValue", props.relay.queuedReqs)}
         </Row>
       </Show>
       <Show when={props.relay.events > 0}>
-        <Row label="イベントの種類">
+        <Row label={t("settings.traffic.kinds")}>
           <ul class="flex flex-col gap-1">
             <For each={kinds()}>
               {(kind) => (

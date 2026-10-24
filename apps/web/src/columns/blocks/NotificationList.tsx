@@ -26,6 +26,7 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
+import { t } from "../../i18n/locale";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
 import MutedGate from "../../note/MutedGate";
@@ -162,7 +163,7 @@ const NotificationList: Component<{
             itemKey={(row) => row.key}
             followsStart={windowed.followsStart}
             newer={{
-              noun: "通知",
+              noun: "notification",
               authorOf: rowAuthor,
               pending: windowed.pending,
               latest: windowed.latest,
@@ -191,10 +192,12 @@ const NotificationList: Component<{
         <OlderLoader paging={section.paging()} onReach={section.loadMore} />
       </Match>
       <Match when={section.status().phase === "settled"}>
-        <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
+        <p class="c-secondary p-4 text-caption">
+          {t("columns.blocks.empty.posts")}
+        </p>
       </Match>
       <Match when={true}>
-        <p class="c-secondary p-4 text-caption">読み込み中…</p>
+        <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
       </Match>
     </Switch>
   );

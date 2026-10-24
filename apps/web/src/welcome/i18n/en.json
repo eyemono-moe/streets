@@ -1,0 +1,145 @@
+{
+  "head": {
+    "description": "Streets is an app for reading Nostr posts. Turn Home, notifications, search and more into columns and line them up in the order you like."
+  },
+  "features": {
+    "nostr": {
+      "title": "Use it with a Nostr account",
+      "lead": "Streets is built on Nostr, a shared standard for decentralized social networks. Your posts are stored on servers called relays, so you can read them from many different apps.",
+      "otherApps": {
+        "title": "Works in other apps too",
+        "body": "You can sign in to other Nostr apps with the same account, and the list of people you follow comes with you."
+      },
+      "findRelays": {
+        "title": "Finds where people post",
+        "body": "Streets looks up the relays the people you follow post to, and reads from them."
+      },
+      "guide": "Learn more about Nostr"
+    },
+    "columns": {
+      "title": "Line up what you want to see",
+      "lead": "Add Home, notifications, search and more as columns.",
+      "kindsLabel": "Column types",
+      "kinds": {
+        "home": "Home",
+        "notifications": "Notifications",
+        "search": "Search",
+        "lists": "Lists",
+        "channels": "Channels",
+        "users": "Users",
+        "bookmarks": "Bookmarks",
+        "articles": "Long-form articles"
+      },
+      "add": "Try adding a column"
+    },
+    "custom": {
+      "title": "Easy to read, easy to use",
+      "lead": "Change the color theme and keyboard shortcuts to suit you.",
+      "theme": "Color theme",
+      "brightness": "Brightness",
+      "schemes": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "Match this device"
+      },
+      "keyboard": {
+        "title": "Use the keyboard too",
+        "moveToColumn": "Jump to the 1st to 9th column from the left",
+        "openPalette": "Find and open features by name",
+        "settingsKey": "Settings",
+        "changeKeys": "Change the keys for common actions"
+      }
+    },
+    "others": {
+      "title": "And more",
+      "timeTravel": "Travel back to the date of a post and look through the timeline around it",
+      "customEmoji": "Make custom emoji from text",
+      "pip": "Show a column in picture-in-picture so you can keep reading while you have another window open"
+    },
+    "nav": {
+      "label": "About Streets",
+      "about": "About Streets",
+      "nips": "Supported NIPs",
+      "releases": "Release notes"
+    }
+  },
+  "login": {
+    "back": "Back",
+    "choose": {
+      "heading": "Get started",
+      "browseHint": "You can read posts in the other columns without signing in."
+    },
+    "new": {
+      "title": "Get started with Nostr",
+      "description": "We'll walk you through creating an account"
+    },
+    "existing": {
+      "title": "I already have an account",
+      "description": "Sign in with your current Nostr account"
+    },
+    "browse": {
+      "title": "Read without signing in",
+      "description": "You don't need an account just to look at posts"
+    },
+    "retry": "Try again",
+    "extension": {
+      "title": "Sign in with an extension",
+      "description": "Ask a browser extension such as nos2x or Alby to sign for you"
+    },
+    "remote": {
+      "title": "Sign in with a remote signer",
+      "description": "Ask another app that holds your key, such as Amber or Primal, to sign for you"
+    },
+    "approve": "Approve the connection in your signer"
+  },
+  "newcomer": {
+    "intro": "On Nostr, your secret key is the key to your account. Keep it safe, never show it to anyone, and don't lose it. Streets doesn't store your secret key. It works through a dedicated app or extension instead.",
+    "deviceLabel": "Your device",
+    "devices": {
+      "pc": "Computer"
+    },
+    "steps": {
+      "getApp": "Get an app that stores your secret key.",
+      "createAccountInApp": "Open the app and follow its prompts to create an account.",
+      "remoteLogin": "Go back to Streets, press \"Open in this device's signer\" under \"Sign in with a remote signer\", and approve in the app.",
+      "getExtension": "Get an extension that stores your secret key.",
+      "createAccountInExtension": "Open the extension's settings and create an account (key).",
+      "extensionLogin": "Go back to Streets and press \"Sign in with an extension\"."
+    },
+    "pcAlternative": "If you'd rather not install an extension, create an account in a phone app and scan the QR code under \"Sign in with a remote signer\" to sign in.",
+    "keyWarning": "If you lose the secret key made by an app or extension, you can never get it back. Follow its prompts to make a backup.",
+    "guide": "Getting started with Nostr",
+    "done": "Account created? Continue to sign in"
+  },
+  "remote": {
+    "wayLabel": "How to connect to a remote signer",
+    "qr": "Connect with a QR code",
+    "paste": "Paste a string"
+  },
+  "bunker": {
+    "label": "String starting with bunker://",
+    "submit": "Connect",
+    "note": "Paste the string starting with bunker:// that your signer shows.",
+    "secretKey": "This is a secret key. Streets doesn't accept secret keys, because if one ever leaks there is no way to recover the account. Store your secret key in an extension or signer, then sign in with that.",
+    "secretKeyReason": "Why you should never share your secret key"
+  },
+  "connect": {
+    "copied": "Copied the connection string",
+    "copyFailed": "Couldn't copy",
+    "waiting": "Scan this with your signer app and approve. Waiting for approval…",
+    "resumed": "Waiting for approval of the connection you opened earlier. If you approved it in your signer app but it still isn't connected, open it again with \"Open in this device's signer\".",
+    "copy": "Copy",
+    "openHere": "Open in this device's signer",
+    "failed": "Couldn't connect to your signer. It wasn't approved in time, or the connection dropped.",
+    "retry": "Try again"
+  },
+  "diagram": {
+    "label": "One account used with Streets and other apps, with posts from every app stored on relays",
+    "account": "Account",
+    "otherApp": "Other app",
+    "relay": "Relay"
+  },
+  "reorderDemo": {
+    "label": "Grabbing a column's header and swapping it with the next column"
+  }
+}

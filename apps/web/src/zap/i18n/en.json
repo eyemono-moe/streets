@@ -1,0 +1,44 @@
+{
+  "sent": "Zap sent",
+  "errors": {
+    "noResponse": "The recipient's server didn't respond ({{ status }})",
+    "badAmount": "Couldn't read the amount",
+    "noEndpoint": "This person hasn't set up a place to receive Zaps",
+    "notAccepted": "This recipient doesn't accept Zaps",
+    "outOfRange": "This recipient accepts {{ min }} to {{ max }} sats",
+    "invoiceMismatch": "The invoice amount doesn't match the amount you chose",
+    "sendFailed": "Couldn't send the Zap"
+  },
+  "dialog": {
+    "title": "Send a Zap",
+    "sats": "{{ amount }} sats",
+    "amount": {
+      "title": "Amount",
+      "custom": "Other",
+      "customLabel": "Amount (sats)",
+      "placeholder": "Amount"
+    },
+    "message": {
+      "label": "Message",
+      "optional": " (optional)",
+      "placeholder": "Thank you!"
+    },
+    "submit": {
+      "fetching": "Getting an invoice…",
+      "send": "Zap {{ amount }}",
+      "needAmount": "Enter an amount"
+    },
+    "payment": {
+      "copied": "Invoice copied",
+      "copyFailed": "Couldn't copy",
+      "webln": "Confirm the payment in your browser wallet…",
+      "manual": "Scan this with a Lightning wallet to pay. This closes once the payment arrives.",
+      "copy": "Copy",
+      "openWallet": "Open in wallet"
+    }
+  },
+  "notice": {
+    "sats": "{{ amount }} sats",
+    "from": "from"
+  }
+}

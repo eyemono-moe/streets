@@ -1,5 +1,6 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
 import { type Component, Show } from "solid-js";
+import { t } from "../i18n/locale";
 import UserCardHover from "../profile/UserCardHover";
 import { useDispatch } from "../ui-events";
 import AvatarImage from "../ui/Avatar";
@@ -53,7 +54,7 @@ const Avatar: Component<{
           <button
             {...triggerProps({
               type: "button",
-              "aria-label": "この人のカラムを開く",
+              "aria-label": t("note.avatar.openColumn"),
               class:
                 "shrink-0 overflow-hidden bg-secondary p-0 enabled:cursor-pointer",
               onClick: () =>

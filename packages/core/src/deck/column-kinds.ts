@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { Message, MessageKey } from "../i18n/message";
 import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { SectionStatus } from "../read/source";
@@ -160,14 +161,21 @@ export type ColumnSourceOf<K extends ColumnKind> = Extract<
  * カラムは、名前を読み取ってから出す（`person` の部分を名前に置き換える）。
  */
 export type ColumnTitle =
+  /** 人が書いた文字（ハッシュタグ・検索の条件・足したときの題名）。 */
   | { text: string }
-  | { person: string; suffix: string }
-  /** チャンネルは、情報が届いたらその名前に `suffix` を続けて呼ぶ。届くまでは `fallback`。 */
-  | { channel: string; suffix: string; fallback: string }
-  /** リストも、届いたらその名前に `suffix` を続けて呼ぶ。届くまでは `fallback`（開いたときの名前）。 */
+  | { message: Message }
+  /**
+   * 人・チャンネル・リストの名前で呼ぶ。`message` は名前を `{{ name }}` に入れる文
+   * （「{{ name }} のフォロー」）。無ければ名前だけ。語順が言語で違うので、名前の前後を
+   * 分けて持たない。
+   */
+  | { person: string; message?: Message }
+  /** チャンネルは、情報が届くまでは `fallback` を名前の代わりにする。 */
+  | { channel: string; message?: Message; fallback: string }
+  /** リストも、届くまでは `fallback`（開いたときの名前）を名前の代わりにする。 */
   | {
       followSet: { pubkey: string; identifier: string };
-      suffix: string;
+      message?: Message;
       fallback: string;
     };
 
@@ -176,9 +184,9 @@ export type ColumnFacet = keyof ColumnShow;
 
 export type ColumnAlert = {
   /** ヘッダのアイコンを押したときに出る一行 */
-  message: string;
+  message: Message;
   /** ユーザーが取れる行動 */
-  action: string;
+  action: Message;
 };
 
 export type ColumnAlertInput = {
@@ -230,24 +238,31 @@ type ColumnKindDef<S> = {
   chosenRelays?: (source: S) => readonly string[];
 };
 
+const alert = (message: Message, action: MessageKey): ColumnAlert => ({
+  message,
+  action: { key: action },
+});
+
 /** 読み込みリレーだけを読んでいるなら、そこが落ちると何も出ない。 */
 const directReadUnreachable = (input: ColumnAlertInput): ColumnAlert[] => {
   const unreachable = input.status.incomplete?.unreachableRelays ?? 0;
   return input.readMode === "direct" && unreachable > 0
     ? [
-        {
-          message: `読み込みに使うリレーに接続できません (${unreachable} 本)`,
-          action:
-            "設定の「リレー」で読み込みリレーを確かめるか、読み方を「人ごとに選ぶ」に戻してください",
-        },
+        alert(
+          {
+            key: "column.alert.directUnreachable",
+            count: unreachable,
+          },
+          "column.alert.directUnreachableAction",
+        ),
       ]
     : [];
 };
 
-const relayLabelOf = (relays: readonly string[]): string =>
+const relayLabelOf = (relays: readonly string[]): ColumnTitle =>
   relays.length === 1
-    ? relays[0].replace(/\/$/, "")
-    : `リレー（${relays.length}）`;
+    ? { text: relays[0].replace(/\/$/, "") }
+    : { message: { key: "column.title.relays", count: relays.length } };
 
 const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   literal: {
@@ -260,8 +275,26 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       const onlyKinds = source.filters.every((filter) =>
         Object.keys(filter).every((key) => key === "kinds"),
       );
+      if (
+        source.filters.every((filter) =>
+          Object.keys(filter).every((key) => key === "ids"),
+        )
+      ) {
+        return { message: { key: "column.title.note" } };
+      }
+      // 住所で指したイベント 1 件（`columnForAddress`）は、その kind の名前で呼ぶ。
+      const [only] = source.filters;
+      if (
+        source.filters.length === 1 &&
+        only?.kinds?.length === 1 &&
+        only["#d"]?.length === 1
+      ) {
+        return {
+          message: { key: "column.title.kind", args: { kind: only.kinds[0] } },
+        };
+      }
       if (onlyKinds && source.relays && source.relays.length > 0) {
-        return { text: relayLabelOf(source.relays) };
+        return relayLabelOf(source.relays);
       }
       // 条件を直に書いたカラム（「自分の投稿」など）は、中身から名前を決められない。
       // 足したときの題名を使う。
@@ -275,7 +308,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
         : undefined,
     muted: "hide",
     chosenRelays: (source) => source.relays ?? [],
-    alerts: (source, input) => {
+    alerts: (source, input): ColumnAlert[] => {
       const unreachable = input.status.incomplete?.unreachableRelays ?? 0;
       const blocked =
         source.relays?.filter((url) => input.blockedRelays.includes(url)) ?? [];
@@ -283,19 +316,24 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       return [
         ...(blocked.length > 0
           ? [
-              {
-                message: `指定したリレーのうち ${blocked.length} 本は、繋がないリレーにしているため読みません`,
-                action:
-                  "設定の「リレー」で繋がないリレーから外すか、カラムの設定でそのリレーを外してください",
-              },
+              alert(
+                {
+                  key: "column.alert.relaysBlocked",
+                  count: blocked.length,
+                },
+                "column.alert.relaysBlockedAction",
+              ),
             ]
           : []),
         ...(source.relays !== undefined && unreachable > 0
           ? [
-              {
-                message: `指定したリレーに接続できません (${unreachable} 本)`,
-                action: "カラムの設定でリレーの URL を確認してください",
-              },
+              alert(
+                {
+                  key: "column.alert.relaysUnreachable",
+                  count: unreachable,
+                },
+                "column.alert.relaysUnreachableAction",
+              ),
             ]
           : []),
       ];
@@ -311,7 +349,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     muted: "hide",
   },
   followees: {
-    title: () => ({ text: "ホーム" }),
+    title: () => ({ message: { key: "column.title.home" } }),
     // チャンネルでの発言は保存した kinds に無く、「表示するもの」で入れたときに取る。
     kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
     muted: "hide",
@@ -320,7 +358,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     needsAccount: true,
   },
   timeslip: {
-    title: () => ({ text: "タイムスリップ" }),
+    title: () => ({ message: { key: "column.title.timeslip" } }),
     kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
     muted: "hide",
     togglesChats: true,
@@ -328,7 +366,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     needsAccount: true,
   },
   "followees-activity": {
-    title: () => ({ text: "みんなのアクティビティ" }),
+    title: () => ({ message: { key: "column.title.followeesActivity" } }),
     kinds: () => FOLLOWEES_ACTIVITY_KINDS,
     muted: "hide",
     foldsMuted: false,
@@ -336,7 +374,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     needsAccount: true,
   },
   notifications: {
-    title: () => ({ text: "通知" }),
+    title: () => ({ message: { key: "column.title.notifications" } }),
     kinds: () => NOTIFICATION_KINDS,
     muted: "hide",
     needsAccount: true,
@@ -354,55 +392,55 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
         return [
           {
             // missing は取得 timeout も含む (未確定なだけ) ので、publish 済みの人にも意味が通る文言にする。
-            message:
-              "あなたのリレー設定 (kind:10002) が見つからないか取得できなかったため、既定のリレーで待っています",
-            action:
-              "通知が届かない場合は、リレー設定を publish しているか確認してください",
+            message: { key: "column.alert.relayListMissing" },
+            action: { key: "column.alert.relayListMissingAction" },
           },
         ];
       }
       // kind:10002 は引けていても read リレーが全滅なら、`literal` 列と同じ理由で知らせる。
       return relayList.phase === "ready" && unreachable > 0
         ? [
-            {
-              message: `あなたの設定した read リレーに接続できません (${unreachable} 本)`,
-              action:
-                "リレー設定 (kind:10002) の read リレーを確認してください",
-            },
+            alert(
+              {
+                key: "column.alert.readRelaysUnreachable",
+                count: unreachable,
+              },
+              "column.alert.readRelaysUnreachableAction",
+            ),
           ]
         : [];
     },
   },
   bookmarks: {
-    title: () => ({ text: "ブックマーク" }),
+    title: () => ({ message: { key: "column.title.bookmarks" } }),
     // id で引くので kind は決まらない。何を保存したかは人による。
     kinds: () => undefined,
     muted: "show",
     needsAccount: true,
   },
   article: {
-    title: () => ({ text: "長文記事" }),
+    title: () => ({ message: { key: "column.title.article" } }),
     kinds: () => [LONG_FORM_KIND],
     muted: "hide",
     foldsMuted: false,
   },
   thread: {
-    title: () => ({ text: "スレッド" }),
+    title: () => ({ message: { key: "column.title.thread" } }),
     kinds: () => [1],
     // 開いた投稿は出したまま、前後のミュートに当たる投稿を畳む。
     muted: "fold",
   },
   activity: {
-    title: () => ({ text: "アクティビティ" }),
+    title: () => ({ message: { key: "column.title.activity" } }),
     kinds: () => [],
     muted: "show",
   },
   user: {
-    title: (source) => ({ person: source.pubkey, suffix: "" }),
+    title: (source) => ({ person: source.pubkey }),
     kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
     muted: "show",
     togglesChats: true,
-    alerts: (_, input) => [
+    alerts: (_, input): ColumnAlert[] => [
       ...directReadUnreachable(input),
       // 1 人を見るカラムでは、その人のリレー設定が無いと既定のリレーにしか行けない。
       // フォロー中の人のカラムでは、設定の無い人が少しいるのは普通なので出さない。
@@ -410,41 +448,44 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       input.status.phase === "settled" &&
       (input.status.incomplete?.unroutableAuthors ?? 0) > 0
         ? [
-            {
-              message:
-                "この人のリレー設定が見つからないため、既定のリレーから読んでいます",
-              action:
-                "投稿が出ない場合は、設定の「リレー」で読み方を「読み込みリレーだけ」に切り替えてください",
-            },
+            alert(
+              { key: "column.alert.unroutable" },
+              "column.alert.unroutableAction",
+            ),
           ]
         : []),
     ],
   },
   "followees-list": {
-    title: (source) => ({ person: source.pubkey, suffix: " のフォロー" }),
+    title: (source) => ({
+      person: source.pubkey,
+      message: { key: "column.title.followees" },
+    }),
     kinds: () => [3],
   },
   "followers-list": {
-    title: (source) => ({ person: source.pubkey, suffix: " のフォロワー" }),
+    title: (source) => ({
+      person: source.pubkey,
+      message: { key: "column.title.followers" },
+    }),
     kinds: () => [3],
   },
   "channel-info": {
     title: (source, column) => ({
       channel: source.id,
-      suffix: "の情報",
+      message: { key: "column.title.info" },
       fallback: column.title,
     }),
     kinds: () => [],
   },
   "follow-sets": {
-    title: () => ({ text: "リスト" }),
+    title: () => ({ message: { key: "column.title.followSets" } }),
     kinds: () => [],
     needsAccount: true,
   },
   "follow-set": {
     title: (source, column) => ({
       followSet: { pubkey: source.pubkey, identifier: source.identifier },
-      suffix: "",
       fallback: column.title,
     }),
     kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
@@ -456,20 +497,19 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   "follow-set-info": {
     title: (source, column) => ({
       followSet: { pubkey: source.pubkey, identifier: source.identifier },
-      suffix: "の情報",
+      message: { key: "column.title.info" },
       fallback: column.title,
     }),
     kinds: () => [],
   },
   "channel-list": {
-    title: () => ({ text: "チャンネル" }),
+    title: () => ({ message: { key: "column.title.channels" } }),
     kinds: () => [],
   },
   channel: {
     // URL などから開いたカラムは、足したときに名前を知らない。情報が届いたら名前で呼ぶ。
     title: (source, column) => ({
       channel: source.id,
-      suffix: "",
       fallback: column.title,
     }),
     kinds: () => [CHANNEL_MESSAGE_KIND],
@@ -477,7 +517,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     foldsMuted: false,
   },
   welcome: {
-    title: () => ({ text: "Streets へようこそ" }),
+    title: () => ({ message: { key: "column.title.welcome" } }),
     kinds: () => [],
   },
 };

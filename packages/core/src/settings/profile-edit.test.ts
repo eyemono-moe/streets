@@ -115,7 +115,7 @@ describe("profileErrors", () => {
       website: "https://example.com",
     });
     expect(errors).toEqual({
-      picture: "https:// で始まる URL を入力してください",
+      picture: { key: "profile.error.url" },
     });
   });
 

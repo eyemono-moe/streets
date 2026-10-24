@@ -6,6 +6,7 @@ import {
   onCleanup,
 } from "solid-js";
 import * as v from "valibot";
+import type { Message } from "../i18n/message";
 import type { NostrEvent } from "../nostr/event";
 import type { Scheduler } from "../read/scheduler";
 import { defaultScheduler } from "../read/scheduler";
@@ -29,7 +30,7 @@ export type Nip78DocumentState =
    * 同期を試して失敗にすると、再試行しても直らない失敗が出続ける。
    */
   | { phase: "ready"; sync: "local-only" }
-  | { phase: "error"; message: string; retryable: boolean }
+  | { phase: "error"; message: Message; retryable: boolean }
   | { phase: "conflict"; remoteCreatedAt: number };
 
 export type Nip78Document<T> = {
@@ -151,8 +152,7 @@ export const createNip78Document = <T>(
 
   const storageErrorState = (): Nip78DocumentState => ({
     phase: "error",
-    message:
-      "この端末へ同期データを保存できませんでした。ブラウザのストレージ設定を確認してください",
+    message: { key: "sync.error.storage" },
     retryable: true,
   });
 
@@ -246,16 +246,19 @@ export const createNip78Document = <T>(
     persistLocal();
   };
 
-  const errorMessage = (cause: unknown, operation: "load" | "save") => {
+  const errorMessage = (
+    cause: unknown,
+    operation: "load" | "save",
+  ): Message => {
     if (cause instanceof Nip44UnavailableError) {
-      return "このログインの方法では、デッキを暗号化して同期できません";
+      return { key: "sync.error.nip44Unavailable" };
     }
     if (cause instanceof InvalidNip78DocumentError) {
-      return "リレー上の同期データを読み取れませんでした";
+      return { key: "sync.error.invalidRemote" };
     }
-    return operation === "load"
-      ? "同期データを取得できませんでした。接続を確認して再試行してください"
-      : "同期データを保存できませんでした。署名器と接続を確認して再試行してください";
+    return {
+      key: operation === "load" ? "sync.error.load" : "sync.error.save",
+    };
   };
 
   const validRun = (expectedGeneration: number, expectedAuthor: string) =>

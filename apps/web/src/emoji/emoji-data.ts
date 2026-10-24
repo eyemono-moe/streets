@@ -1,4 +1,5 @@
 import type { UnicodeEmojiRow } from "../../emoji-data-plugin";
+import { t } from "../i18n/locale";
 
 /**
  * ピッカーに並べる絵文字。Unicode の絵文字と、誰かが作ったカスタム絵文字の
@@ -27,38 +28,49 @@ export type PickerGroup = {
   emojis: PickerEmoji[];
 };
 
+type GroupName =
+  | "smileys"
+  | "people"
+  | "animals"
+  | "food"
+  | "travel"
+  | "activities"
+  | "objects"
+  | "symbols"
+  | "flags";
+
 /**
  * emojibase のグループ番号に付ける名前とアイコン。2（肌色などの部品）は単体では
  * 使わないので出さない。
  */
-const GROUPS: Record<number, { title: string; icon: string }> = {
+const GROUPS: Record<number, { name: GroupName; icon: string }> = {
   0: {
-    title: "顔と気持ち",
+    name: "smileys",
     icon: "i-material-symbols:sentiment-satisfied-outline-rounded",
   },
-  1: { title: "人と体", icon: "i-material-symbols:emoji-people-rounded" },
+  1: { name: "people", icon: "i-material-symbols:emoji-people-rounded" },
   3: {
-    title: "動物と自然",
+    name: "animals",
     icon: "i-material-symbols:pets",
   },
   4: {
-    title: "食べ物と飲み物",
+    name: "food",
     icon: "i-material-symbols:fastfood-outline-rounded",
   },
   5: {
-    title: "旅行と場所",
+    name: "travel",
     icon: "i-material-symbols:emoji-transportation-outline-rounded",
   },
   6: {
-    title: "アクティビティ",
+    name: "activities",
     icon: "i-material-symbols:sports-tennis-outline-rounded",
   },
   7: {
-    title: "もの",
+    name: "objects",
     icon: "i-material-symbols:emoji-objects-outline-rounded",
   },
-  8: { title: "記号", icon: "i-material-symbols:emoji-symbols-rounded" },
-  9: { title: "旗", icon: "i-material-symbols:flag-outline-rounded" },
+  8: { name: "symbols", icon: "i-material-symbols:emoji-symbols-rounded" },
+  9: { name: "flags", icon: "i-material-symbols:flag-outline-rounded" },
 };
 
 const build = (rows: readonly UnicodeEmojiRow[]): PickerGroup[] => {
@@ -73,9 +85,13 @@ const build = (rows: readonly UnicodeEmojiRow[]): PickerGroup[] => {
   return Object.entries(GROUPS)
     .map(([group, meta]) => ({ group: Number(group), ...meta }))
     .filter(({ group }) => byGroup.has(group))
-    .map(({ group, title, icon }) => ({
+    .map(({ group, name, icon }) => ({
       id: `unicode-${group}`,
-      title,
+      // 一覧は読み込んだ結果を使い回すので、題名は読むたびに引く。値で持つと、
+      // 言語を切り替えても変わらない。
+      get title() {
+        return t(`emoji.groups.${name}`);
+      },
       icon,
       emojis: byGroup.get(group) ?? [],
     }));

@@ -4,9 +4,22 @@ import {
   formatEventTimeFull,
 } from "@streets/core/view/format-time";
 import { type Component, For, Show } from "solid-js";
+import { t, locale } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import Name from "./Name";
+
+/** 名前の前後に置く語。語順が言語で違うので、前後に分けて辞書に持つ。 */
+const targetLabel = (type: "reply" | "quote") =>
+  type === "reply"
+    ? {
+        before: t("note.drafts.replyBefore"),
+        after: t("note.drafts.replyAfter"),
+      }
+    : {
+        before: t("note.drafts.quoteBefore"),
+        after: t("note.drafts.quoteAfter"),
+      };
 
 const DraftRow: Component<{
   draft: ComposeDraft;
@@ -39,12 +52,17 @@ const DraftRow: Component<{
                 aria-hidden="true"
               />
               {/* 名前が長くても、返信か引用かは切らずに見せる。 */}
+              <Show when={targetLabel(target().type).before !== ""}>
+                <span class="shrink-0">
+                  {targetLabel(target().type).before}
+                </span>
+              </Show>
               <span class="truncate">
                 <Name pubkey={target().event.pubkey} />
               </span>
-              <span class="shrink-0">
-                {target().type === "reply" ? "への返信" : "の投稿を引用"}
-              </span>
+              <Show when={targetLabel(target().type).after !== ""}>
+                <span class="shrink-0">{targetLabel(target().type).after}</span>
+              </Show>
             </span>
           )}
         </Show>
@@ -55,7 +73,8 @@ const DraftRow: Component<{
               aria-hidden="true"
             />
             <span class="truncate">
-              {props.draft.contentWarning?.trim() || "閲覧注意"}
+              {props.draft.contentWarning?.trim() ||
+                t("note.drafts.contentWarning")}
             </span>
           </span>
         </Show>
@@ -65,12 +84,12 @@ const DraftRow: Component<{
         <span class="c-secondary flex items-center gap-1 text-caption">
           <time
             datetime={savedAt().toISOString()}
-            title={formatEventTimeFull(savedAt())}
+            title={formatEventTimeFull(savedAt(), locale())}
           >
-            {formatEventTime(savedAt(), props.now)}
+            {formatEventTime(savedAt(), props.now, locale())}
           </time>
           <Show when={!props.draft.kept}>
-            <span>・自動保存</span>
+            <span>{t("note.drafts.autoSaved")}</span>
           </Show>
         </span>
       </button>
@@ -78,7 +97,7 @@ const DraftRow: Component<{
         <IconButton
           size="sm"
           icon="i-material-symbols:delete-outline-rounded"
-          label="この下書きを消す"
+          label={t("note.drafts.remove")}
           onClick={() =>
             dispatch({ type: "compose/draft-remove", id: props.draft.id })
           }
@@ -102,10 +121,12 @@ const ComposeDrafts: Component<{
 }> = (props) => (
   <Show when={props.drafts.length > 0}>
     <section class="flex flex-col gap-1.5">
-      <h3 class="c-secondary font-600 text-caption">下書き</h3>
+      <h3 class="c-secondary font-600 text-caption">
+        {t("note.drafts.title")}
+      </h3>
       <Show when={props.attached}>
         <p class="c-secondary text-caption">
-          画像や動画は下書きに残せないため、添えている間は投稿の下書きを開けません
+          {t("note.drafts.attachedNotice")}
         </p>
       </Show>
       <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">

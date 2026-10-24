@@ -23,6 +23,7 @@ import {
 import { Dynamic } from "solid-js/web";
 import ArticleCard from "../article/ArticleCard";
 import EmojiSetCard from "../emoji/EmojiSetCard";
+import { t, message } from "../i18n/locale";
 import FollowSetCard from "../lists/FollowSetCard";
 import ListSetCard from "../lists/ListSetCard";
 import PollBlock from "../poll/PollBlock";
@@ -207,7 +208,7 @@ const Lookup: Component<{
       </Match>
       <Match when={true}>
         <div class={props.noticeClass}>
-          <Notice>読み込み中…</Notice>
+          <Notice>{t("note.event.loading")}</Notice>
         </div>
       </Match>
     </Switch>
@@ -225,7 +226,7 @@ const CommentScopeLines: Component<{ scope: CommentScope }> = (props) => (
         class="i-material-symbols:mode-comment-outline-rounded size-3.5 shrink-0"
         aria-hidden="true"
       />
-      <span>{props.scope.label}</span>
+      <span>{message(props.scope.label)}</span>
     </p>
     <Show when={props.scope.type === "external" && props.scope} keyed>
       {(scope) => (
@@ -274,7 +275,7 @@ const Note: Component<ContentProps> = (props) => {
           <Show when={replyTo()}>
             {(pubkey) => (
               <p class="c-secondary flex min-w-0 gap-1 text-caption">
-                <span class="shrink-0">返信先</span>
+                <span class="shrink-0">{t("note.event.replyTo")}</span>
                 <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
               </p>
             )}
@@ -319,14 +320,17 @@ const Repost: Component<ContentProps> = (props) => {
       <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
         <span class="i-material-symbols:repeat-rounded size-3.5 shrink-0" />
         <UserLink pubkey={props.event.pubkey} class="min-w-0 truncate" />
-        <span class="shrink-0">がリポスト</span>
+        <span class="shrink-0">{t("note.event.reposted")}</span>
       </p>
       <Show
         when={resolveRepostTarget(props.event, store)}
-        fallback={<Notice>リポスト元が指定されていません</Notice>}
+        fallback={<Notice>{t("note.event.repostSourceMissing")}</Notice>}
       >
         {(ref) => (
-          <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
+          <Lookup
+            target={ref()}
+            missing={t("note.event.repostSourceUnavailable")}
+          >
             {/*
               一覧の判定は手元のリポストだけで決めるので、埋め込みの無いリポストは
               元投稿の本文やタグを見ずに通る。取ってきた元投稿はここで畳む。
@@ -355,7 +359,7 @@ const Repost: Component<ContentProps> = (props) => {
 
 const Unsupported: Component<ContentProps> = (props) => (
   <Row event={props.event} size={props.size}>
-    <Notice>未対応のイベントです（kind:{props.event.kind}）</Notice>
+    <Notice>{t("note.event.unsupported", { kind: props.event.kind })}</Notice>
   </Row>
 );
 
@@ -572,7 +576,7 @@ export const EventRefView: Component<{
 }> = (props) => (
   <Lookup
     target={props.target}
-    missing="読み込めませんでした"
+    missing={t("note.event.unavailable")}
     noticeClass="p-2.5"
   >
     {/* 中身は `Event` に渡す。引用カードを押したときに、外側ではなく引用元が起点になる。 */}
@@ -602,8 +606,9 @@ export const BrokenEvent: Component<{ id?: string; kind?: number }> = (
       aria-hidden="true"
     />
     <span class="min-w-0">
-      この投稿を表示できませんでした
-      <Show when={props.kind !== undefined}>（kind:{props.kind}）</Show>
+      {props.kind === undefined
+        ? t("note.event.broken")
+        : t("note.event.brokenWithKind", { kind: props.kind })}
     </span>
   </div>
 );

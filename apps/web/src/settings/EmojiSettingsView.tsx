@@ -25,6 +25,7 @@ import {
   EmojiSetHeading,
 } from "../emoji/EmojiSetParts";
 import { MakerDialog } from "../emoji/lazy-emoji-picker";
+import { t } from "../i18n/locale";
 import { onceTrue } from "../lazy-part";
 import { NoUploadServerError, useUploader } from "../media/uploader";
 import { useDispatch } from "../ui-events";
@@ -61,7 +62,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
     <SettingsSection
       id="reactionEmoji"
       scope="device"
-      description="投稿の下のいいねボタンを押したときに送る絵文字です。選ばなければハートを送ります。"
+      description={t("settings.emojiList.reactionDescription")}
     >
       <DefaultReactionField value={props.defaultReaction} />
     </SettingsSection>
@@ -69,13 +70,13 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
     <SettingsSection
       id="emojiList"
       scope="account"
-      description="リアクションのピッカーに出る絵文字の一覧です。誰かが作った絵文字セットを入れることも、絵文字を自分で 1 つずつ足すこともできます。"
+      description={t("settings.emojiList.description")}
     >
       <Show
         when={props.sets.length > 0 || props.emojis.length > 0}
         fallback={
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            まだ何も入っていません。下から絵文字を追加すると、リアクションのピッカーに出るようになります。
+            {t("settings.emojiList.empty")}
           </p>
         }
       >
@@ -86,7 +87,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
           <Show when={props.emojis.length > 0}>
             <li class="flex flex-col gap-2 bg-primary px-3 py-2.5">
               <span class="c-secondary font-600 text-caption">
-                1 つずつ足した絵文字
+                {t("settings.emojiList.individual")}
               </span>
               <ul class="flex flex-col gap-1.5">
                 <For each={props.emojis}>
@@ -106,7 +107,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
       {(search) => (
         <SettingsSection
           id="emojiFind"
-          description="誰かが作った絵文字セットを見つけて、自分の絵文字リストに加えられます。"
+          description={t("settings.emojiList.findDescription")}
         >
           {search() as never}
         </SettingsSection>
@@ -115,7 +116,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
 
     <SettingsSection
       id="emojiManage"
-      description="絵文字セットの作成・整理は、専用のクライアントからも可能です。外部クライアントで設定した絵文字はStreetsにも反映されます。"
+      description={t("settings.emojiList.manageDescription")}
     >
       <div class="flex">
         <ButtonLink
@@ -126,7 +127,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
           target="_blank"
           rel="noopener noreferrer"
         >
-          emoemo を開く
+          {t("settings.emojiList.openEmoemo")}
         </ButtonLink>
       </div>
     </SettingsSection>
@@ -143,7 +144,7 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
         <div class="flex items-start gap-2">
           <Collapsible.Trigger
             class="group flex shrink-0 cursor-pointer bg-transparent p-0"
-            aria-label={`${name()} の中身を開く`}
+            aria-label={t("settings.emojiList.openSet", { name: name() })}
           >
             <span
               class="i-material-symbols:arrow-drop-down-rounded c-secondary group-data-[state=closed]:-rotate-90 mt-0.5 size-5 shrink-0 transition-transform"
@@ -159,8 +160,8 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
           </span>
           <IconButton
             icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-            label={`${name()} を自分の絵文字から外す`}
-            title="外す"
+            label={t("settings.emojiList.removeSet", { name: name() })}
+            title={t("settings.emojiList.remove")}
             disabled={props.disabled}
             onClick={() =>
               dispatch({ type: "emoji-set/remove", ref: props.row.ref })
@@ -169,7 +170,11 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
         </div>
         <Show
           when={props.row.set}
-          fallback={<span class="c-secondary text-caption">読み込み中…</span>}
+          fallback={
+            <span class="c-secondary text-caption">
+              {t("settings.relays.loading")}
+            </span>
+          }
         >
           {/* 閉じている間は、中身の見本だけを 1 行で出す。 */}
           <Collapsible.Context>
@@ -225,10 +230,10 @@ const SetAddress: Component<{ target: EmojiSetRef }> = (props) => {
   const copy = async (text: string) => {
     try {
       await appWindow.navigator.clipboard.writeText(text);
-      setCopied("コピーしました");
+      setCopied(t("settings.emojiList.copied"));
     } catch {
       // 安全でない接続や、権限を断られたとき。黙っていると壊れて見える。
-      setCopied("コピーできませんでした");
+      setCopied(t("settings.emojiList.copyFailed"));
     }
     clearTimeout(timer);
     timer = setTimeout(() => setCopied(undefined), 2500);
@@ -247,7 +252,7 @@ const SetAddress: Component<{ target: EmojiSetRef }> = (props) => {
             icon="i-material-symbols:content-copy-outline-rounded"
             onClick={() => void copy(naddr())}
           >
-            {copied() ?? "コピー"}
+            {copied() ?? t("settings.emojiList.copy")}
           </Button>
         </div>
       )}
@@ -267,8 +272,10 @@ const EmojiRow: Component<{ emoji: CustomEmoji; disabled: boolean }> = (
       </span>
       <IconButton
         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-        label={`:${props.emoji.shortcode}: を外す`}
-        title="外す"
+        label={t("settings.emojiList.removeEmoji", {
+          shortcode: props.emoji.shortcode,
+        })}
+        title={t("settings.emojiList.remove")}
         disabled={props.disabled}
         onClick={() =>
           dispatch({ type: "emoji/remove", shortcode: props.emoji.shortcode })
@@ -288,21 +295,23 @@ const AddEmojiSection: Component<{
   const [source, setSource] = createSignal<"image" | "text">("image");
   return (
     <div class="flex flex-col gap-1.5">
-      <span class="c-secondary font-600 text-caption">絵文字を 1 つ足す</span>
+      <span class="c-secondary font-600 text-caption">
+        {t("settings.emojiList.addOne")}
+      </span>
       <SegmentedControl
-        label="絵文字の作り方"
+        label={t("settings.emojiList.howToMake")}
         variant="secondary"
         value={source()}
         onChange={setSource}
         options={[
           {
             value: "image",
-            label: "画像から作る",
+            label: t("settings.emojiList.fromImage"),
             icon: "i-material-symbols:image-outline-rounded",
           },
           {
             value: "text",
-            label: "文字から作る",
+            label: t("settings.emojiList.fromText"),
             icon: "i-material-symbols:text-fields-rounded",
           },
         ]}
@@ -335,12 +344,10 @@ const MakeEmoji: Component<{
           disabled={props.disabled}
           onClick={() => setOpen(true)}
         >
-          カスタム絵文字を作る
+          {t("settings.emojiList.make")}
         </Button>
       </div>
-      <p class="c-secondary text-caption">
-        打った言葉から、色やフォントを選んで絵文字の画像を作り、自分の絵文字に足します。
-      </p>
+      <p class="c-secondary text-caption">{t("settings.emojiList.makeHint")}</p>
       <Show when={mounted() && neon}>
         {(preset) => (
           <MakerDialog
@@ -378,15 +385,15 @@ const AddEmoji: Component<{
   const submit = () => {
     const src = url().trim();
     if (name() === "" || src === "") {
-      setError("名前と画像の URL を両方入力してください");
+      setError(t("settings.emojiList.errors.missing"));
       return;
     }
     if (!isEmojiShortcode(name())) {
-      setError("名前は半角の英数字と _ - だけが使えます");
+      setError(t("settings.emojiList.errors.invalidName"));
       return;
     }
     if (!/^https?:\/\//i.test(src)) {
-      setError("画像の URL は http:// か https:// で始めてください");
+      setError(t("settings.emojiList.errors.invalidUrl"));
       return;
     }
     dispatch({ type: "emoji/add", shortcode: name(), url: src });
@@ -407,8 +414,8 @@ const AddEmoji: Component<{
     } catch (cause) {
       setError(
         cause instanceof NoUploadServerError
-          ? "画像のアップロード先が設定されていません。「画像」の設定で追加してください。"
-          : "画像をアップロードできませんでした",
+          ? t("settings.emojiList.errors.noUploadServer")
+          : t("settings.emojiList.errors.uploadFailed"),
       );
     } finally {
       setUploading(false);
@@ -429,8 +436,8 @@ const AddEmoji: Component<{
       <div class="flex flex-wrap items-center gap-2">
         <input
           class={`${textInputClass} w-32`}
-          placeholder="名前"
-          aria-label="絵文字の名前"
+          placeholder={t("settings.emojiList.nameShort")}
+          aria-label={t("settings.emojiList.nameLabel")}
           value={shortcode()}
           disabled={props.disabled}
           onInput={(event) => {
@@ -441,7 +448,7 @@ const AddEmoji: Component<{
         <input
           class={`${textInputClass} min-w-48 flex-1`}
           placeholder="https://example/neko.png"
-          aria-label="絵文字の画像の URL"
+          aria-label={t("settings.emojiList.urlLabel")}
           aria-invalid={error() !== undefined}
           aria-describedby={error() ? "emoji-add-error" : undefined}
           value={url()}
@@ -470,7 +477,9 @@ const AddEmoji: Component<{
             disabled={props.disabled || uploading()}
             onClick={() => picker?.click()}
           >
-            {uploading() ? "アップロード中…" : "画像を選ぶ"}
+            {uploading()
+              ? t("settings.emojiList.uploading")
+              : t("settings.emojiList.chooseImage")}
           </Button>
         </Show>
         <Button
@@ -479,7 +488,7 @@ const AddEmoji: Component<{
           icon="i-material-symbols:add-rounded"
           disabled={props.disabled || uploading()}
         >
-          追加
+          {t("settings.emojiList.add")}
         </Button>
       </div>
       <Show
@@ -487,8 +496,8 @@ const AddEmoji: Component<{
         fallback={
           <p class="c-secondary text-caption">
             {replacing()
-              ? "同じ名前の絵文字が既に存在します。この状態で追加すると画像を更新することができます。"
-              : "名前に使えるのは半角の英数字と _ - です（例: neko）。日本語や記号は使えません。"}
+              ? t("settings.emojiList.replaceHint")
+              : t("settings.emojiList.nameHint")}
           </p>
         }
       >

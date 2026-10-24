@@ -15,6 +15,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { t, plural } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import UserLink from "../note/UserLink";
 import Button from "../ui/Button";
@@ -46,9 +47,9 @@ export type RelayPlanViewProps = {
 
 type Grouping = "relay" | "person";
 
-const GROUPINGS: { value: Grouping; label: string }[] = [
-  { value: "relay", label: "リレーごと" },
-  { value: "person", label: "人ごと" },
+const groupings = (): { value: Grouping; label: string }[] => [
+  { value: "relay", label: t("settings.relayPlan.groupByRelay") },
+  { value: "person", label: t("settings.relayPlan.groupByPerson") },
 ];
 
 /** 一覧に最初に描く人数。フォローが数千人でも、開いた瞬間に全員を描かない。 */
@@ -73,22 +74,26 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
   return (
     <SettingsSection
       id="relayPlan"
-      description="投稿を読むために、いまつないでいるリレーと、その理由です。フォローしている人ごとにリレーを選んでいるときは、「使うリレー」に無いリレーもここに並びます。"
+      description={t("settings.relayPlan.description")}
     >
-      <h4 class="c-secondary font-600 text-caption">読み込み</h4>
+      <h4 class="c-secondary font-600 text-caption">
+        {t("settings.relayPlan.read")}
+      </h4>
       <Show
         when={props.plan}
-        fallback={<p class="c-secondary text-caption">読み込み中…</p>}
+        fallback={
+          <p class="c-secondary text-caption">{t("settings.relays.loading")}</p>
+        }
       >
         {(plan) => (
           <>
             <Show when={plan().mode === "outbox"}>
               <SegmentedControl
-                label="並べ方"
+                label={t("settings.relayPlan.groupingLabel")}
                 variant="secondary"
                 block
                 value={grouping()}
-                options={GROUPINGS}
+                options={groupings()}
                 onChange={setGrouping}
               />
             </Show>
@@ -112,7 +117,7 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
                   when={plan().relays.length > 0}
                   fallback={
                     <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-                      いまはどのリレーからも読んでいません。
+                      {t("settings.relayPlan.readingNone")}
                     </p>
                   }
                 >
@@ -140,7 +145,7 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
                                 ? () => (
                                     <div class="flex flex-col gap-1 px-3 pb-3 pl-14">
                                       <h5 class="c-secondary font-600 text-caption">
-                                        書き込みに使っている人
+                                        {t("settings.relayPlan.writers")}
                                       </h5>
                                       <PeopleList pubkeys={relay.authors} />
                                     </div>
@@ -159,10 +164,14 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
         )}
       </Show>
 
-      <h4 class="c-secondary mt-2 font-600 text-caption">書き込み</h4>
+      <h4 class="c-secondary mt-2 font-600 text-caption">
+        {t("settings.relayPlan.write")}
+      </h4>
       <Show
         when={!props.loading}
-        fallback={<p class="c-secondary text-caption">読み込み中…</p>}
+        fallback={
+          <p class="c-secondary text-caption">{t("settings.relays.loading")}</p>
+        }
       >
         <RelayList>
           <For each={writeTargets()}>
@@ -176,8 +185,8 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
                   subtitle={
                     <span class="c-secondary text-caption">
                       {target.fallback
-                        ? "書き込みにしたリレーが無いので、既定のリレーへ送っています"
-                        : "あなたの書き込みリレー"}
+                        ? t("settings.relayPlan.writeFallback")
+                        : t("settings.relayPlan.writeOwn")}
                     </span>
                   }
                 />
@@ -203,21 +212,23 @@ const readReason = (
 ): string => {
   const reasons: string[] = [];
   if (mode === "direct" && (relay.authors.length > 0 || !relay.explicit)) {
-    reasons.push("あなたの読み込みリレー");
+    reasons.push(t("settings.relayPlan.reason.ownRead"));
   } else if (relay.authors.length > 0) {
-    reasons.push(`${relay.authors.length} 人が書き込みに使っている`);
+    reasons.push(
+      plural("settings.relayPlan.reason.writers", relay.authors.length),
+    );
   }
   if (relay.fallback) {
-    reasons.push("リレーの設定が分からない人のための既定のリレー");
+    reasons.push(t("settings.relayPlan.reason.fallback"));
   }
   if (relay.explicit) {
     reasons.push(
       ownRead.has(relay.url)
-        ? "あなたの読み込みリレー（通知など）"
-        : "カラムで指定したリレー",
+        ? t("settings.relayPlan.reason.ownReadNotifications")
+        : t("settings.relayPlan.reason.column"),
     );
   }
-  return [...new Set(reasons)].join("・");
+  return [...new Set(reasons)].join(t("settings.relayPlan.reason.separator"));
 };
 
 const hostOf = (url: RelayUrl) => relayLabel(url).replace(/^wss?:\/\//, "");
@@ -284,7 +295,7 @@ const PeopleList: Component<{
             size="sm"
             onClick={() => setShown((n) => n + NEXT_PAGE)}
           >
-            {`ほか ${rest()} 人を見る`}
+            {t("settings.relayPlan.showMore", { count: rest() })}
           </Button>
         </div>
       </Show>
@@ -328,8 +339,8 @@ const PeopleNotice: Component<{
   </Collapsible.Root>
 );
 
-const fallbackNote = (fallback: readonly RelayUrl[]) =>
-  fallback.length > 0 ? `（${fallback.map(hostOf).join("・")}）` : "";
+const fallbackHosts = (fallback: readonly RelayUrl[]) =>
+  fallback.map(hostOf).join(t("settings.relayPlan.reason.separator"));
 
 const PlanNotes: Component<{
   plan: ReadPlan;
@@ -340,13 +351,28 @@ const PlanNotes: Component<{
     <Show when={props.plan.unroutableAuthors.length > 0}>
       <PeopleNotice pubkeys={props.plan.unroutableAuthors}>
         {props.routingSettled
-          ? `${props.plan.unroutableAuthors.length} 人はリレーの設定が見つからないので、既定のリレー${fallbackNote(props.fallback)}から読んでいます。`
-          : `${props.plan.unroutableAuthors.length} 人のリレーの設定を探しています。見つかるまでは既定のリレーから読みます。`}
+          ? props.fallback.length > 0
+            ? plural(
+                "settings.relayPlan.notes.unroutableWithRelays",
+                props.plan.unroutableAuthors.length,
+                { relays: fallbackHosts(props.fallback) },
+              )
+            : plural(
+                "settings.relayPlan.notes.unroutable",
+                props.plan.unroutableAuthors.length,
+              )
+          : plural(
+              "settings.relayPlan.notes.unroutableSearching",
+              props.plan.unroutableAuthors.length,
+            )}
       </PeopleNotice>
     </Show>
     <Show when={props.plan.uncoveredAuthors.length > 0}>
       <PeopleNotice pubkeys={props.plan.uncoveredAuthors} warn>
-        {`${props.plan.uncoveredAuthors.length} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないか、その人のリレーをすべて繋がないリレーにしているため、どこからも読めていません。`}
+        {plural(
+          "settings.relayPlan.notes.uncovered",
+          props.plan.uncoveredAuthors.length,
+        )}
       </PeopleNotice>
     </Show>
   </>
@@ -393,38 +419,45 @@ const PersonPlan: Component<{
   return (
     <>
       <SearchInput
-        label="名前で探す"
-        placeholder="名前で探す"
+        label={t("settings.relayPlan.searchLabel")}
+        placeholder={t("settings.relayPlan.searchLabel")}
         clearable
         value={query()}
         onValueChange={setQuery}
       />
       <Show when={unroutable().length > 0}>
         <PersonGroup
-          title="リレーの設定が見つからない"
+          title={t("settings.relayPlan.groups.unroutable")}
           pubkeys={unroutable()}
           note={
             props.routingSettled
-              ? `書き込みに使うリレーを公開していないので、既定のリレー${fallbackNote(props.fallback)}から読んでいます。`
-              : "リレーの設定を探しています。見つかるまでは既定のリレーから読みます。"
+              ? props.fallback.length > 0
+                ? t("settings.relayPlan.groups.unroutableNoteWithRelays", {
+                    relays: fallbackHosts(props.fallback),
+                  })
+                : t("settings.relayPlan.groups.unroutableNote")
+              : t("settings.relayPlan.groups.unroutableSearching")
           }
         />
       </Show>
       <Show when={uncovered().length > 0}>
         <PersonGroup
-          title="どこからも読めていない"
+          title={t("settings.relayPlan.groups.uncovered")}
           warn
           pubkeys={uncovered()}
           detail={(pubkey) => (
             <span class="c-secondary text-caption">
-              {`公開している ${props.declaredRelayCount(pubkey)} 本のリレーから読めていません`}
+              {plural(
+                "settings.relayPlan.groups.uncoveredDetail",
+                props.declaredRelayCount(pubkey),
+              )}
             </span>
           )}
         />
       </Show>
       <Show when={routed().length > 0}>
         <PersonGroup
-          title="リレーを選んで読んでいる"
+          title={t("settings.relayPlan.groups.routed")}
           pubkeys={routed()}
           detail={(pubkey) => {
             const urls = assigned().get(pubkey) ?? [];
@@ -442,8 +475,14 @@ const PersonPlan: Component<{
                 </span>
                 <span class="c-secondary text-caption">
                   {declared > urls.length
-                    ? `公開している ${declared} 本のうち ${urls.length} 本から読んでいます`
-                    : `公開している ${urls.length} 本から読んでいます`}
+                    ? t("settings.relayPlan.groups.routedPartial", {
+                        used: urls.length,
+                        declared,
+                      })
+                    : plural(
+                        "settings.relayPlan.groups.routedAll",
+                        urls.length,
+                      )}
                 </span>
               </span>
             );
@@ -453,8 +492,8 @@ const PersonPlan: Component<{
       <Show when={nothing()}>
         <p class="c-secondary text-caption">
           {query().trim() === ""
-            ? "いまは誰の投稿も、人を決めて読んでいません。"
-            : "見つかりませんでした。"}
+            ? t("settings.relayPlan.groups.none")
+            : t("settings.relayPlan.groups.notFound")}
         </p>
       </Show>
     </>
@@ -478,7 +517,9 @@ const PersonGroup: Component<{
         />
       </Show>
       <span class="c-secondary font-600 text-caption">{props.title}</span>
-      <span class="c-secondary text-caption">{props.pubkeys.length} 人</span>
+      <span class="c-secondary text-caption">
+        {plural("settings.relayPlan.people", props.pubkeys.length)}
+      </span>
       <span
         class="i-material-symbols:expand-more-rounded c-secondary size-4.5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
         aria-hidden="true"

@@ -5,6 +5,7 @@ import {
   pollDeadlineLabel,
 } from "@streets/core/nostr/poll";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { plural, t, message } from "../i18n/locale";
 import type { EventSize } from "../note/Event";
 import Button from "../ui/Button";
 
@@ -46,11 +47,18 @@ const PollView: Component<PollViewProps> = (props) => {
   const summary = () => {
     const parts: string[] = [];
     parts.push(
-      props.tally === undefined ? "集計中…" : `${props.tally.voters} 人が投票`,
+      props.tally === undefined
+        ? t("poll.summary.counting")
+        : plural("poll.summary.voters", props.tally.voters),
     );
     const deadline = pollDeadlineLabel(props.poll, props.nowSeconds);
-    if (deadline) parts.push(deadline);
-    if (voting()) parts.push(props.poll.multiple ? "いくつでも" : "1 つ選ぶ");
+    if (deadline) parts.push(message(deadline));
+    if (voting())
+      parts.push(
+        props.poll.multiple
+          ? t("poll.summary.multiple")
+          : t("poll.summary.single"),
+      );
     return parts.join(" · ");
   };
   const leading = () => {
@@ -94,7 +102,7 @@ const PollView: Component<PollViewProps> = (props) => {
                     <span
                       class="i-material-symbols:check-circle-rounded c-accent-5 relative size-4 shrink-0"
                       role="img"
-                      aria-label="あなたの票"
+                      aria-label={t("poll.myVote")}
                     />
                   </Show>
                   <Show when={props.tally}>
@@ -112,7 +120,9 @@ const PollView: Component<PollViewProps> = (props) => {
         }
       >
         <fieldset class="m-0 flex flex-col gap-1.5 border-none p-0">
-          <legend class="sr-only">{props.poll.question || "投票"}</legend>
+          <legend class="sr-only">
+            {props.poll.question || t("poll.fallbackQuestion")}
+          </legend>
           <For each={props.poll.options}>
             {(option) => {
               const on = () => picked().includes(option.id);
@@ -153,7 +163,7 @@ const PollView: Component<PollViewProps> = (props) => {
             disabled={picked().length === 0 || props.sending}
             onClick={() => props.onVote(picked())}
           >
-            {props.sending ? "送っています…" : "投票する"}
+            {props.sending ? t("poll.sending") : t("poll.vote")}
           </Button>
         </Show>
       </div>

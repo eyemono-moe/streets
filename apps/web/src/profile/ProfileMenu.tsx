@@ -3,6 +3,7 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, Show, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useProfileDetails } from "../note/use-profile";
@@ -50,7 +51,7 @@ export const ProfileMenuView: Component<{
             size="md"
             circle
             icon="i-material-symbols:more-horiz"
-            label="このユーザーの操作"
+            label={t("profile.menu.label")}
           />
         )}
       />
@@ -63,7 +64,7 @@ export const ProfileMenuView: Component<{
                   class={`i-material-symbols:bolt-outline-rounded ${menuIconClass}`}
                   aria-hidden="true"
                 />
-                Zap する
+                {t("profile.menu.zap")}
               </Menu.Item>
             </Show>
             <Menu.Item value="relays" class={menuItemClass}>
@@ -71,7 +72,7 @@ export const ProfileMenuView: Component<{
                 class={`i-material-symbols:hub-outline ${menuIconClass}`}
                 aria-hidden="true"
               />
-              リレー設定
+              {t("profile.menu.relays")}
             </Menu.Item>
             <Menu.Item
               value="add-to-list"
@@ -82,7 +83,7 @@ export const ProfileMenuView: Component<{
                 class={`i-material-symbols:playlist-add-rounded ${menuIconClass}`}
                 aria-hidden="true"
               />
-              リストに追加
+              {t("profile.menu.addToList")}
             </Menu.Item>
             <Show when={!props.mine}>
               <Menu.Item
@@ -98,7 +99,9 @@ export const ProfileMenuView: Component<{
                   }`}
                   aria-hidden="true"
                 />
-                {props.muted ? "ミュートを解除" : "ミュート"}
+                {props.muted
+                  ? t("profile.menu.unmute")
+                  : t("profile.menu.mute")}
               </Menu.Item>
             </Show>
           </Menu.Content>

@@ -1,0 +1,16 @@
+{
+  "unavailable": "選択肢の無い投票は表示できません",
+  "summary": {
+    "counting": "集計中…",
+    "voters": {
+      "one": "{{ count }} 人が投票",
+      "other": "{{ count }} 人が投票"
+    },
+    "multiple": "いくつでも",
+    "single": "1 つ選ぶ"
+  },
+  "myVote": "あなたの票",
+  "fallbackQuestion": "投票",
+  "sending": "送っています…",
+  "vote": "投票する"
+}

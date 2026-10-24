@@ -1,3 +1,4 @@
+import { MessageError } from "../i18n/message";
 import { type NostrEvent, verifyEvent } from "../nostr/event";
 import type { ConnectionPool } from "../read/connection-pool";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -58,10 +59,10 @@ export const broadcast = async (
 ): Promise<PublishResult> => {
   // 壊れたイベントを広めない。リレーが断るとしても、こちらの名前で送ったことになる。
   if (!verifyEvent(event)) {
-    throw new Error("署名を確かめられないイベントは送れません");
+    throw new MessageError({ key: "write.error.unverifiable" });
   }
   if (!canBroadcast(event)) {
-    throw new Error("暗号化されたイベントは送り直せません");
+    throw new MessageError({ key: "write.error.encrypted" });
   }
   const targets = [...new Set(relays)];
   let progress = pendingRelays(targets);

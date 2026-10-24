@@ -12,6 +12,7 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
+import { t, plural } from "../i18n/locale";
 import Button from "../ui/Button";
 import RelaySummary from "./RelaySummary";
 import RelayUseButton from "./RelayUseButton";
@@ -48,23 +49,19 @@ const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
   return (
     <SettingsSection
       id="relayRecommendations"
-      description="フォローしている人がよく使っているリレーの一覧です。"
+      description={t("settings.recommendations.description")}
     >
       <Switch>
         <Match when={props.state.phase === "loading"}>
           <p class="c-secondary text-caption">
-            フォローしている人のリレーを集めています…
+            {t("settings.recommendations.collecting")}
           </p>
         </Match>
         <Match when={props.state.phase === "no-followees"}>
-          <Notice>
-            フォローしている人がいないので、おすすめを出せません。
-          </Notice>
+          <Notice>{t("settings.recommendations.noFollowees")}</Notice>
         </Match>
         <Match when={props.state.phase === "empty"}>
-          <Notice>
-            フォローしている人のリレーの設定が見つからなかったので、おすすめを出せません。
-          </Notice>
+          <Notice>{t("settings.recommendations.empty")}</Notice>
         </Match>
         <Match when={props.state.phase === "ready" && props.state}>
           {(state) => (
@@ -72,12 +69,12 @@ const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
               <Switch>
                 <Match when={state().discovery === "loading"}>
                   <p class="c-secondary text-caption">
-                    応答の速さと対応している機能を調べています…
+                    {t("settings.recommendations.discovering")}
                   </p>
                 </Match>
                 <Match when={state().discovery === "missing"}>
                   <p class="c-secondary text-caption">
-                    応答の速さと対応している機能は分からなかったので、使っている人の数だけで並べています。
+                    {t("settings.recommendations.discoveryMissing")}
                   </p>
                 </Match>
               </Switch>
@@ -109,7 +106,9 @@ const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
                   icon="i-material-symbols:expand-more-rounded"
                   onClick={() => setShowAll(true)}
                 >
-                  {`残り ${state().items.length - FIRST_RECOMMENDATIONS} 件を見る`}
+                  {t("settings.recommendations.showMore", {
+                    count: state().items.length - FIRST_RECOMMENDATIONS,
+                  })}
                 </Button>
               </Show>
             </>
@@ -160,26 +159,37 @@ const RecommendationRow: Component<{
   );
 };
 
-const NIP_NAMES: Record<number, string> = {
-  1: "基本の読み書き",
-  9: "削除",
-  11: "リレーの情報",
+const nipName = (nip: number): string => {
+  switch (nip) {
+    case 1:
+      return t("settings.recommendations.nips.basic");
+    case 9:
+      return t("settings.recommendations.nips.deletion");
+    case 11:
+      return t("settings.recommendations.nips.info");
+    default:
+      return `NIP-${nip}`;
+  }
 };
 
 const reasonLabel = (reason: RecommendationReason): string => {
   switch (reason.type) {
     case "users":
-      return `フォロー中の ${reason.users} 人が使用`;
+      return plural("settings.recommendations.reason.users", reason.users);
     case "latency":
-      return `応答 ${reason.ms}ms`;
+      return t("settings.recommendations.reason.latency", { ms: reason.ms });
     case "nips":
       return reason.missing.length === 0
-        ? "必要な機能に対応"
-        : `${reason.missing.map((nip) => NIP_NAMES[nip] ?? `NIP-${nip}`).join("・")}に未対応`;
+        ? t("settings.recommendations.reason.nipsOk")
+        : t("settings.recommendations.reason.nipsMissing", {
+            nips: reason.missing
+              .map(nipName)
+              .join(t("settings.recommendations.separator")),
+          });
     case "payment":
-      return "書き込みに支払いが必要";
+      return t("settings.recommendations.reason.payment");
     case "auth":
-      return "ログインが必要";
+      return t("settings.recommendations.reason.auth");
   }
 };
 

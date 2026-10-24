@@ -1,11 +1,14 @@
 import { type Component, createEffect, onCleanup } from "solid-js";
+import { t } from "./i18n/locale";
 import { toaster } from "./toast";
 
 /** 知らせの文言。ストーリーでも同じものを並べる。 */
 export const disconnectedToast = (message?: string) => ({
   type: "error" as const,
-  title: "署名器と繋がっていません",
-  description: `読むことはできますが、投稿やリアクションはできません。${message ?? ""}`,
+  title: t("app.disconnected.title"),
+  description: message
+    ? t("app.disconnected.descriptionWithReason", { message })
+    : t("app.disconnected.description"),
 });
 
 /**
@@ -39,7 +42,10 @@ const SignerDisconnectedNotice: Component<{
     const created = toaster.create({
       ...toast,
       duration: Number.POSITIVE_INFINITY,
-      action: { label: "繋ぎ直す", onClick: () => props.onRetry() },
+      action: {
+        label: t("app.disconnected.retry"),
+        onClick: () => props.onRetry(),
+      },
       onStatusChange: (details) => {
         if (details.status === "unmounted" && id === created) id = undefined;
       },

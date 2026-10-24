@@ -7,6 +7,7 @@ import { commentTree } from "@streets/core/view/comment-tree";
 import { type Component, Match, Switch } from "solid-js";
 import ArticleCommentsView from "../../article/ArticleCommentsView";
 import ArticleView from "../../article/ArticleView";
+import { t } from "../../i18n/locale";
 import { createEventDialogs } from "../../note/event-ops";
 import Button from "../../ui/Button";
 import { createBlockSection, useColumnScope } from "../column-scope";
@@ -37,7 +38,7 @@ const ArticleComments: Component<{
             icon="i-material-symbols:add-comment-outline-rounded"
             onClick={() => dialogs.open("reply")}
           >
-            コメントする
+            {t("columns.blocks.article.comment")}
           </Button>
           {dialogs.view}
         </>
@@ -80,10 +81,12 @@ const Article: Component<{
         )}
       </Match>
       <Match when={section.status().phase === "settled"}>
-        <p class="c-secondary p-4 text-caption">記事を読み込めませんでした。</p>
+        <p class="c-secondary p-4 text-caption">
+          {t("columns.blocks.article.failed")}
+        </p>
       </Match>
       <Match when={true}>
-        <p class="c-secondary p-4 text-caption">読み込み中…</p>
+        <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
       </Match>
     </Switch>
   );

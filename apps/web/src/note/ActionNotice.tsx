@@ -8,6 +8,7 @@ import {
 } from "@streets/core/view/notification-rows";
 import { observeWidth } from "@streets/core/view/shared-resize-observer";
 import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
+import { plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import { EventRefView, type EventSize } from "./Event";
@@ -115,17 +116,27 @@ const Summary: Component<{
         )}
       </Show>
       <Show when={others() > 0}>
-        <span class="shrink-0">ほか {others()} 人</span>
+        <span class="shrink-0">
+          {plural("note.actionNotice.others", others())}
+        </span>
       </Show>
       <Show
         when={props.action === "reaction"}
-        fallback={<span class="min-w-0 shrink-[2] truncate">がリポスト</span>}
+        fallback={
+          <span class="min-w-0 shrink-[2] truncate">
+            {t("note.actionNotice.reposted")}
+          </span>
+        }
       >
         <Show
           when={!plainLike()}
-          fallback={<span class="min-w-0 shrink-[2] truncate">がいいね</span>}
+          fallback={
+            <span class="min-w-0 shrink-[2] truncate">
+              {t("note.actionNotice.liked")}
+            </span>
+          }
         >
-          <span class="shrink-0">が</span>
+          <span class="shrink-0">{t("note.actionNotice.reactedBefore")}</span>
           {/* 絵文字が多いときは、入る分だけ見せる。 */}
           <span class="flex min-w-4 shrink-[4] items-center gap-0.5 overflow-hidden">
             <For each={contents()}>
@@ -136,8 +147,15 @@ const Summary: Component<{
               )}
             </For>
           </span>
-          <Show when={props.size === "normal"}>
-            <span class="min-w-0 shrink-[2] truncate">でリアクション</span>
+          <Show
+            when={
+              props.size === "normal" &&
+              t("note.actionNotice.reactedAfter") !== ""
+            }
+          >
+            <span class="min-w-0 shrink-[2] truncate">
+              {t("note.actionNotice.reactedAfter")}
+            </span>
           </Show>
         </Show>
       </Show>
@@ -206,7 +224,9 @@ const ActionNotice: Component<{
     <Show
       when={target()}
       fallback={
-        <p class="c-secondary text-caption">対象のノートが指定されていません</p>
+        <p class="c-secondary text-caption">
+          {t("note.actionNotice.noTarget")}
+        </p>
       }
     >
       {(current) => (

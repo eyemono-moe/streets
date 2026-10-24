@@ -1,71 +1,296 @@
 [
-  { "kind": 0, "status": "表示対応", "summary": "プロフィール" },
-  { "kind": 1, "status": "表示対応", "summary": "投稿" },
-  { "kind": 3, "status": "内部利用", "summary": "フォローリスト" },
-  { "kind": 5, "status": "内部利用", "summary": "削除依頼" },
-  { "kind": 6, "status": "表示対応", "summary": "リポスト" },
-  { "kind": 7, "status": "表示対応", "summary": "リアクション" },
-  { "kind": 16, "status": "表示対応", "summary": "汎用リポスト" },
-  { "kind": 20, "status": "表示対応", "summary": "画像の投稿" },
-  { "kind": 21, "status": "表示対応", "summary": "動画の投稿" },
-  { "kind": 22, "status": "表示対応", "summary": "短い動画の投稿" },
-  { "kind": 40, "status": "表示対応", "summary": "チャンネルの作成" },
-  { "kind": 41, "status": "表示対応", "summary": "チャンネル情報の更新" },
-  { "kind": 42, "status": "表示対応", "summary": "チャンネルの発言" },
-  { "kind": 43, "status": "内部利用", "summary": "チャンネルの発言の非表示" },
-  { "kind": 44, "status": "内部利用", "summary": "チャンネルのミュート" },
-  { "kind": 1018, "status": "内部利用", "summary": "投票への回答" },
-  { "kind": 1068, "status": "表示対応", "summary": "投票" },
-  { "kind": 1111, "status": "表示対応", "summary": "コメント" },
-  { "kind": 9734, "status": "内部利用", "summary": "Zap の依頼" },
-  { "kind": 9735, "status": "内部利用", "summary": "Zap の受領" },
-  { "kind": 10000, "status": "内部利用", "summary": "ミュートリスト" },
-  { "kind": 10001, "status": "内部利用", "summary": "ピン留めした投稿" },
-  { "kind": 10002, "status": "内部利用", "summary": "リレーリスト" },
-  { "kind": 10003, "status": "内部利用", "summary": "ブックマークリスト" },
-  { "kind": 10005, "status": "内部利用", "summary": "公開鍵のリスト" },
-  { "kind": 10006, "status": "内部利用", "summary": "繋がないリレーのリスト" },
-  { "kind": 10007, "status": "内部利用", "summary": "検索リレーのリスト" },
-  { "kind": 10030, "status": "内部利用", "summary": "絵文字リスト" },
+  {
+    "kind": 0,
+    "status": "表示対応",
+    "summary": "プロフィール",
+    "summaryEn": "Profile"
+  },
+  {
+    "kind": 1,
+    "status": "表示対応",
+    "summary": "投稿",
+    "summaryEn": "Post"
+  },
+  {
+    "kind": 3,
+    "status": "内部利用",
+    "summary": "フォローリスト",
+    "summaryEn": "Follow list"
+  },
+  {
+    "kind": 5,
+    "status": "内部利用",
+    "summary": "削除依頼",
+    "summaryEn": "Deletion request"
+  },
+  {
+    "kind": 6,
+    "status": "表示対応",
+    "summary": "リポスト",
+    "summaryEn": "Repost"
+  },
+  {
+    "kind": 7,
+    "status": "表示対応",
+    "summary": "リアクション",
+    "summaryEn": "Reaction"
+  },
+  {
+    "kind": 16,
+    "status": "表示対応",
+    "summary": "汎用リポスト",
+    "summaryEn": "Generic repost"
+  },
+  {
+    "kind": 20,
+    "status": "表示対応",
+    "summary": "画像の投稿",
+    "summaryEn": "Picture post"
+  },
+  {
+    "kind": 21,
+    "status": "表示対応",
+    "summary": "動画の投稿",
+    "summaryEn": "Video post"
+  },
+  {
+    "kind": 22,
+    "status": "表示対応",
+    "summary": "短い動画の投稿",
+    "summaryEn": "Short video post"
+  },
+  {
+    "kind": 40,
+    "status": "表示対応",
+    "summary": "チャンネルの作成",
+    "summaryEn": "Channel creation"
+  },
+  {
+    "kind": 41,
+    "status": "表示対応",
+    "summary": "チャンネル情報の更新",
+    "summaryEn": "Channel info update"
+  },
+  {
+    "kind": 42,
+    "status": "表示対応",
+    "summary": "チャンネルの発言",
+    "summaryEn": "Channel message"
+  },
+  {
+    "kind": 43,
+    "status": "内部利用",
+    "summary": "チャンネルの発言の非表示",
+    "summaryEn": "Hidden channel message"
+  },
+  {
+    "kind": 44,
+    "status": "内部利用",
+    "summary": "チャンネルのミュート",
+    "summaryEn": "Channel mute"
+  },
+  {
+    "kind": 1018,
+    "status": "内部利用",
+    "summary": "投票への回答",
+    "summaryEn": "Poll response"
+  },
+  {
+    "kind": 1068,
+    "status": "表示対応",
+    "summary": "投票",
+    "summaryEn": "Poll"
+  },
+  {
+    "kind": 1111,
+    "status": "表示対応",
+    "summary": "コメント",
+    "summaryEn": "Comment"
+  },
+  {
+    "kind": 9734,
+    "status": "内部利用",
+    "summary": "Zap の依頼",
+    "summaryEn": "Zap request"
+  },
+  {
+    "kind": 9735,
+    "status": "内部利用",
+    "summary": "Zap の受領",
+    "summaryEn": "Zap receipt"
+  },
+  {
+    "kind": 10000,
+    "status": "内部利用",
+    "summary": "ミュートリスト",
+    "summaryEn": "Mute list"
+  },
+  {
+    "kind": 10001,
+    "status": "内部利用",
+    "summary": "ピン留めした投稿",
+    "summaryEn": "Pinned posts"
+  },
+  {
+    "kind": 10002,
+    "status": "内部利用",
+    "summary": "リレーリスト",
+    "summaryEn": "Relay list"
+  },
+  {
+    "kind": 10003,
+    "status": "内部利用",
+    "summary": "ブックマークリスト",
+    "summaryEn": "Bookmark list"
+  },
+  {
+    "kind": 10005,
+    "status": "内部利用",
+    "summary": "公開鍵のリスト",
+    "summaryEn": "Public key list"
+  },
+  {
+    "kind": 10006,
+    "status": "内部利用",
+    "summary": "繋がないリレーのリスト",
+    "summaryEn": "Blocked relay list"
+  },
+  {
+    "kind": 10007,
+    "status": "内部利用",
+    "summary": "検索リレーのリスト",
+    "summaryEn": "Search relay list"
+  },
+  {
+    "kind": 10030,
+    "status": "内部利用",
+    "summary": "絵文字リスト",
+    "summaryEn": "Emoji list"
+  },
   {
     "kind": 10063,
     "status": "内部利用",
-    "summary": "Blossom サーバーのリスト"
+    "summary": "Blossom サーバーのリスト",
+    "summaryEn": "Blossom server list"
   },
   {
     "kind": 10096,
     "status": "内部利用",
-    "summary": "NIP-96 のアップロード先のリスト"
+    "summary": "NIP-96 のアップロード先のリスト",
+    "summaryEn": "NIP-96 upload server list"
   },
-  { "kind": 22242, "status": "内部利用", "summary": "リレーの認証" },
-  { "kind": 24133, "status": "内部利用", "summary": "リモート署名の通信" },
-  { "kind": 24242, "status": "内部利用", "summary": "Blossom の認証" },
-  { "kind": 27235, "status": "内部利用", "summary": "HTTP の認証" },
-  { "kind": 30000, "status": "表示対応", "summary": "フォローセット" },
-  { "kind": 30002, "status": "表示対応", "summary": "リレーセット" },
-  { "kind": 30003, "status": "表示対応", "summary": "ブックマークセット" },
+  {
+    "kind": 22242,
+    "status": "内部利用",
+    "summary": "リレーの認証",
+    "summaryEn": "Relay authentication"
+  },
+  {
+    "kind": 24133,
+    "status": "内部利用",
+    "summary": "リモート署名の通信",
+    "summaryEn": "Remote signing messages"
+  },
+  {
+    "kind": 24242,
+    "status": "内部利用",
+    "summary": "Blossom の認証",
+    "summaryEn": "Blossom authentication"
+  },
+  {
+    "kind": 27235,
+    "status": "内部利用",
+    "summary": "HTTP の認証",
+    "summaryEn": "HTTP authentication"
+  },
+  {
+    "kind": 30000,
+    "status": "表示対応",
+    "summary": "フォローセット",
+    "summaryEn": "Follow set"
+  },
+  {
+    "kind": 30002,
+    "status": "表示対応",
+    "summary": "リレーセット",
+    "summaryEn": "Relay set"
+  },
+  {
+    "kind": 30003,
+    "status": "表示対応",
+    "summary": "ブックマークセット",
+    "summaryEn": "Bookmark set"
+  },
   {
     "kind": 30004,
     "status": "表示対応",
-    "summary": "まとめ（キュレーションセット）"
+    "summary": "まとめ（キュレーションセット）",
+    "summaryEn": "Curation set"
   },
-  { "kind": 30005, "status": "表示対応", "summary": "動画のまとめ" },
-  { "kind": 30006, "status": "表示対応", "summary": "画像のまとめ" },
+  {
+    "kind": 30005,
+    "status": "表示対応",
+    "summary": "動画のまとめ",
+    "summaryEn": "Video curation set"
+  },
+  {
+    "kind": 30006,
+    "status": "表示対応",
+    "summary": "画像のまとめ",
+    "summaryEn": "Picture curation set"
+  },
   {
     "kind": 30015,
     "status": "表示対応",
-    "summary": "好きな話題（興味のセット）"
+    "summary": "好きな話題（興味のセット）",
+    "summaryEn": "Interest set"
   },
-  { "kind": 30023, "status": "表示対応", "summary": "長文記事" },
-  { "kind": 30030, "status": "表示対応", "summary": "絵文字セット" },
-  { "kind": 30078, "status": "内部利用", "summary": "アプリの設定" },
-  { "kind": 30166, "status": "内部利用", "summary": "リレーの計測情報" },
-  { "kind": 30315, "status": "内部利用", "summary": "ユーザーのステータス" },
-  { "kind": 31990, "status": "内部利用", "summary": "アプリの説明" },
-  { "kind": 39089, "status": "表示対応", "summary": "スターターパック" },
+  {
+    "kind": 30023,
+    "status": "表示対応",
+    "summary": "長文記事",
+    "summaryEn": "Article"
+  },
+  {
+    "kind": 30030,
+    "status": "表示対応",
+    "summary": "絵文字セット",
+    "summaryEn": "Emoji set"
+  },
+  {
+    "kind": 30078,
+    "status": "内部利用",
+    "summary": "アプリの設定",
+    "summaryEn": "App settings"
+  },
+  {
+    "kind": 30166,
+    "status": "内部利用",
+    "summary": "リレーの計測情報",
+    "summaryEn": "Relay monitoring data"
+  },
+  {
+    "kind": 30315,
+    "status": "内部利用",
+    "summary": "ユーザーのステータス",
+    "summaryEn": "User status"
+  },
+  {
+    "kind": 31990,
+    "status": "内部利用",
+    "summary": "アプリの説明",
+    "summaryEn": "App description"
+  },
+  {
+    "kind": 39089,
+    "status": "表示対応",
+    "summary": "スターターパック",
+    "summaryEn": "Starter pack"
+  },
   {
     "kind": 39092,
     "status": "表示対応",
-    "summary": "メディアのスターターパック"
+    "summary": "メディアのスターターパック",
+    "summaryEn": "Media starter pack"
   }
 ]

@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type ParentComponent, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import { useMutes } from "../settings/MuteMediator";
 import Button from "../ui/Button";
 import type { EventSize } from "./Event";
@@ -47,7 +48,7 @@ const MutedGate: ParentComponent<{
           <span class="i-material-symbols:volume-off-outline-rounded c-secondary size-4" />
         </span>
         <p class="c-secondary min-w-0 flex-1 break-words text-caption">
-          ミュートしている投稿
+          {t("note.muted.label")}
         </p>
         <Button
           size="sm"
@@ -55,7 +56,7 @@ const MutedGate: ParentComponent<{
           class="shrink-0"
           onClick={() => setRevealed((ids) => new Set(ids).add(props.event.id))}
         >
-          表示する
+          {t("note.muted.show")}
         </Button>
       </div>
     </Show>

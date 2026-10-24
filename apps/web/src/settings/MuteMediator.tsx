@@ -28,6 +28,7 @@ import {
   useContext,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { t } from "../i18n/locale";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
@@ -100,11 +101,11 @@ export const MuteMediator: ParentComponent<{
       .then(
         () => {
           apply({ type: "mutes/saved" });
-          notifySaved("ミュートを保存しました");
+          notifySaved(t("settings.mute.saved"));
         },
         (cause) => {
           apply({ type: "mutes/failed" });
-          notifyError(cause, "ミュートを保存できませんでした");
+          notifyError(cause, t("settings.mute.saveFailed"));
         },
       )
       .finally(() => {

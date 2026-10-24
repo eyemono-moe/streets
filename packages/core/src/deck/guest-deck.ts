@@ -29,7 +29,7 @@ const GUEST_HASHTAG = "foodstr";
 
 export const welcomeColumn = (): ColumnDef => ({
   id: crypto.randomUUID(),
-  title: "Streets へようこそ",
+  title: "welcome",
   source: { kind: "welcome" },
   // 紹介を兼ねて図や説明が多いので、ほかのカラムより広く取る。
   width: "l",

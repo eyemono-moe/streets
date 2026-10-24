@@ -2,6 +2,7 @@ import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, type JSX, Match, Show, Switch } from "solid-js";
 import { isMultiColumn } from "./deck-layout-setting";
 import { pipOpen } from "./deck/pip-window";
+import { t } from "./i18n/locale";
 import SignerWaitToast, { type SignerWaitToastMeta } from "./SignerWaitToast";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
@@ -126,7 +127,7 @@ export const notifyError = (cause: unknown, what?: string): void => {
   if (wasReported(cause)) return;
   toaster.create({
     type: "error",
-    title: what ?? "操作に失敗しました",
+    title: what ?? t("app.actionFailed.generic"),
     description: actionErrorMessage(cause),
     duration: TROUBLE_DURATION_MS,
   });
@@ -138,7 +139,7 @@ const CloseButton: Component = () => (
       <IconButton
         {...trigger()}
         icon="i-material-symbols:close-rounded"
-        label="閉じる"
+        label={t("app.toast.close")}
       />
     )}
   />

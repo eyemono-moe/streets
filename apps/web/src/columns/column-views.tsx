@@ -25,7 +25,6 @@ import {
   columnShow,
   groupsActions,
 } from "@streets/core/deck/deck";
-import { followSetName } from "@streets/core/lists/follow-set";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   hasSearchExclusions,
@@ -43,6 +42,8 @@ import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import { fallbackRelays } from "../fallback-relay-setting";
+import { t, locale } from "../i18n/locale";
+import { followSetName } from "../lists/follow-set-name";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
@@ -139,7 +140,7 @@ const GroupActionsSwitch: Component<{ column: ColumnDef }> = (props) => {
   const patch = usePatch(() => props.column);
   return (
     <Switch
-      label="同じノートへのリアクション・リポストをまとめる"
+      label={t("columns.views.groupActions")}
       checked={groupsActions(props.column)}
       onChange={(groupNotifications) => patch({ groupNotifications })}
     />
@@ -166,7 +167,7 @@ const ChannelInfoButton: Component<{
   return (
     <IconButton
       icon="i-material-symbols:info-outline-rounded"
-      label="チャンネルの情報"
+      label={t("columns.views.channelInfo")}
       onClick={() =>
         dispatch({
           type: "stack/open",
@@ -187,7 +188,7 @@ const FollowSetInfoButton: Component<{
   return (
     <IconButton
       icon="i-material-symbols:info-outline-rounded"
-      label="リストの情報"
+      label={t("columns.views.followSetInfo")}
       onClick={() => {
         // 題名は届いたリストの名前で決まる。これは届くまでの仮の名前。
         const set =
@@ -199,7 +200,7 @@ const FollowSetInfoButton: Component<{
           column: buildFollowSetInfoColumn(
             props.pubkey,
             props.identifier,
-            set ? followSetName(set) : "リスト",
+            set ? followSetName(set) : t("columns.views.followSetFallbackName"),
           ),
         });
       }}
@@ -227,7 +228,11 @@ const FavoriteChannelButton: Component<{ id: string }> = (props) => {
             : "i-material-symbols:star-outline-rounded"
         }
         active={favorite()}
-        label={favorite() ? "お気に入りから外す" : "お気に入りに入れる"}
+        label={
+          favorite()
+            ? t("columns.views.favorite.remove")
+            : t("columns.views.favorite.add")
+        }
         aria-pressed={favorite()}
         disabled={sending()}
         onClick={() =>
@@ -259,10 +264,13 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     // リレーを指していても、住所（naddr）で開いたカラムはリレーの全体ではない。
     meta: (source) =>
       relayColumnSource(source)
-        ? { icon: "i-material-symbols:globe", subtitle: "指定したリレーの全体" }
+        ? {
+            icon: "i-material-symbols:globe",
+            subtitle: t("columns.views.subtitle.relay"),
+          }
         : {
             icon: "i-material-symbols:pin-drop-outline-rounded",
-            subtitle: "指定した条件",
+            subtitle: t("columns.views.subtitle.condition"),
           },
     Content: (props) => (
       <EventList source={() => literalSource(props.source)} />
@@ -272,7 +280,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       return (
         <Show when={relayColumnSource(props.source)}>
           {(source) => (
-            <SettingField label="購読するリレー">
+            <SettingField label={t("columns.views.settings.relays")}>
               <RelayColumnEditor
                 candidates={
                   props.relayList?.phase === "ready"
@@ -286,7 +294,9 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                     title:
                       relays.length === 1
                         ? relayLabel(relays[0])
-                        : `リレー（${relays.length}）`,
+                        : t("columns.views.settings.relaysTitle", {
+                            count: relays.length,
+                          }),
                     source: { ...source(), relays },
                   });
                 }}
@@ -300,7 +310,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   search: {
     meta: () => ({
       icon: "i-material-symbols:search-rounded",
-      subtitle: "検索",
+      subtitle: t("columns.views.subtitle.search"),
     }),
     Content: (props) => {
       const query = createMemo(() => parseSearchQuery(props.source.query));
@@ -325,7 +335,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     Settings: (props) => {
       const patch = usePatch(() => props.column);
       return (
-        <SettingField label="検索の条件">
+        <SettingField label={t("columns.views.settings.searchQuery")}>
           {/* 探したときと同じ触り方で、後から条件を変えられるようにする。 */}
           <SearchQueryEditor
             text={props.source.query}
@@ -345,12 +355,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   followees: {
     meta: () => ({
       icon: "i-material-symbols:home-outline-rounded",
-      subtitle: "フォロー中",
+      subtitle: t("columns.views.subtitle.followees"),
     }),
     Sample: () => (
       <TimelineSample
-        heading="フォローしている人の投稿がここに流れます"
-        body="いま見えているのは見本です。ログインすると、あなたがフォローしている人の投稿に変わります。"
+        heading={t("columns.views.sample.followees.heading")}
+        body={t("columns.views.sample.followees.body")}
       />
     ),
     Content: (props) => {
@@ -372,12 +382,14 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   timeslip: {
     meta: (source) => ({
       icon: "i-material-symbols:history-rounded",
-      subtitle: `${formatEventTimeFull(new Date(source.until * 1000))} から過去へ`,
+      subtitle: t("columns.views.subtitle.timeslip", {
+        time: formatEventTimeFull(new Date(source.until * 1000), locale()),
+      }),
     }),
     Sample: () => (
       <TimelineSample
-        heading="フォローしている人の、過去のタイムラインを読み返せます"
-        body="いま見えているのは見本です。ログインすると、選んだ日時のタイムラインに変わります。"
+        heading={t("columns.views.sample.timeslip.heading")}
+        body={t("columns.views.sample.timeslip.body")}
       />
     ),
     Content: (props) => {
@@ -402,9 +414,9 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     Settings: (props) => {
       const patch = usePatch(() => props.column);
       return (
-        <SettingField label="この日時から過去へさかのぼる">
+        <SettingField label={t("columns.views.settings.timeslip")}>
           <DateTimeInput
-            label="さかのぼり始める日時"
+            label={t("columns.views.settings.timeslipInput")}
             value={props.source.until}
             max={Math.floor(Date.now() / 1000)}
             // 日時を変えたら、それまでいた時点から出発したことにする。
@@ -431,12 +443,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "followees-activity": {
     meta: () => ({
       icon: "i-material-symbols:vital-signs-rounded",
-      subtitle: "フォロー中の人のリアクション・リポスト",
+      subtitle: t("columns.views.subtitle.followeesActivity"),
     }),
     Sample: () => (
       <ActivitySample
-        heading="フォローしている人のリアクションやリポストがここに届きます"
-        body="いま見えているのは見本です。ログインすると、あなたがフォローしている人の反応に変わります。"
+        heading={t("columns.views.sample.followeesActivity.heading")}
+        body={t("columns.views.sample.followeesActivity.body")}
       />
     ),
     Content: (props) => (
@@ -451,12 +463,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   notifications: {
     meta: () => ({
       icon: "i-material-symbols:notifications-outline-rounded",
-      subtitle: "自分宛の返信・リアクション・リポスト",
+      subtitle: t("columns.views.subtitle.notifications"),
     }),
     Sample: () => (
       <NotificationsSample
-        heading="あなたへの返信やリアクションがここに届きます"
-        body="いま見えているのは見本です。ログインすると、あなた宛の通知に変わります。"
+        heading={t("columns.views.sample.notifications.heading")}
+        body={t("columns.views.sample.notifications.body")}
       />
     ),
     Content: (props) => (
@@ -476,12 +488,12 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   bookmarks: {
     meta: () => ({
       icon: "i-material-symbols:bookmark-outline-rounded",
-      subtitle: "保存したノート",
+      subtitle: t("columns.views.subtitle.bookmarks"),
     }),
     Sample: () => (
       <TimelineSample
-        heading="ブックマークした投稿がここに並びます"
-        body="いま見えているのは見本です。ログインすると、あなたがブックマークした投稿に変わります。"
+        heading={t("columns.views.sample.bookmarks.heading")}
+        body={t("columns.views.sample.bookmarks.body")}
       />
     ),
     Content: (props) => (
@@ -491,7 +503,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   article: {
     meta: () => ({
       icon: "i-material-symbols:article-outline-rounded",
-      subtitle: "長文記事",
+      subtitle: t("columns.views.subtitle.article"),
     }),
     Content: (props) => (
       <Article
@@ -504,20 +516,23 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   thread: {
     meta: () => ({
       icon: "i-material-symbols:mode-comment-outline-rounded",
-      subtitle: "スレッド",
+      subtitle: t("columns.views.subtitle.thread"),
     }),
     Content: (props) => <Thread focus={props.source.focus} />,
   },
   activity: {
     meta: () => ({
       icon: "i-material-symbols:monitoring-rounded",
-      subtitle: "リポスト・引用・リアクション",
+      subtitle: t("columns.views.subtitle.activity"),
     }),
     scrollsInternally: true,
     Content: (props) => <Activity target={props.source.target} />,
   },
   user: {
-    meta: () => ({ icon: PERSON_ICON, subtitle: "ノートと返信" }),
+    meta: () => ({
+      icon: PERSON_ICON,
+      subtitle: t("columns.views.subtitle.user"),
+    }),
     avatar: (source) => source.pubkey,
     Content: (props) => {
       const scope = useColumnScope();
@@ -534,12 +549,15 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
             />
           </ColumnProfile>
           <ColumnTabs
-            label="この人の表示"
+            label={t("columns.views.userTabs.label")}
+            name="user"
             scroll="column"
             tabs={[
               {
                 value: "posts",
-                label: "投稿",
+                get label() {
+                  return t("columns.views.userTabs.posts");
+                },
                 content: () => (
                   <EventList
                     name="posts"
@@ -553,7 +571,9 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
               },
               {
                 value: "media",
-                label: "メディア",
+                get label() {
+                  return t("columns.views.userTabs.media");
+                },
                 content: () => (
                   <MediaGrid
                     name="media"
@@ -567,7 +587,9 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
               },
               {
                 value: "pinned",
-                label: "ピン留め",
+                get label() {
+                  return t("columns.views.userTabs.pinned");
+                },
                 // 件数は、ピン留めがあるときだけ出す。
                 get count() {
                   return pinned.ids().length > 0
@@ -578,7 +600,9 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
               },
               {
                 value: "reactions",
-                label: "リアクション",
+                get label() {
+                  return t("columns.views.userTabs.reactions");
+                },
                 content: () => (
                   <EventList
                     name="reactions"
@@ -595,7 +619,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "channel-info": {
     meta: () => ({
       icon: "i-material-symbols:info-outline-rounded",
-      subtitle: "チャンネルの情報",
+      subtitle: t("columns.views.subtitle.channelInfo"),
     }),
     Content: (props) => (
       <ChannelInfo
@@ -608,7 +632,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "channel-list": {
     meta: () => ({
       icon: "i-material-symbols:forum-outline-rounded",
-      subtitle: "みんなで会話できるチャットチャンネル",
+      subtitle: t("columns.views.subtitle.channelList"),
     }),
     Content: (props) => (
       <ChannelList
@@ -619,7 +643,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   channel: {
     meta: () => ({
       icon: "i-material-symbols:forum-outline-rounded",
-      subtitle: "チャンネル",
+      subtitle: t("columns.views.subtitle.channel"),
     }),
     HeaderActions: (props) => (
       <>
@@ -642,29 +666,35 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     ),
   },
   "followees-list": {
-    meta: () => ({ icon: PERSON_ICON, subtitle: "フォロー中の人" }),
+    meta: () => ({
+      icon: PERSON_ICON,
+      subtitle: t("columns.views.subtitle.followeesList"),
+    }),
     Content: (props) => (
       <FollowList source={() => followListSource(props.source.pubkey)} />
     ),
   },
   "followers-list": {
-    meta: () => ({ icon: PERSON_ICON, subtitle: "フォロワー" }),
+    meta: () => ({
+      icon: PERSON_ICON,
+      subtitle: t("columns.views.subtitle.followersList"),
+    }),
     Content: (props) => (
       <Authors
         source={() => followersSource(props.source.pubkey)}
-        empty="フォロワーを取得できませんでした。"
+        empty={t("columns.blocks.empty.followers")}
       />
     ),
   },
   "follow-sets": {
     meta: () => ({
       icon: "i-material-symbols:format-list-bulleted-rounded",
-      subtitle: "人をまとめたリスト",
+      subtitle: t("columns.views.subtitle.followSets"),
     }),
     Sample: () => (
       <FollowSetsSample
-        heading="ユーザーリストを作れます"
-        body="いま見えているのは見本です。ログインすると、あなたが作ったリストに変わります。"
+        heading={t("columns.views.sample.followSets.heading")}
+        body={t("columns.views.sample.followSets.body")}
       />
     ),
     Content: (props) => (
@@ -676,7 +706,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "follow-set": {
     meta: () => ({
       icon: "i-material-symbols:group-outline-rounded",
-      subtitle: "リスト内ユーザーのタイムライン",
+      subtitle: t("columns.views.subtitle.followSet"),
     }),
     HeaderActions: (props) => (
       <FollowSetInfoButton
@@ -694,7 +724,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "follow-set-info": {
     meta: () => ({
       icon: "i-material-symbols:info-outline-rounded",
-      subtitle: "リストの情報",
+      subtitle: t("columns.views.subtitle.followSetInfo"),
     }),
     Content: (props) => (
       <FollowSetInfo
@@ -706,7 +736,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   welcome: {
     meta: () => ({
       icon: "i-material-symbols:waving-hand-outline-rounded",
-      subtitle: "紹介とログイン",
+      subtitle: t("columns.views.subtitle.welcome"),
     }),
     Content: () => <WelcomeColumn />,
   },

@@ -20,6 +20,9 @@ import {
 } from "solid-js";
 import { holdsScroll } from "./scroll-hold";
 
+/** 新しく溜まったものの種類。札や読み込みの知らせの文言を、種類ごとに書き分ける。 */
+export type NewerNoun = "post" | "reaction" | "notification" | "message";
+
 const ScrollContainerContext =
   createContext<Accessor<HTMLElement | undefined>>();
 
@@ -42,7 +45,7 @@ export type NewerItemsReport = (
 ) => void;
 
 export type NewerItemsReportValue = {
-  noun: string;
+  noun: NewerNoun;
   items: readonly NewerItem[];
   /** 札を押したとき、先頭へ戻る前に呼ぶ。一覧に入れていない新着があるときだけ。 */
   latest?: () => void;
@@ -74,7 +77,7 @@ export type VirtualListProps<T> = {
    * `noun` は札で数えるときの呼び名（「投稿」など）、`authorOf` は札に並べる人。
    */
   newer?: {
-    noun: string;
+    noun: NewerNoun;
     authorOf: (item: T) => string | undefined;
     /** 一覧にまだ入れていないが、上に届いているもの。新しい順。 */
     pending?: readonly NewerItem[];

@@ -1,0 +1,24 @@
+{
+  "colorField": { "pick": "{{ label }}を選ぶ" },
+  "completion": {
+    "label": "入れる候補",
+    "keyHint": "↑↓ で選ぶ · Enter で入れる · Esc で閉じる"
+  },
+  "dialog": { "close": "閉じる" },
+  "experimental": "実験的",
+  "pagedDialog": {
+    "close": "{{ title }}を閉じる",
+    "comingSoon": "（準備中）"
+  },
+  "searchInput": { "clear": "入力を消す" },
+  "storageHint": {
+    "device": {
+      "label": "この端末に保存",
+      "text": "この設定はこの端末にのみ保存されます。ほかの端末では、それぞれで別の設定を保存できます。"
+    },
+    "account": {
+      "label": "アカウントに保存",
+      "text": "この設定はアカウントに保存されます。ほかの端末でログインしても、同じ設定になります。"
+    }
+  }
+}

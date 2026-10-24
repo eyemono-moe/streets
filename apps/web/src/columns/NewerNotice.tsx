@@ -1,15 +1,16 @@
 import { Presence } from "@ark-ui/solid/presence";
 import { type Component, For, Show, createMemo } from "solid-js";
+import { plural } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import Button from "../ui/Button";
+import type { NewerNoun } from "../ui/VirtualList";
 
 /** 札に並べる人の数。並べるほど札が広がり、狭いカラムで本文を覆う。 */
 const AUTHORS_SHOWN = 3;
 
 export type Newer = {
   count: number;
-  /** 呼び名（「投稿」など）。 */
-  noun: string;
+  noun: NewerNoun;
   /** 新しい順。同じ人が続いていてもよい。 */
   authors: readonly string[];
 };
@@ -58,8 +59,9 @@ const NewerNotice: Component<{
                   )}
                 </For>
               </span>
-              新しい {newer().count > 99 ? "99+" : newer().count} 件の
-              {newer().noun}
+              {plural(`columns.newer.${newer().noun}`, newer().count, {
+                count: newer().count > 99 ? "99+" : newer().count,
+              })}
             </span>
           </Button>
         )}

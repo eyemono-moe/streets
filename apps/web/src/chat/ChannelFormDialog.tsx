@@ -6,6 +6,7 @@ import {
 } from "@streets/core/view/channel-form";
 import { type Component, Show, createEffect, createSignal, on } from "solid-js";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
+import { t } from "../i18n/locale";
 import ImageUrlField from "../media/ImageUrlField";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -60,8 +61,8 @@ const ChannelFormDialog: Component<{
                 <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
                   <DialogTitle class="flex-1 font-600 text-body">
                     {form().mode === "create"
-                      ? "チャンネルを作る"
-                      : "チャンネルの情報を直す"}
+                      ? t("chat.form.title.create")
+                      : t("chat.form.title.edit")}
                   </DialogTitle>
                   <DialogClose disabled={form().phase === "saving"} />
                 </div>
@@ -73,7 +74,7 @@ const ChannelFormDialog: Component<{
                   }}
                 >
                   <TextField
-                    label="名前（必須）"
+                    label={t("chat.form.name.label")}
                     value={form().draft.name}
                     onInput={(value) =>
                       dispatch({
@@ -82,10 +83,10 @@ const ChannelFormDialog: Component<{
                         value,
                       })
                     }
-                    placeholder="例：ねこの画像チャンネル"
+                    placeholder={t("chat.form.name.placeholder")}
                   />
                   <TextField
-                    label="説明"
+                    label={t("chat.form.about.label")}
                     multiline
                     value={form().draft.about}
                     onInput={(value) =>
@@ -95,10 +96,10 @@ const ChannelFormDialog: Component<{
                         value,
                       })
                     }
-                    placeholder="どんな話をする場所か"
+                    placeholder={t("chat.form.about.placeholder")}
                   />
                   <ImageUrlField
-                    label="画像"
+                    label={t("chat.form.picture")}
                     aspectRatio={1}
                     preview={(url) => (
                       <ChannelPicture url={url} class="size-9 rounded-2" />
@@ -116,7 +117,7 @@ const ChannelFormDialog: Component<{
                   />
                   <section class="flex flex-col gap-1.5">
                     <h3 class="c-secondary font-600 text-caption">
-                      発言を読み書きするリレー
+                      {t("chat.form.relays.title")}
                     </h3>
                     <RelayColumnEditor
                       candidates={props.account}
@@ -127,12 +128,12 @@ const ChannelFormDialog: Component<{
                       }
                     />
                     <p class="c-secondary text-caption">
-                      チャンネルの情報と一緒に公開されます。ここに書いたリレーで、みんなが発言を読み書きします。
+                      {t("chat.form.relays.hint")}
                     </p>
                   </section>
                   <Show when={form().mode === "create"}>
                     <Switch
-                      label="作ったらお気に入りに入れる"
+                      label={t("chat.form.favorite")}
                       aside={<StorageHint scope="account" />}
                       checked={form().favorite}
                       onChange={(on) =>
@@ -148,7 +149,7 @@ const ChannelFormDialog: Component<{
                   >
                     <Show when={form().blocked}>
                       <p class="c-danger font-600 text-caption">
-                        保存するか、やめてから閉じてください
+                        {t("chat.form.blocked")}
                       </p>
                     </Show>
                     <div class="flex justify-end gap-2">
@@ -160,7 +161,7 @@ const ChannelFormDialog: Component<{
                           dispatch({ type: "channel-form/discard" })
                         }
                       >
-                        やめる
+                        {t("chat.form.discard")}
                       </Button>
                       <Button
                         type="submit"
@@ -175,11 +176,11 @@ const ChannelFormDialog: Component<{
                       >
                         <Show
                           when={form().phase !== "saving"}
-                          fallback="送信中…"
+                          fallback={t("chat.form.sending")}
                         >
                           {form().mode === "create"
-                            ? "チャンネルを作る"
-                            : "保存"}
+                            ? t("chat.form.title.create")
+                            : t("chat.form.save")}
                         </Show>
                       </Button>
                     </div>
@@ -189,7 +190,7 @@ const ChannelFormDialog: Component<{
                       }
                     >
                       <p class="c-secondary text-right text-caption">
-                        変えたところがありません
+                        {t("chat.form.unchanged")}
                       </p>
                     </Show>
                   </div>

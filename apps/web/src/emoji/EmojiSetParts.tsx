@@ -1,6 +1,7 @@
 import type { CustomEmoji } from "@streets/core/settings/emoji-list";
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { plural, t } from "../i18n/locale";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -26,7 +27,7 @@ export const EmojiPreview: Component<{
         >
           <span
             class="i-material-symbols:broken-image-outline-rounded c-secondary size-5"
-            title="画像を読み込めませんでした"
+            title={t("emoji.set.imageFailed")}
           />
         </Show>
       }
@@ -58,7 +59,9 @@ export const EmojiSetHeading: Component<{
     <span class="c-secondary flex min-w-0 flex-wrap items-center gap-x-1 text-caption">
       <UserLink pubkey={props.pubkey} class="min-w-0 truncate" />
       <Show when={props.count !== undefined}>
-        <span class="shrink-0">・{props.count} 個</span>
+        <span class="shrink-0">
+          ・{plural("emoji.set.count", props.count ?? 0)}
+        </span>
       </Show>
     </span>
   </span>
@@ -76,7 +79,7 @@ export const EmojiGrid: Component<{ emojis: readonly CustomEmoji[] }> = (
     <Show
       when={props.emojis.length > 0}
       fallback={
-        <span class="c-secondary text-caption">絵文字が入っていません</span>
+        <span class="c-secondary text-caption">{t("emoji.set.empty")}</span>
       }
     >
       <span class="flex flex-wrap items-center gap-1.5">
@@ -87,7 +90,7 @@ export const EmojiGrid: Component<{ emojis: readonly CustomEmoji[] }> = (
             class="cursor-pointer bg-transparent p-0 text-caption text-link"
             onClick={() => setExpanded(true)}
           >
-            ほか {rest()} 個
+            {t("emoji.set.more", { count: rest() })}
           </button>
         </Show>
       </span>
@@ -111,7 +114,7 @@ export const EmojiSetAddButton: Component<{
             class="i-material-symbols:check-rounded size-4"
             aria-hidden="true"
           />
-          自分の絵文字リストに入っています
+          {t("emoji.set.added")}
         </span>
       }
     >
@@ -127,7 +130,7 @@ export const EmojiSetAddButton: Component<{
           })
         }
       >
-        自分の絵文字リストに加える
+        {t("emoji.set.add")}
       </Button>
     </Show>
   );

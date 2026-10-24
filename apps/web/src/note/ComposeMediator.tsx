@@ -21,6 +21,7 @@ import type { Component, JSX } from "solid-js";
 import { onCleanup, onMount } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { t } from "../i18n/locale";
 import { prepareForUpload } from "../media/prepare";
 import { useUploader } from "../media/uploader";
 import type { SharedPost } from "../share/share-inbox";
@@ -173,7 +174,7 @@ export const ComposeMediator: Component<{
         // 元の画像を残しておく（何度でも切り直せる）。
         const file = await prepareForUpload(raw, attachment.crop);
         const blob = await uploader?.upload(file);
-        if (!blob) throw new Error("画像のアップロード先が設定されていません");
+        if (!blob) throw new Error(t("note.composeParts.noUploader"));
         apply({ type: "compose/attach-done", id: attachment.id, blob });
       } catch (cause) {
         apply({

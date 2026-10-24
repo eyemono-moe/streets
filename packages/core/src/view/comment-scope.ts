@@ -1,3 +1,4 @@
+import type { Message, MessageKey } from "../i18n/message";
 import { parseEventAddress } from "../nostr/address";
 import { commentRefs } from "../nostr/comment";
 import type { NostrEvent } from "../nostr/event";
@@ -10,29 +11,29 @@ import { replyTarget } from "../nostr/reply";
  * 返信と同じに見せるので、ここでは扱わない。
  */
 export type CommentScope =
-  | { type: "event"; label: string; target: EventRef }
-  | { type: "external"; label: string; value: string; url?: string };
+  | { type: "event"; label: Message; target: EventRef }
+  | { type: "external"; label: Message; value: string; url?: string };
 
 // NIP-73 の外部の識別子。ここに無いものは「何か」とだけ言う。
-const EXTERNAL_LABELS: Record<string, string> = {
-  web: "Web ページ",
-  "#": "ハッシュタグ",
-  geo: "場所",
-  isbn: "本",
-  isan: "映像作品",
-  doi: "論文",
+const EXTERNAL_LABELS: Record<string, MessageKey> = {
+  web: "comment.scope.web",
+  "#": "comment.scope.hashtag",
+  geo: "comment.scope.geo",
+  isbn: "comment.scope.isbn",
+  isan: "comment.scope.isan",
+  doi: "comment.scope.doi",
 };
 
-const externalLabel = (kind: string | undefined): string => {
-  if (kind === undefined) return "外部のもの";
-  if (kind.startsWith("podcast")) return "ポッドキャスト";
-  return EXTERNAL_LABELS[kind] ?? "外部のもの";
+const externalLabel = (kind: string | undefined): Message => {
+  if (kind === undefined) return { key: "comment.scope.external" };
+  if (kind.startsWith("podcast")) return { key: "comment.scope.podcast" };
+  return { key: EXTERNAL_LABELS[kind] ?? "comment.scope.external" };
 };
 
-const eventLabel = (kind: number | undefined): string => {
-  const summary = KIND_SUPPORT.find((entry) => entry.kind === kind)?.summary;
-  return summary ? `${summary}へのコメント` : "コメント";
-};
+const eventLabel = (kind: number | undefined): Message =>
+  KIND_SUPPORT.some((entry) => entry.kind === kind) && kind !== undefined
+    ? { key: "comment.scope.event", args: { kind } }
+    : { key: "comment.scope.comment" };
 
 const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value);
 
@@ -43,7 +44,7 @@ export const commentScope = (event: NostrEvent): CommentScope | undefined => {
   if (root.form === "external") {
     const scope: CommentScope = {
       type: "external",
-      label: `${externalLabel(root.kind)}へのコメント`,
+      label: externalLabel(root.kind),
       value: root.value,
     };
     if (root.kind === "web" && isHttpUrl(root.value)) scope.url = root.value;

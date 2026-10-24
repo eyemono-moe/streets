@@ -1,5 +1,6 @@
 import { Menu } from "@ark-ui/solid/menu";
 import { type Component, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import { useUserStatuses } from "../status/use-user-statuses";
 import { tourTarget } from "../tour/tour-target";
@@ -45,7 +46,11 @@ const AccountMenu: Component<{
       >
         <Menu.Trigger
           {...tourTarget("account")}
-          aria-label={props.pubkey ? "アカウント" : "ログインとメニュー"}
+          aria-label={
+            props.pubkey
+              ? t("deck.accountMenu.account")
+              : t("deck.accountMenu.loginAndMenu")
+          }
           class="cursor-pointer rounded-full bg-transparent"
         >
           <Show
@@ -74,7 +79,7 @@ const AccountMenu: Component<{
                     class="i-material-symbols:login-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  ログイン
+                  {t("deck.accountMenu.login")}
                 </Menu.Item>
                 <hr class={menuSeparatorClass} />
               </Show>
@@ -85,7 +90,9 @@ const AccountMenu: Component<{
                     aria-hidden="true"
                   />
                   <span class="flex min-w-0 flex-col">
-                    <span class="whitespace-nowrap">ステータスを設定</span>
+                    <span class="whitespace-nowrap">
+                      {t("deck.accountMenu.setStatus")}
+                    </span>
                     {/* 今の状態を添える。切れても、何を出しているかは分かる。 */}
                     <Show when={current()}>
                       {(status) => (
@@ -106,7 +113,7 @@ const AccountMenu: Component<{
                   class="i-material-symbols:settings-outline-rounded c-secondary size-4 shrink-0"
                   aria-hidden="true"
                 />
-                設定
+                {t("deck.accountMenu.settings")}
               </Menu.Item>
               <Menu.Item
                 value="about"
@@ -116,7 +123,7 @@ const AccountMenu: Component<{
                   class="i-material-symbols:info-outline-rounded c-secondary size-4 shrink-0"
                   aria-hidden="true"
                 />
-                Streets について
+                {t("deck.accountMenu.about")}
               </Menu.Item>
               <Show when={feedback()}>
                 <Menu.Item
@@ -127,7 +134,7 @@ const AccountMenu: Component<{
                     class="i-material-symbols:feedback-outline-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  フィードバックを送る
+                  {t("deck.accountMenu.feedback")}
                 </Menu.Item>
               </Show>
               <Show when={props.pubkey}>
@@ -139,7 +146,7 @@ const AccountMenu: Component<{
                     class="i-material-symbols:logout-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  ログアウト
+                  {t("deck.accountMenu.logout")}
                 </Menu.Item>
               </Show>
             </Menu.Content>

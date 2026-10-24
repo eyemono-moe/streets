@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { Message, MessageKey } from "../i18n/message";
 import { parseNip05 } from "../nostr/nip05";
 import type { Profile } from "../nostr/profile";
 
@@ -132,10 +133,15 @@ export const profileEditTransition = (
   }
 };
 
-const URL_MESSAGE = "https:// で始まる URL を入力してください";
-const NIP05_MESSAGE = "name@example.com の形で入力してください";
-const LIGHTNING_ADDRESS_MESSAGE =
-  "name@wallet.example の形で入力してください（ウォレットのアプリに表示されています）";
+// valibot の誤りの文は文字列しか持てないので、キーをそのまま文にして、返すときに Message へ戻す。
+const URL_MESSAGE = "profile.error.url";
+const NIP05_MESSAGE = "profile.error.nip05";
+const LIGHTNING_ADDRESS_MESSAGE = "profile.error.lightningAddress";
+const ERROR_KEYS: readonly MessageKey[] = [
+  URL_MESSAGE,
+  NIP05_MESSAGE,
+  LIGHTNING_ADDRESS_MESSAGE,
+];
 
 /**
  * 空欄は誤りにしない（書かない、という選択）。前後の空白は落としてから確かめる。
@@ -171,14 +177,14 @@ const profileSchema = v.object({
 /** 保存を止める誤り。項目ごとに最初の 1 つを返す。 */
 export const profileErrors = (
   draft: ProfileDraft,
-): Partial<Record<ProfileField, string>> => {
+): Partial<Record<ProfileField, Message>> => {
   const result = v.safeParse(profileSchema, draft);
   if (result.success) return {};
   const nested = v.flatten<typeof profileSchema>(result.issues).nested ?? {};
-  const errors: Partial<Record<ProfileField, string>> = {};
+  const errors: Partial<Record<ProfileField, Message>> = {};
   for (const [field, messages] of Object.entries(nested)) {
-    const message = messages?.[0];
-    if (message) errors[field as ProfileField] = message;
+    const key = ERROR_KEYS.find((candidate) => candidate === messages?.[0]);
+    if (key) errors[field as ProfileField] = { key };
   }
   return errors;
 };

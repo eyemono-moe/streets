@@ -29,6 +29,7 @@ import {
 } from "solid-js";
 import { type ListWindow, NewerEdge, listWindow } from "../columns/list-window";
 import { useListsUnderWarning } from "../content-warning-setting";
+import { t } from "../i18n/locale";
 import Event from "../note/Event";
 import { useBotLookup } from "../note/use-profile";
 import { useMutes } from "../settings/MuteMediator";
@@ -176,12 +177,12 @@ export const SearchPanelView: Component<{
         </Match>
         <Match when={props.empty}>
           <p class="c-secondary px-3 py-4 text-caption">
-            キーワードを入力すると、ここに結果が表示されます。
+            {t("deck.searchPanel.empty")}
           </p>
         </Match>
         <Match when={!props.searched}>
           <p class="c-secondary px-3 py-4 text-caption">
-            Enter か「検索」で探します。
+            {t("deck.searchPanel.notSearched")}
           </p>
         </Match>
         <Match when={props.results.length > 0}>
@@ -198,7 +199,7 @@ export const SearchPanelView: Component<{
             </VirtualList>
             {props.status.incomplete && (
               <p class="c-secondary px-3 py-2 text-caption">
-                一部のリレーから結果を取得できませんでした。
+                {t("deck.searchPanel.incomplete")}
               </p>
             )}
             <OlderLoader paging={props.paging} onReach={props.onMore} />
@@ -207,12 +208,14 @@ export const SearchPanelView: Component<{
         <Match when={props.status.phase === "settled"}>
           <p class="c-secondary px-3 py-4 text-caption">
             {props.status.incomplete
-              ? "一部のリレーから結果を取得できませんでした。"
-              : "まだ投稿がありません。"}
+              ? t("deck.searchPanel.incomplete")
+              : t("deck.searchPanel.noPosts")}
           </p>
         </Match>
         <Match when={true}>
-          <p class="c-secondary px-3 py-4 text-caption">検索中…</p>
+          <p class="c-secondary px-3 py-4 text-caption">
+            {t("deck.searchPanel.searching")}
+          </p>
         </Match>
       </Switch>
     </div>
@@ -229,7 +232,7 @@ export const SearchPanelView: Component<{
             disabled={props.empty}
             onClick={props.onSearch}
           >
-            検索
+            {t("deck.searchPanel.search")}
           </Button>
         }
       >
@@ -240,7 +243,7 @@ export const SearchPanelView: Component<{
           disabled={props.empty}
           onClick={props.onOpen}
         >
-          この条件でカラムを開く
+          {t("deck.searchPanel.openColumn")}
         </Button>
       </Show>
     </div>

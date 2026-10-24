@@ -1,0 +1,13 @@
+{
+  "label": "Article",
+  "untitled": "Untitled article",
+  "dates": {
+    "publishedAndUpdated": "Published {{ published }} · Updated {{ updated }}"
+  },
+  "comments": {
+    "title": "Comments",
+    "empty": "No comments yet.",
+    "loading": "Loading…"
+  },
+  "openImage": "Open image"
+}

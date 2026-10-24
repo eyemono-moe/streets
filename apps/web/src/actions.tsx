@@ -71,6 +71,7 @@ import {
   useContext,
 } from "solid-js";
 import { fallbackRelays } from "./fallback-relay-setting";
+import { t } from "./i18n/locale";
 import { trackQuickWrites, trackSends, trackWrites } from "./write-progress";
 
 const BOOKMARK_KIND = 10003;
@@ -315,7 +316,7 @@ export const createWriteStack = (options: {
     viewer: options.viewer,
     bookmarkIds,
     async post(content, media, emoji, contentWarning) {
-      await quick("投稿").publish(
+      await quick(t("app.writeLabel.post")).publish(
         withContentWarning(
           withMedia(
             withReferences(buildNote(content), references(emoji)),
@@ -326,7 +327,7 @@ export const createWriteStack = (options: {
       );
     },
     async reply(event, content, media, emoji, contentWarning) {
-      await quick("返信").publish(
+      await quick(t("app.writeLabel.reply")).publish(
         withContentWarning(
           withMedia(
             withReferences(
@@ -342,7 +343,7 @@ export const createWriteStack = (options: {
       );
     },
     async quote(event, content, media, emoji, contentWarning) {
-      await quick("引用").publish(
+      await quick(t("app.writeLabel.quote")).publish(
         withContentWarning(
           withMedia(
             withReferences(
@@ -356,7 +357,7 @@ export const createWriteStack = (options: {
       );
     },
     async channelMessage(channel, content, options) {
-      await quick("チャンネルでの発言").publish(
+      await quick(t("app.writeLabel.channelMessage")).publish(
         withMedia(
           withReferences(
             buildChannelMessage(channel.id, content, {
@@ -372,24 +373,24 @@ export const createWriteStack = (options: {
       );
     },
     async setStatus(input) {
-      await tracked("ステータス").publish(buildUserStatus(input));
+      await tracked(t("app.writeLabel.status")).publish(buildUserStatus(input));
     },
     async repost(event) {
       const draft = buildRepost(event, { relayHint: hintFor(event) });
-      if (!draft) throw new Error("この投稿はリポストできません");
-      await quick("リポスト").publish(draft);
+      if (!draft) throw new Error(t("app.actions.cannotRepost"));
+      await quick(t("app.writeLabel.repost")).publish(draft);
     },
     async vote(event, choices) {
       const poll = parsePoll(event);
-      if (!poll) throw new Error("この投稿には投票できません");
-      await tracked("投票").publish(
+      if (!poll) throw new Error(t("app.actions.cannotVote"));
+      await tracked(t("app.writeLabel.vote")).publish(
         buildPollResponse(poll, choices),
         undefined,
         poll.relays.length > 0 ? { relays: poll.relays } : undefined,
       );
     },
     async react(event, input) {
-      await quick("リアクション").publish(
+      await quick(t("app.writeLabel.reaction")).publish(
         buildReaction(event, input, { relayHint: hintFor(event) }),
         undefined,
         // チャンネルの発言は、書き手ではなくチャンネルのリレーで読まれる。
@@ -405,18 +406,22 @@ export const createWriteStack = (options: {
         type: "note",
         value: event.id,
       });
-      await tracked("ブックマーク").replace(BOOKMARK_KIND, undefined, mutation);
+      await tracked(t("app.writeLabel.bookmark")).replace(
+        BOOKMARK_KIND,
+        undefined,
+        mutation,
+      );
     },
     pinned: (id) => pinnedNoteIds(pins()).includes(id),
     async setPinned(event, on) {
-      await tracked("ピン留め").replace(
+      await tracked(t("app.writeLabel.pin")).replace(
         PINNED_NOTES_KIND,
         undefined,
         (on ? pinNote : unpinNote)(event.id),
       );
     },
     async createChannel(input) {
-      const result = await tracked("チャンネルを作る").publish(
+      const result = await tracked(t("app.writeLabel.channelCreate")).publish(
         buildChannelCreate(input),
         undefined,
         { relays: input.relays },
@@ -424,14 +429,14 @@ export const createWriteStack = (options: {
       return result.event.id;
     },
     async editChannel(channelId, input) {
-      await tracked("チャンネルの情報").publish(
+      await tracked(t("app.writeLabel.channelInfo")).publish(
         buildChannelMetadata(channelId, input, input.relays[0]),
         undefined,
         { relays: input.relays },
       );
     },
     async muteInChat(kind, target, reason, relays) {
-      await tracked("チャット内のミュート").publish(
+      await tracked(t("app.writeLabel.chatMute")).publish(
         kind === "message"
           ? buildHideMessage(target.messageId, reason)
           : buildMuteUser(target.pubkey, reason),
@@ -441,7 +446,7 @@ export const createWriteStack = (options: {
     },
     favoriteChannelIds: () => favoriteChannels(publicChats()),
     async setFavoriteChannel(id, on) {
-      await tracked("お気に入り").replace(
+      await tracked(t("app.writeLabel.favorite")).replace(
         PUBLIC_CHATS_KIND,
         undefined,
         on ? addFavoriteChannel(id) : removeFavoriteChannel(id),
@@ -452,7 +457,7 @@ export const createWriteStack = (options: {
       author: authorRelays(event, routing),
     }),
     async broadcast(event, relays) {
-      await trackSends("ブロードキャスト", (onProgress) =>
+      await trackSends(t("app.writeLabel.broadcast"), (onProgress) =>
         broadcast(manager.pool, event, relays, onProgress),
       );
     },
@@ -463,16 +468,20 @@ export const createWriteStack = (options: {
       // 自分の write リレーだけでは、別のリレーに残った投稿が消えない（NIP-09 は対象を持つ
       // リレーへも送るよう求める）。数を絞らないのは、どれも投稿を読むのに一度繋いだリレーで、
       // 削除依頼は投稿のたびに送るものではないため。
-      await tracked("投稿の削除").publish(buildDeletion(event), undefined, {
-        relays: seenRelays(event.id),
-      });
+      await tracked(t("app.writeLabel.delete")).publish(
+        buildDeletion(event),
+        undefined,
+        {
+          relays: seenRelays(event.id),
+        },
+      );
     },
     followeeIds,
     following: (pubkey) => followeeIds().includes(pubkey),
     async setFollow(pubkey, on) {
       // 自分をフォローする操作は出さない。押せてしまうと kind:3 に自分が混ざる。
       if (pubkey === options.viewer) return;
-      await tracked("フォロー").replace(
+      await tracked(t("app.writeLabel.follow")).replace(
         FOLLOW_KIND,
         undefined,
         on ? addFollow(pubkey) : removeFollow(pubkey),

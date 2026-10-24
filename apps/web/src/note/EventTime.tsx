@@ -4,6 +4,7 @@ import {
   formatRelativeEventTime,
 } from "@streets/core/view/format-time";
 import { type Component, createSignal } from "solid-js";
+import { locale, messageOrText } from "../i18n/locale";
 import { timeFormat } from "../time-format-setting";
 
 const [now, setNow] = createSignal(new Date());
@@ -32,11 +33,13 @@ const EventTime: Component<{
     ref={props.ref}
     class={`c-secondary text-caption ${props.class ?? ""}`}
     datetime={props.at.toISOString()}
-    title={formatEventTimeFull(props.at)}
+    title={formatEventTimeFull(props.at, locale())}
   >
     {timeFormat() === "relative"
-      ? formatRelativeEventTime(props.at, minuteClock())
-      : formatEventTime(props.at, new Date())}
+      ? messageOrText(
+          formatRelativeEventTime(props.at, minuteClock(), locale()),
+        )
+      : formatEventTime(props.at, new Date(), locale())}
   </time>
 );
 

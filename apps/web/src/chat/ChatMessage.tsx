@@ -9,6 +9,7 @@ import { type Component, Show, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
+import { locale, t } from "../i18n/locale";
 import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
 import { hiddenUnderWarning, warningLabel } from "../note/ContentWarningGate";
@@ -25,7 +26,7 @@ const TOOLBAR_ACTIONS: readonly EventActionId[] = ["reply", "like", "react"];
 
 /** 日付は区切りの行が出すので、発言には時刻だけを出す。 */
 const chatTime = (date: Date): string =>
-  date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  date.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 
 /** 返信先を 1 行で出す。取りに行っている間は名前だけ、読めなければ出さない。 */
 const ReplyContext: Component<{
@@ -53,7 +54,7 @@ const ReplyContext: Component<{
             class="i-material-symbols:reply-rounded size-3.5 shrink-0"
             aria-hidden="true"
           />
-          <span class="sr-only">返信先</span>
+          <span class="sr-only">{t("chat.message.replyTo")}</span>
           <span class="shrink-0 font-600">
             {profileLabel(profile(), pubkey())}
           </span>
@@ -130,7 +131,7 @@ export const ChatMessage: Component<{
             <time
               class="c-secondary shrink-0 text-caption"
               datetime={date().toISOString()}
-              title={formatEventTimeFull(date())}
+              title={formatEventTimeFull(date(), locale())}
             >
               {chatTime(date())}
             </time>
@@ -157,16 +158,16 @@ export const ChatMessage: Component<{
       <div
         class="-top-3.5 absolute right-2 hidden items-center gap-0.5 rounded-2 border border-primary bg-primary p-0.5 shadow-sm group-hover:flex group-focus-within:flex has-[[data-state=open]]:flex"
         role="toolbar"
-        aria-label="この発言の操作"
+        aria-label={t("chat.message.toolbar")}
       >
         <IconButton
           icon="i-material-symbols:reply-rounded"
-          label="返信する"
+          label={t("chat.message.reply")}
           onClick={reply}
         />
         <IconButton
           icon="i-material-symbols:favorite-outline-rounded"
-          label="いいね"
+          label={t("chat.message.like")}
           onClick={() =>
             dispatch({
               type: "note/react",
@@ -182,7 +183,7 @@ export const ChatMessage: Component<{
           trigger={(trigger) => (
             <IconButton
               icon="i-material-symbols:add-reaction-outline-rounded"
-              label="リアクションする"
+              label={t("chat.message.react")}
               {...trigger()}
             />
           )}
@@ -197,12 +198,6 @@ export const ChatMessage: Component<{
       </div>
     </article>
   );
-};
-
-const HIDDEN_LABEL: Record<Exclude<MessageVisibility, "visible">, string> = {
-  "muted-by-others": "ほかの人がミュートしたメッセージです",
-  "muted-by-me": "ミュートしたメッセージです",
-  "muted-user": "ミュートした人の発言です",
 };
 
 /** ミュートされた発言。消さずに畳み、押せば読める。 */
@@ -223,13 +218,15 @@ export const HiddenChatMessage: Component<{
               class="i-material-symbols:visibility-off-outline-rounded size-4 shrink-0"
               aria-hidden="true"
             />
-            <span class="min-w-0 flex-1">{HIDDEN_LABEL[props.visibility]}</span>
+            <span class="min-w-0 flex-1">
+              {t(`chat.message.hidden.${props.visibility}`)}
+            </span>
             <button
               type="button"
               class="c-accent-5 shrink-0 cursor-pointer bg-transparent font-600"
               onClick={() => setOpen(true)}
             >
-              表示する
+              {t("chat.message.show")}
             </button>
           </div>
         </div>
@@ -247,7 +244,7 @@ export const HiddenChatMessage: Component<{
           class="c-secondary cursor-pointer self-start bg-transparent pb-1 pl-13.5 text-caption hover:underline"
           onClick={() => setOpen(false)}
         >
-          畳む
+          {t("chat.message.fold")}
         </button>
       </div>
     </Show>

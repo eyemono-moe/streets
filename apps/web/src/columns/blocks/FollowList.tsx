@@ -1,6 +1,7 @@
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { NostrSource } from "@streets/core/read/source";
 import type { Component } from "solid-js";
+import { t } from "../../i18n/locale";
 import ProfileList from "../../profile/ProfileList";
 import { createBlockSection } from "../column-scope";
 
@@ -13,7 +14,7 @@ const FollowList: Component<{ source: () => NostrSource | undefined }> = (
     <ProfileList
       people={followeesFrom(section.items()[0])}
       settled={section.status().phase === "settled"}
-      empty="まだ誰もフォローしていません。"
+      empty={t("columns.blocks.empty.following")}
     />
   );
 };

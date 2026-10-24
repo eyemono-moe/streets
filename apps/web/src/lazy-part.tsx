@@ -7,6 +7,7 @@ import {
   createSignal,
   untrack,
 } from "solid-js";
+import { t } from "./i18n/locale";
 import { toaster } from "./toast";
 
 type Loader<P extends Record<string, unknown>> = () => Promise<{
@@ -73,13 +74,15 @@ const notifyLoadFailure = (cause: unknown) => {
     // 部品ごとに失敗しても、再読み込みを頼むのは 1 枚で足りる。
     id: LOAD_FAILURE_TOAST_ID,
     type: "error",
-    title: "画面の一部を読み込めませんでした",
-    description:
-      "新しい版が公開された直後や、通信が切れているときに起きます。再読み込みすると直ります。",
+    title: t("app.lazyPart.title"),
+    description: t("app.lazyPart.description"),
     // ホーム画面に追加したアプリには再読み込みのボタンが無いので、ここで押せるようにする。
     // 読み直すまで同じ部品は開けないままなので、消さずに残す。
     duration: Number.POSITIVE_INFINITY,
-    action: { label: "再読み込み", onClick: () => location.reload() },
+    action: {
+      label: t("app.lazyPart.reload"),
+      onClick: () => location.reload(),
+    },
   });
 };
 

@@ -1,6 +1,7 @@
 import { Menu } from "@ark-ui/solid/menu";
 import type { Deck } from "@streets/core/deck/deck";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { plural, t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -35,7 +36,7 @@ const RenameInput: Component<{
   return (
     <input
       ref={(el) => requestAnimationFrame(() => el.select())}
-      aria-label="デッキの名前"
+      aria-label={t("deck.deckEdit.nameLabel")}
       class={`${textInputClass} min-w-0 flex-1`}
       value={props.name}
       onKeyDown={(event) => {
@@ -77,7 +78,7 @@ const DeckPicker: Component<{
       }}
     >
       <Menu.Trigger
-        aria-label={`デッキを切り替える（いまは「${props.active.name}」）`}
+        aria-label={t("deck.deckEdit.switch", { name: props.active.name })}
         class="flex h-13 min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-2 bg-secondary pr-2 pl-3 text-left hover:bg-tertiary data-[state=open]:ring-2 data-[state=open]:ring-accent-5"
       >
         <span
@@ -87,7 +88,7 @@ const DeckPicker: Component<{
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="truncate font-700 text-body">{props.active.name}</span>
           <span class="c-secondary truncate text-caption">
-            開いているデッキ・カラム {props.active.columns} 本
+            {plural("deck.deckEdit.openColumns", props.active.columns)}
           </span>
         </span>
         <span
@@ -117,7 +118,7 @@ const DeckPicker: Component<{
                   />
                   <span class="min-w-0 flex-1 truncate">{deck.name}</span>
                   <span class="c-secondary text-caption">
-                    カラム {deck.columns} 本
+                    {plural("deck.deckEdit.columns", deck.columns)}
                   </span>
                 </Menu.Item>
               )}
@@ -128,7 +129,7 @@ const DeckPicker: Component<{
                 class="i-material-symbols:add-rounded c-secondary size-4 shrink-0"
                 aria-hidden="true"
               />
-              新しいデッキ…
+              {t("deck.deckEdit.newDeck")}
             </Menu.Item>
           </Menu.Content>
         </Menu.Positioner>
@@ -206,7 +207,7 @@ const DeckEditHeader: Component<{
                 {...trigger()}
                 size="md"
                 icon="i-material-symbols:more-vert"
-                label={`「${active().name}」の操作`}
+                label={t("deck.deckEdit.actions", { name: active().name })}
               />
             )}
           />
@@ -218,7 +219,7 @@ const DeckEditHeader: Component<{
                     class="i-material-symbols:edit-outline-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  名前を変える
+                  {t("deck.deckEdit.rename")}
                 </Menu.Item>
                 <Menu.Item
                   value="up"
@@ -229,7 +230,7 @@ const DeckEditHeader: Component<{
                     class="i-material-symbols:arrow-upward-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  一覧で上へ動かす
+                  {t("deck.deckEdit.moveUp")}
                 </Menu.Item>
                 <Menu.Item
                   value="down"
@@ -240,7 +241,7 @@ const DeckEditHeader: Component<{
                     class="i-material-symbols:arrow-downward-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  一覧で下へ動かす
+                  {t("deck.deckEdit.moveDown")}
                 </Menu.Item>
                 <Menu.Separator class={menuSeparatorClass} />
                 <Menu.Item
@@ -253,7 +254,7 @@ const DeckEditHeader: Component<{
                     class="i-material-symbols:delete-outline-rounded size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  このデッキを削除
+                  {t("deck.deckEdit.delete")}
                 </Menu.Item>
               </Menu.Content>
             </Menu.Positioner>
@@ -263,8 +264,7 @@ const DeckEditHeader: Component<{
       <Show when={confirming()}>
         <div class="motion-fade flex animate-in flex-col gap-2 rounded-2 border border-primary p-3">
           <p class="text-caption">
-            「{active().name}
-            」と、その中のカラムの並びを削除します。元には戻せません。
+            {t("deck.deckEdit.confirmDelete", { name: active().name })}
           </p>
           <div class="flex justify-end gap-2">
             <Button
@@ -272,7 +272,7 @@ const DeckEditHeader: Component<{
               size="sm"
               onClick={() => setConfirming(false)}
             >
-              やめる
+              {t("deck.deckEdit.cancel")}
             </Button>
             <Button
               variant="danger"
@@ -283,7 +283,7 @@ const DeckEditHeader: Component<{
                 dispatch({ type: "deck/remove-deck", id: active().id });
               }}
             >
-              削除する
+              {t("deck.deckEdit.confirm")}
             </Button>
           </div>
         </div>

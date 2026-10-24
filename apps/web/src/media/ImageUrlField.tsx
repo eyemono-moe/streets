@@ -7,6 +7,7 @@ import {
   createUniqueId,
   onCleanup,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { notifyError } from "../toast";
 import Button from "../ui/Button";
@@ -59,7 +60,7 @@ const ImageUrlField: Component<{
       const blob = await uploader.upload(await prepareForUpload(file, crop));
       props.onChange(blob.url);
     } catch (cause) {
-      notifyError(cause, "画像をアップロードできませんでした");
+      notifyError(cause, t("media.imageUrl.uploadFailed"));
     } finally {
       setUploading(false);
       props.onUploading(false);
@@ -69,7 +70,10 @@ const ImageUrlField: Component<{
   const choose = () => {
     // 押せないボタンだけ出すと、なぜ使えないのか分からない。押したら案内する。
     if (!uploader || uploader.servers().length === 0) {
-      notifyError(new NoUploadServerError(), "画像をアップロードできません");
+      notifyError(
+        new NoUploadServerError(),
+        t("media.imageUrl.uploadUnavailable"),
+      );
       return;
     }
     picker?.click();
@@ -113,7 +117,9 @@ const ImageUrlField: Component<{
           disabled={props.disabled || uploading()}
           onClick={choose}
         >
-          {uploading() ? "アップロード中…" : "画像を選ぶ"}
+          {uploading()
+            ? t("media.imageUrl.uploading")
+            : t("media.imageUrl.choose")}
         </Button>
       </div>
       <Show when={props.error}>

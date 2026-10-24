@@ -6,7 +6,6 @@ import {
   type FollowSetChange,
   changeFollowSet,
   decodeFollowSet,
-  followSetName,
   latestFollowSets,
   newFollowSetIdentifier,
   readFollowSet,
@@ -44,10 +43,12 @@ import {
   useContext,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { t } from "../i18n/locale";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import { trackWrites } from "../write-progress";
+import { followSetName } from "./follow-set-name";
 
 const FollowSetFormDialog = lazyPart(() => import("./FollowSetFormDialog"));
 
@@ -119,7 +120,7 @@ export const FollowSetMediator: ParentComponent<{
       changes,
     };
     apply({ type: "follow-sets/write", write: pending });
-    return trackWrites(props.writer, "リスト")
+    return trackWrites(props.writer, t("lists.write.list"))
       .replace(
         FOLLOW_SET_KIND,
         identifier,
@@ -144,9 +145,9 @@ export const FollowSetMediator: ParentComponent<{
       deleting: true,
     };
     apply({ type: "follow-sets/write", write: pending });
-    trackWrites(props.writer, "リストの削除")
+    trackWrites(props.writer, t("lists.write.delete"))
       .publish(buildDeletion(target))
-      .catch((cause) => notifyError(cause, "リストを削除できませんでした"))
+      .catch((cause) => notifyError(cause, t("lists.write.deleteFailed")))
       .finally(() => apply({ type: "follow-sets/settled", id: pending.id }));
   };
 
@@ -167,7 +168,7 @@ export const FollowSetMediator: ParentComponent<{
     write(
       identifier,
       [{ type: "describe", title, description, image }],
-      creating ? "リストを作れませんでした" : "リストを保存できませんでした",
+      creating ? t("lists.write.createFailed") : t("lists.write.saveFailed"),
     ).then(
       () => {
         applyForm({ type: "follow-set-form/saved" });
@@ -214,7 +215,7 @@ export const FollowSetMediator: ParentComponent<{
               },
               { type: "add", member: event.member },
             ],
-            "リストを作れませんでした",
+            t("lists.write.createFailed"),
           ),
         );
         return true;
@@ -223,7 +224,7 @@ export const FollowSetMediator: ParentComponent<{
           write(
             event.identifier,
             [{ type: "add", member: event.member }],
-            "リストに追加できませんでした",
+            t("lists.write.addFailed"),
           ),
         );
         return true;
@@ -232,7 +233,7 @@ export const FollowSetMediator: ParentComponent<{
           write(
             event.identifier,
             [{ type: "remove", member: event.member }],
-            "リストから外せませんでした",
+            t("lists.write.removeFailed"),
           ),
         );
         return true;
@@ -244,7 +245,7 @@ export const FollowSetMediator: ParentComponent<{
               { type: "remove", member: event.from },
               { type: "add", member: event.to },
             ],
-            "リストの公開範囲を変えられませんでした",
+            t("lists.write.moveFailed"),
           ),
         );
         return true;
@@ -297,9 +298,9 @@ export const privatePartNotice = (
 ): string | undefined => {
   switch (status) {
     case "unavailable":
-      return "今のログインの方法では非公開のメンバーを読めないため、公開のメンバーだけを表示しています。";
+      return t("lists.privatePart.unavailable");
     case "invalid":
-      return "非公開のメンバーを読み取れませんでした。公開のメンバーだけを表示しています。";
+      return t("lists.privatePart.invalid");
     default:
       return undefined;
   }

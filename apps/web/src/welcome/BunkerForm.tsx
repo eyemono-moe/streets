@@ -1,4 +1,5 @@
 import { type Component, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
 import { GUIDE, GuideLink } from "./guide";
@@ -25,7 +26,7 @@ const BunkerForm: Component<{
       }}
     >
       <label for="bunker-uri" class="sr-only">
-        bunker:// で始まる文字列
+        {t("welcome.bunker.label")}
       </label>
       <div class="flex gap-2">
         <input
@@ -46,22 +47,21 @@ const BunkerForm: Component<{
           class="h-9"
           disabled={props.pending || !value().trim() || secretKey()}
         >
-          接続
+          {t("welcome.bunker.submit")}
         </Button>
       </div>
       <Show
         when={secretKey()}
         fallback={
           <p id="bunker-uri-note" class="c-secondary text-caption">
-            署名器が表示する、bunker:// で始まる文字列を貼り付けます。
+            {t("welcome.bunker.note")}
           </p>
         }
       >
         <p id="bunker-uri-note" class="c-danger text-caption">
-          これは秘密鍵です。Streets
-          は秘密鍵を受け付けません。秘密鍵が一度でも漏れると、アカウントを取り戻す方法がないためです。拡張機能か署名器に秘密鍵を預けてから、そちらでログインしてください。
+          {t("welcome.bunker.secretKey")}
           <GuideLink href={`${GUIDE}/faq.html#why-is-nsec-confidential`}>
-            秘密鍵を人に渡してはいけない理由
+            {t("welcome.bunker.secretKeyReason")}
           </GuideLink>
         </p>
       </Show>

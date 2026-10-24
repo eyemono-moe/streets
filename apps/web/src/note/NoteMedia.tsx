@@ -9,6 +9,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { createDisplayImage, createNearViewport } from "../media/display-image";
 import { createMediaAttempts } from "../media/media-attempts";
 import IconButton from "../ui/IconButton";
@@ -121,7 +122,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
       target="_blank"
       rel="noopener noreferrer"
       class="block max-w-full"
-      aria-label="画像を開く"
+      aria-label={t("note.media.open")}
       onClick={(event) => {
         // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
         if (
@@ -236,7 +237,7 @@ const MediaVideo: Component<MediaViewProps> = (props) => {
             size="sm"
             circle
             icon="i-material-symbols:open-in-full-rounded"
-            label="拡大して見る"
+            label={t("note.media.enlarge")}
             class="absolute top-2 right-2"
             onClick={() => {
               // 拡大表示でも再生するので、音が重ならないよう止める。

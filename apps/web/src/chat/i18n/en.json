@@ -1,0 +1,156 @@
+{
+  "list": {
+    "longAgo": "A while ago",
+    "unnamed": "Unnamed channel",
+    "noAbout": "No description",
+    "unfavorite": "Remove {{ name }} from favorites",
+    "favorite": "Add {{ name }} to favorites",
+    "more": {
+      "one": "{{ count }} more. Filter by name to narrow it down.",
+      "other": "{{ count }} more. Filter by name to narrow it down."
+    },
+    "loading": "Loading…",
+    "tabs": {
+      "recent": "Favorites & recent",
+      "all": "All"
+    },
+    "favorites": {
+      "title": "Favorite channels",
+      "empty": "Channels you star will show up here."
+    },
+    "active": {
+      "title": "Recently active channels",
+      "empty": "No channels have had messages in the last 7 days."
+    },
+    "search": {
+      "label": "Filter channels by name",
+      "placeholder": "Filter by name"
+    },
+    "all": {
+      "title": "All channels (by name)",
+      "emptySearch": "No channels match that name or description.",
+      "empty": "No channels found."
+    },
+    "count": {
+      "one": "{{ count }} channel",
+      "other": "{{ count }} channels"
+    },
+    "create": "Create a channel",
+    "label": "Channel list"
+  },
+  "form": {
+    "errors": {
+      "favoriteFailed": "Couldn't add it to your favorites",
+      "createFailed": "Couldn't create the channel",
+      "saveFailed": "Couldn't save the channel's details"
+    },
+    "title": {
+      "create": "Create a channel",
+      "edit": "Edit channel details"
+    },
+    "name": {
+      "label": "Name (required)",
+      "placeholder": "e.g. Cat pictures"
+    },
+    "about": {
+      "label": "Description",
+      "placeholder": "What people talk about here"
+    },
+    "picture": "Picture",
+    "relays": {
+      "title": "Relays for reading and writing messages",
+      "hint": "Published along with the channel's details. Everyone reads and writes messages on the relays you list here."
+    },
+    "favorite": "Add to favorites once created",
+    "blocked": "Save or discard your changes before closing",
+    "discard": "Discard",
+    "sending": "Sending…",
+    "save": "Save",
+    "unchanged": "Nothing has changed"
+  },
+  "composer": {
+    "replyingTo": "Replying to {{ name }}",
+    "cancelReply": "Cancel reply",
+    "completion": "Suggestions",
+    "ariaLabel": "Send a message to {{ name }}",
+    "placeholder": "Send a message to this channel",
+    "send": "Send"
+  },
+  "mute": {
+    "kind": {
+      "message": "This message",
+      "user": "This person",
+      "title": "What",
+      "label": "What to mute"
+    },
+    "scope": {
+      "channel": "This channel only",
+      "everywhere": "Everywhere",
+      "title": "Where",
+      "label": "Where to mute"
+    },
+    "body": {
+      "everywhereMessage": "This message will be hidden everywhere. You can unmute it any time from the mute settings.",
+      "everywhereUser": "This person's posts and messages will be hidden everywhere. You can unmute them any time from the mute settings.",
+      "channelMessage": "This message will be collapsed in this channel only. You can still tap to read it.",
+      "channelUser": "This person's messages will be collapsed in every channel. You can still tap to read them. Their posts and anything outside channels stay visible."
+    },
+    "title": "Mute",
+    "public": "Muting is public, so it may also collapse these messages for other people.",
+    "reason": {
+      "label": "Reason (optional)",
+      "placeholder": "e.g. Spam"
+    },
+    "cancel": "Cancel",
+    "sending": "Sending…",
+    "submit": "Mute"
+  },
+  "view": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "paging": {
+      "waiting": "Waiting for other relays…",
+      "loading": "Loading older messages…",
+      "exhausted": "No earlier messages",
+      "failed": "Couldn't load older messages",
+      "retry": "Try again"
+    },
+    "empty": {
+      "loading": "Loading…",
+      "unreachable": "Some relays couldn't be reached, so messages couldn't be loaded. Try opening this again in a while.",
+      "none": "No messages yet. Say something first."
+    },
+    "newMessages": {
+      "one": "{{ count }} new message",
+      "other": "{{ count }} new messages"
+    }
+  },
+  "message": {
+    "replyTo": "Replying to",
+    "toolbar": "Message actions",
+    "reply": "Reply",
+    "like": "Like",
+    "react": "React",
+    "hidden": {
+      "muted-by-others": "This message was muted by someone else",
+      "muted-by-me": "You muted this message",
+      "muted-user": "This is from someone you muted"
+    },
+    "show": "Show",
+    "fold": "Collapse"
+  },
+  "info": {
+    "copyFailed": "Couldn't copy the link",
+    "notFound": "Couldn't find this channel's details.",
+    "loading": "Loading…",
+    "unnamed": "Unnamed channel",
+    "favorite": "Favorite",
+    "creator": "Created by",
+    "relays": {
+      "title": "Relays for reading and writing messages",
+      "empty": "No relays are listed. Streets will use the relays it finds."
+    },
+    "edit": "Edit details",
+    "copyLink": "Copy link"
+  }
+}

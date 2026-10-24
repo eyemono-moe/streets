@@ -2,6 +2,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { emojiSetAddress } from "@streets/core/settings/emoji-list";
 import { parseEmojiSet } from "@streets/core/settings/emoji-set";
 import { type Component, Show } from "solid-js";
+import { plural, t } from "../i18n/locale";
 import ListRow from "../lists/ListRow";
 import type { EventSize } from "../note/Event";
 import { Notice } from "../note/EventFrame";
@@ -24,10 +25,7 @@ const EmojiSetCard: Component<{ event: NostrEvent; size: EventSize }> = (
     emojis?.list().sets.some((ref) => emojiSetAddress(ref) === address) ??
     false;
   return (
-    <Show
-      when={set()}
-      fallback={<Notice>名前の無い絵文字セットは表示できません</Notice>}
-    >
+    <Show when={set()} fallback={<Notice>{t("emoji.set.unnamed")}</Notice>}>
       {(set) => (
         <ListRow
           event={props.event}
@@ -35,7 +33,7 @@ const EmojiSetCard: Component<{ event: NostrEvent; size: EventSize }> = (
           title={set().title}
           image={image()}
           icon="i-material-symbols:add-reaction-outline-rounded"
-          count={`${set().emojis.length} 個`}
+          count={plural("emoji.set.count", set().emojis.length)}
         >
           <EmojiGrid emojis={set().emojis} />
           {/* 引用の中（compact）は読むためのもので、そこから操作させない。 */}

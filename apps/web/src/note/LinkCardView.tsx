@@ -1,4 +1,5 @@
 import { type Component, Show, createSignal } from "solid-js";
+import { t } from "../i18n/locale";
 import type { EventSize } from "./Event";
 import type { LinkCard } from "./link-card";
 
@@ -81,7 +82,7 @@ const LinkCardView: Component<LinkCardViewProps> = (props) => {
             fallback={
               <span
                 class="h-3.5 w-3/4 rounded-1 bg-secondary"
-                aria-label="リンクの情報を読み込んでいます"
+                aria-label={t("note.linkCard.loading")}
               />
             }
           >

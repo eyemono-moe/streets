@@ -1,5 +1,6 @@
 import type { CommentRow } from "@streets/core/view/comment-tree";
 import { type Component, For, type JSX, Match, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import Event, { type EventSize } from "../note/Event";
 
 /** 記事の下に並べるコメント。返信は段を下げて、何への返信かを並びで見せる。 */
@@ -19,7 +20,7 @@ const ArticleCommentsView: Component<{
           class="i-material-symbols:mode-comment-outline-rounded size-4 shrink-0"
           aria-hidden="true"
         />
-        コメント
+        {t("article.comments.title")}
         <span>{props.rows.length > 0 ? props.rows.length : ""}</span>
       </h2>
       {props.trailing}
@@ -49,11 +50,13 @@ const ArticleCommentsView: Component<{
       </Match>
       <Match when={props.settled}>
         <p class="c-secondary px-4 pb-4 text-caption">
-          まだコメントはありません。
+          {t("article.comments.empty")}
         </p>
       </Match>
       <Match when={true}>
-        <p class="c-secondary px-4 pb-4 text-caption">読み込み中…</p>
+        <p class="c-secondary px-4 pb-4 text-caption">
+          {t("article.comments.loading")}
+        </p>
       </Match>
     </Switch>
   </section>

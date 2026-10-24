@@ -16,10 +16,11 @@ import {
   createSignal,
 } from "solid-js";
 import { useUserCandidates, userSource } from "../completion/sources";
+import { t } from "../i18n/locale";
+import VisibilityAddButton from "../lists/VisibilityAddButton";
 import Avatar from "../note/Avatar";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
 import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -28,46 +29,50 @@ import SettingsSection from "./SettingsSection";
 
 type TargetType = MuteTarget["type"];
 
-const TYPES: {
+const types = (): {
   value: TargetType;
   label: string;
   placeholder: string;
   invalid: string;
-}[] = [
+  inputLabel: string;
+}[] => [
   {
     value: "pubkey",
-    label: "ユーザー",
-    placeholder: "npub1… または nprofile1…",
-    invalid: "npub1… か nprofile1… で始まる、ユーザーの ID を入力してください",
+    label: t("settings.mute.types.pubkey.label"),
+    placeholder: t("settings.mute.types.pubkey.placeholder"),
+    invalid: t("settings.mute.types.pubkey.invalid"),
+    inputLabel: t("settings.mute.types.pubkey.inputLabel"),
   },
   {
     value: "thread",
-    label: "イベント",
-    placeholder: "note1… または nevent1…",
-    invalid: "note1… か nevent1… で始まる、イベントの ID を入力してください",
+    label: t("settings.mute.types.thread.label"),
+    placeholder: t("settings.mute.types.thread.placeholder"),
+    invalid: t("settings.mute.types.thread.invalid"),
+    inputLabel: t("settings.mute.types.thread.inputLabel"),
   },
   {
     value: "hashtag",
-    label: "ハッシュタグ",
-    placeholder: "# は付けなくてもかまいません",
-    invalid: "ハッシュタグを入力してください",
+    label: t("settings.mute.types.hashtag.label"),
+    placeholder: t("settings.mute.types.hashtag.placeholder"),
+    invalid: t("settings.mute.types.hashtag.invalid"),
+    inputLabel: t("settings.mute.types.hashtag.inputLabel"),
   },
   {
     value: "word",
-    label: "単語",
-    placeholder: "隠したい言葉",
-    invalid: "単語を入力してください",
+    label: t("settings.mute.types.word.label"),
+    placeholder: t("settings.mute.types.word.placeholder"),
+    invalid: t("settings.mute.types.word.invalid"),
+    inputLabel: t("settings.mute.types.word.inputLabel"),
   },
 ];
 
 const labelOf = (type: TargetType) =>
-  TYPES.find((entry) => entry.value === type)?.label ?? "";
+  types().find((entry) => entry.value === type)?.label;
 
-const VISIBILITY_HINT: Record<MuteVisibility, string> = {
-  private:
-    "非公開：暗号化して保存するので、ミュートしていることはほかの人には分かりません。",
-  public: "公開：ミュートしていることを、ほかの人も見られます。",
-};
+const visibilityHint = (visibility: MuteVisibility): string =>
+  visibility === "private"
+    ? t("settings.mute.hintPrivate")
+    : t("settings.mute.hintPublic");
 
 /** 長い ID は頭と尻尾だけ見せる。見分けるにはそれで足りる。 */
 const shortId = (id: string) =>
@@ -89,16 +94,16 @@ const MuteSettingsView: Component<MuteSettingsViewProps> = (props) => {
       <SettingsSection
         id="muteAdd"
         scope="account"
-        description="見たくない人・イベント・ハッシュタグ・単語を、ホームや通知、検索から隠します。人のページやスレッドを自分で開いたときは隠しません。"
+        description={t("settings.mute.description")}
       >
         <Show when={props.privatePart === "unavailable"}>
           <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
-            今のログインの方法では非公開のミュートを扱えないため、公開のミュートだけを表示しています。
+            {t("settings.mute.noticeUnavailable")}
           </p>
         </Show>
         <Show when={props.privatePart === "invalid"}>
           <p class="c-danger rounded-2 bg-danger-subtle p-3 text-caption">
-            非公開のミュートを読み取れませんでした。公開のミュートだけを表示しています。
+            {t("settings.mute.noticeInvalid")}
           </p>
         </Show>
         <AddMute entries={props.entries} privateReady={privateReady()} />
@@ -106,15 +111,17 @@ const MuteSettingsView: Component<MuteSettingsViewProps> = (props) => {
 
       <SettingsSection
         id="muteList"
-        title={`ミュートしているもの（${props.entries.length}）`}
+        title={t("settings.mute.listTitle", { count: props.entries.length })}
       >
         <Switch>
           <Match when={props.loading}>
-            <p class="c-secondary text-caption">読み込み中…</p>
+            <p class="c-secondary text-caption">
+              {t("settings.relays.loading")}
+            </p>
           </Match>
           <Match when={props.entries.length === 0}>
             <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-              まだ何もミュートしていません。
+              {t("settings.mute.empty")}
             </p>
           </Match>
           <Match when={true}>
@@ -125,9 +132,7 @@ const MuteSettingsView: Component<MuteSettingsViewProps> = (props) => {
             </ul>
           </Match>
         </Switch>
-        <p class="c-secondary text-caption">
-          イベントやユーザーは、投稿の右上のメニューからもミュートできます。
-        </p>
+        <p class="c-secondary text-caption">{t("settings.mute.menuHint")}</p>
       </SettingsSection>
     </div>
   );
@@ -152,7 +157,7 @@ const AddMute: Component<{
     props.privateReady ? chosen() : "public";
   const [text, setText] = createSignal("");
   const [error, setError] = createSignal<string>();
-  const current = () => TYPES.find((entry) => entry.value === type());
+  const current = () => types().find((entry) => entry.value === type());
 
   const submit = () => {
     const target = parseMuteTarget(type(), text());
@@ -167,7 +172,7 @@ const AddMute: Component<{
         entry.target.value === target.value,
     );
     if (already) {
-      setError("もうミュートしています");
+      setError(t("settings.mute.already"));
       return;
     }
     dispatch({ type: "mutes/add", target, visibility: visibility() });
@@ -183,43 +188,26 @@ const AddMute: Component<{
         submit();
       }}
     >
-      <div class="flex flex-wrap items-center gap-2">
-        <SegmentedControl
-          label="ミュートするものの種類"
-          options={TYPES}
-          value={type()}
-          onChange={(next) => {
-            setType(next);
-            setError(undefined);
-          }}
-        />
-        <SegmentedControl
-          label="公開範囲"
-          variant="secondary"
-          value={visibility()}
-          options={[
-            {
-              value: "private",
-              label: "非公開",
-              disabled: !props.privateReady,
-              hint: "今のログインの方法では、非公開のミュートを扱えません",
-            },
-            { value: "public", label: "公開" },
-          ]}
-          onChange={setChosen}
-        />
-      </div>
+      <SegmentedControl
+        label={t("settings.mute.typeLabel")}
+        options={types()}
+        value={type()}
+        onChange={(next) => {
+          setType(next);
+          setError(undefined);
+        }}
+      />
       <div class="flex items-center gap-2">
         <Completion
           sources={type() === "pubkey" ? people : []}
-          label="人の候補"
+          label={t("settings.mute.peopleLabel")}
         >
           {(attach) => (
             <input
               ref={attach}
               class={`${textInputClass} min-w-0 flex-1`}
               placeholder={current()?.placeholder}
-              aria-label={`ミュートする${current()?.label ?? ""}`}
+              aria-label={current()?.inputLabel}
               aria-invalid={error() !== undefined}
               aria-describedby="mute-input-error"
               value={text()}
@@ -230,20 +218,17 @@ const AddMute: Component<{
             />
           )}
         </Completion>
-        <Button
+        <VisibilityAddButton
           type="submit"
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-        >
-          追加
-        </Button>
+          value={visibility()}
+          privateReady={props.privateReady}
+          onChange={setChosen}
+        />
       </div>
       <Show
         when={error()}
         fallback={
-          <p class="c-secondary text-caption">
-            {VISIBILITY_HINT[visibility()]}
-          </p>
+          <p class="c-secondary text-caption">{visibilityHint(visibility())}</p>
         }
       >
         {(message) => (
@@ -270,13 +255,15 @@ const MuteRow: Component<{ entry: MuteEntry }> = (props) => {
       </div>
       <div class="ml-auto flex items-center gap-2">
         <span class="c-secondary text-caption">
-          {props.entry.visibility === "private" ? "非公開" : "公開"}
+          {props.entry.visibility === "private"
+            ? t("settings.mute.private")
+            : t("settings.mute.public")}
         </span>
         {/* 一覧から外すだけで、相手や投稿が消えるわけではない（remove）。 */}
         <IconButton
           icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-          label="ミュートを解除"
-          title="ミュートを解除"
+          label={t("settings.mute.unmute")}
+          title={t("settings.mute.unmute")}
           onClick={() => dispatch({ type: "mutes/remove", entry: props.entry })}
         />
       </div>
@@ -304,7 +291,7 @@ const MuteTargetView: Component<{ target: MuteTarget }> = (props) => {
           <button
             type="button"
             class="c-primary min-w-0 cursor-pointer truncate bg-transparent p-0 text-left hover:underline"
-            title="このイベントを開く"
+            title={t("settings.mute.openEvent")}
             onClick={() =>
               dispatch({ type: "stack/open", column: buildThreadColumn(id()) })
             }

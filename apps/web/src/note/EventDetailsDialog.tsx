@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type Component, For, Show } from "solid-js";
 import { useAppWindow } from "../app-window";
+import { t } from "../i18n/locale";
 import { useReadLayer } from "../read-layer";
 import { notifyError, notifySuccess } from "../toast";
 import {
@@ -28,17 +29,21 @@ const EventDetailsDialog: Component<{
       <DialogPortal>
         <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
           <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
-            <DialogTitle class="flex-1 font-600 text-body">詳細</DialogTitle>
+            <DialogTitle class="flex-1 font-600 text-body">
+              {t("note.details.title")}
+            </DialogTitle>
             <DialogClose />
           </div>
 
           <DialogBody class="px-4 pb-4">
-            <h3 class="c-secondary font-600 text-caption">受け取ったリレー</h3>
+            <h3 class="c-secondary font-600 text-caption">
+              {t("note.details.seenOn")}
+            </h3>
             <Show
               when={relays().length > 0}
               fallback={
                 <p class="c-secondary text-caption">
-                  このイベントを配信したリレーは記録されていません。
+                  {t("note.details.noRelays")}
                 </p>
               }
             >
@@ -63,14 +68,14 @@ const EventDetailsDialog: Component<{
               onClick={() => {
                 void appWindow.navigator.clipboard
                   .writeText(json())
-                  .then(() => notifySuccess("JSON をコピーしました"))
+                  .then(() => notifySuccess(t("note.details.jsonCopied")))
                   // 非セキュアな接続や権限拒否で失敗する。黙って終わらせない。
                   .catch((cause) =>
-                    notifyError(cause, "JSON をコピーできませんでした"),
+                    notifyError(cause, t("note.details.jsonCopyFailed")),
                   );
               }}
             >
-              JSON をコピー
+              {t("note.details.copyJson")}
             </button>
           </div>
         </DialogContent>

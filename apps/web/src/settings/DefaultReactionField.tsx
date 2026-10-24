@@ -5,6 +5,7 @@ import EmojiPicker from "../emoji/EmojiPicker";
 import PickerSurface from "../emoji/PickerSurface";
 import { reactionInputOf } from "../emoji/ReactionPicker";
 import { rememberEmoji } from "../emoji/recent-emoji";
+import { t } from "../i18n/locale";
 import ReactionButtonMark from "../note/ReactionButtonMark";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -12,7 +13,7 @@ import IconButton from "../ui/IconButton";
 
 const nameOf = (input: ReactionInput): string =>
   input.type === "like"
-    ? "ハート"
+    ? t("settings.defaultReaction.heart")
     : input.type === "text"
       ? input.content
       : `:${input.shortcode}:`;
@@ -33,10 +34,10 @@ const DefaultReactionField: Component<{ value: ReactionInput }> = (props) => {
         <ReactionButtonMark input={props.value} active />
       </span>
       <PickerSurface
-        title="いいねボタンの絵文字を選ぶ"
+        title={t("settings.defaultReaction.pickerTitle")}
         trigger={(trigger) => (
           <Button {...trigger()} variant="secondary" size="sm">
-            絵文字を選ぶ
+            {t("settings.defaultReaction.pick")}
           </Button>
         )}
         placement="bottom-start"
@@ -56,8 +57,8 @@ const DefaultReactionField: Component<{ value: ReactionInput }> = (props) => {
       <Show when={props.value.type !== "like"}>
         <IconButton
           icon="i-material-symbols:close-rounded"
-          label="ハートに戻す"
-          title="ハートに戻す"
+          label={t("settings.defaultReaction.reset")}
+          title={t("settings.defaultReaction.reset")}
           onClick={() => set({ type: "like" })}
         />
       </Show>

@@ -1,0 +1,364 @@
+{
+  "newerLoader": {
+    "loading": {
+      "post": "新しい投稿を読み込み中…",
+      "message": "新しい発言を読み込み中…"
+    },
+    "caughtUp": {
+      "post": "最新の投稿に追いつきました",
+      "message": "最新の発言に追いつきました"
+    },
+    "failed": {
+      "post": "新しい投稿を読み込めませんでした",
+      "message": "新しい発言を読み込めませんでした"
+    },
+    "retry": "もう一度読み込む"
+  },
+  "accountMenu": {
+    "account": "アカウント",
+    "loginAndMenu": "ログインとメニュー",
+    "login": "ログイン",
+    "setStatus": "ステータスを設定",
+    "settings": "設定",
+    "about": "Streets について",
+    "feedback": "フィードバックを送る",
+    "logout": "ログアウト"
+  },
+  "column": {
+    "closeStack": "重ねた表示を閉じる"
+  },
+  "columnSettingsPanel": {
+    "popOut": "ピクチャーインピクチャーで開く",
+    "close": "カラムの設定を閉じる",
+    "titleBefore": "",
+    "titleAfter": "の設定"
+  },
+  "columnArrange": {
+    "delete": "「{{ title }}」を削除",
+    "move": "「{{ title }}」を動かす（{{ position }} / {{ count }} 番目）",
+    "moveHint": "掴んで上下に動かすか、↑↓ キーで動かす",
+    "empty": "このデッキにはカラムがありません。",
+    "hint": "行を掴んで上下に動かすと、カラムの並びが変わります。",
+    "add": "カラムを追加"
+  },
+  "syncNotice": {
+    "saveFailed": "デッキを保存できませんでした：{{ message }}",
+    "retry": "再試行",
+    "conflict": "別の端末でデッキが変わりました。どちらを残しますか？",
+    "keepLocal": "この端末を残す",
+    "useRemote": "別の端末に合わせる"
+  },
+  "feedback": {
+    "title": "Streets へのフィードバック",
+    "intro": "不具合や分かりにくいところ、欲しい機能を教えてください。いただいた声は、Streets をよくするために使います。",
+    "privacy": "入力した報告本文はGoogle Formsに保存され、AIで整理したうえで公開GitHub Issueとして登録されます。スクリーンショット等はAIやGitHubへ自動送信されません。個人情報、秘密鍵、公開したくない内容は入力しないでください。",
+    "close": "閉じる",
+    "submit": "不具合を報告・機能をリクエスト"
+  },
+  "addColumn": {
+    "presets": {
+      "home": {
+        "label": "ホーム",
+        "description": "フォロー中のノートとリポスト",
+        "keywords": ["タイムライン", "フォロー中"]
+      },
+      "notifications": {
+        "label": "通知",
+        "description": "自分宛の返信・リアクション・リポスト",
+        "keywords": ["返信", "リアクション"]
+      },
+      "search": {
+        "label": "検索",
+        "description": "言葉やハッシュタグで探した投稿",
+        "keywords": ["探す", "ハッシュタグ"]
+      },
+      "relay": {
+        "label": "リレー",
+        "description": "選んだリレーの公開ノート",
+        "keywords": ["接続先"]
+      },
+      "user": {
+        "label": "ユーザー",
+        "description": "選んだ人の投稿",
+        "keywords": ["人"]
+      },
+      "channels": {
+        "label": "チャンネル",
+        "description": "みんなで会話できるチャットチャンネル",
+        "keywords": ["チャット"]
+      },
+      "bookmarks": {
+        "label": "ブックマーク",
+        "description": "保存したノート",
+        "keywords": ["保存"]
+      },
+      "follow-sets": {
+        "label": "リスト",
+        "description": "選んだ人たちの投稿",
+        "keywords": ["フォローセット"]
+      },
+      "followees-activity": {
+        "label": "みんなのアクティビティ",
+        "description": "フォロー中の人のリアクション・リポスト",
+        "keywords": ["アクティビティ", "TweetDeck", "いいね", "ふぁぼ"]
+      },
+      "timeslip": {
+        "label": "タイムスリップ",
+        "description": "選んだ日時からさかのぼるホーム",
+        "keywords": ["過去", "さかのぼる", "日時", "until"]
+      }
+    },
+    "backToKinds": "カラムの種類へ戻る",
+    "addListAsColumn": "一覧をデッキのカラムとして足す",
+    "channelPicker": {
+      "title": "チャンネルを選ぶ",
+      "description": "選んだチャンネルのメッセージを表示します。"
+    },
+    "followSetPicker": {
+      "title": "リストを選ぶ",
+      "description": "選んだリストに入っている人の投稿を表示します。"
+    },
+    "userSearch": {
+      "searching": "検索リレーで探しています…",
+      "none": "検索リレーでは見つかりませんでした",
+      "found": {
+        "one": "検索リレーで {{ count }} 人見つかりました",
+        "other": "検索リレーで {{ count }} 人見つかりました"
+      }
+    },
+    "userPicker": {
+      "invalid": "候補から選ぶか、npub1… か nprofile1… で始まるユーザーの ID を入力してください",
+      "title": "ユーザーを選ぶ",
+      "description": "選んだ人のノートと返信を表示します。",
+      "candidates": "人の候補",
+      "placeholder": "名前・npub1… で探す",
+      "inputLabel": "カラムに出す人",
+      "submit": "ユーザーカラムを追加"
+    },
+    "timeslipPicker": {
+      "title": "日時を選ぶ",
+      "description": "フォロー中の人の投稿を、選んだ日時から過去へさかのぼって表示します。",
+      "label": "さかのぼり始める日時",
+      "submit": "タイムスリップカラムを追加"
+    },
+    "relayPicker": {
+      "title": "リレーを選ぶ",
+      "description": "選んだリレーにある公開ノートを時系列で表示します。",
+      "hint": "URL を入れるか、候補から選んでください。候補には、アカウントとフォローしている人が使っているリレーが出ます。",
+      "loading": "リレー設定を読み込んでいます…",
+      "missing": "アカウントのリレー設定がありません。URLを直接入力できます。",
+      "submit": "リレーカラムを追加"
+    }
+  },
+  "loginReason": {
+    "post": "ログインすると、投稿ができます",
+    "repost": "ログインすると、リポストができます",
+    "reaction": "ログインすると、リアクションができます",
+    "vote": "ログインすると、投票ができます",
+    "bookmark": "ログインすると、ブックマークができます",
+    "pin": "ログインすると、ピン留めができます",
+    "broadcast": "ログインすると、ほかのリレーへの送り直しができます",
+    "follow": "ログインすると、フォローができます",
+    "channelFavorite": "ログインすると、チャンネルのお気に入りができます",
+    "channelCreate": "ログインすると、チャンネルづくりができます",
+    "channelEdit": "ログインすると、チャンネルの編集ができます",
+    "zap": "ログインすると、Zapができます",
+    "status": "ログインすると、ステータスの設定ができます",
+    "mute": "ログインすると、ミュートができます",
+    "listCreate": "ログインすると、リストづくりができます",
+    "listEdit": "ログインすると、リストの編集ができます",
+    "emoji": "ログインすると、絵文字の登録ができます",
+    "customEmoji": "ログインすると、カスタム絵文字づくりができます",
+    "account": "ログインすると、アカウントの設定ができます"
+  },
+  "deckEdit": {
+    "nameLabel": "デッキの名前",
+    "switch": "デッキを切り替える（いまは「{{ name }}」）",
+    "openColumns": {
+      "one": "開いているデッキ・カラム {{ count }} 本",
+      "other": "開いているデッキ・カラム {{ count }} 本"
+    },
+    "columns": {
+      "one": "カラム {{ count }} 本",
+      "other": "カラム {{ count }} 本"
+    },
+    "newDeck": "新しいデッキ…",
+    "actions": "「{{ name }}」の操作",
+    "rename": "名前を変える",
+    "moveUp": "一覧で上へ動かす",
+    "moveDown": "一覧で下へ動かす",
+    "delete": "このデッキを削除",
+    "confirmDelete": "「{{ name }}」と、その中のカラムの並びを削除します。元には戻せません。",
+    "cancel": "やめる",
+    "confirm": "削除する"
+  },
+  "mobileMenu": {
+    "menu": "メニュー",
+    "search": "検索",
+    "addColumn": "カラムを追加",
+    "editDeck": "デッキを編集",
+    "commandPalette": "コマンドパレット"
+  },
+  "nav": {
+    "openCompose": "投稿パネルを開く",
+    "openSearch": "検索パネルを開く",
+    "addColumn": "カラムを追加",
+    "editDeck": "デッキを編集",
+    "openCommandPalette": "コマンドパレットを開く",
+    "settings": "設定",
+    "openMenu": "メニューを開く",
+    "columns": "カラム"
+  },
+  "newDeck": {
+    "description": "用途ごとにカラムの並びを分けて持てます（スマホ用・PC 用など）。どのデッキを開いているかは、この端末に覚えます。",
+    "title": "新しいデッキの設定",
+    "name": "名前",
+    "firstColumns": "最初のカラム",
+    "copy": "「{{ name }}」を複製",
+    "default": "はじめの構成",
+    "submit": "作って開く"
+  },
+  "olderLoader": {
+    "waiting": "ほかのリレーから届くのを待っています…",
+    "loading": "古い投稿を読み込み中…",
+    "exhausted": "これより前の投稿はありません",
+    "failed": "古い投稿を読み込めませんでした",
+    "retry": "もう一度読み込む"
+  },
+  "poppedOut": {
+    "message": "ピクチャーインピクチャーで表示しています",
+    "popIn": "デッキに戻す"
+  },
+  "panels": {
+    "compose": "投稿する",
+    "composeFailed": "投稿できませんでした",
+    "search": "検索する",
+    "addColumn": "「{{ name }}」にカラムを追加",
+    "arrange": "デッキを編集する",
+    "newDeck": "新しいデッキ"
+  },
+  "writeLabel": {
+    "deckSettings": "デッキの設定",
+    "uploadServers": "画像のアップロード先",
+    "searchRelays": "検索するリレー",
+    "blockedRelays": "繋がないリレー",
+    "emoji": "自分の絵文字",
+    "profile": "プロフィール",
+    "relays": "リレーの設定",
+    "mutes": "ミュート"
+  },
+  "deckScreen": {
+    "appearanceSaved": "表示の設定を保存しました",
+    "privacySaved": "プライバシーの設定を保存しました",
+    "localOnlyTitle": "このログインの方法では、デッキをほかの端末と同期できません",
+    "localOnlyBody": "デッキの変更はこの端末にだけ保存します。同期するには、暗号化に対応した拡張機能か、署名アプリでログインしてください。",
+    "sharedLogin": "ログインすると、共有された内容の投稿ができます",
+    "popOutFailed": "ピクチャーインピクチャーを開けませんでした",
+    "followsFailed": "フォローリストを取得できませんでした。",
+    "loadingDeck": "デッキを読み込み中…"
+  },
+  "relayEditor": {
+    "defaultListLabel": "追加するリレー",
+    "remove": "{{ relay }}を{{ list }}から外す",
+    "minimum": "リレーを1つ以上選んでください",
+    "maximum": "{{ count }} 本まで指定できます。足すには、どれかを外してください。"
+  },
+  "relayInput": {
+    "group": {
+      "account": "アカウントで使っているリレー",
+      "followees": "フォローしている人が使っているリレー"
+    },
+    "label": "リレーを足す",
+    "placeholder": "URL を入れるか、候補から選ぶ",
+    "add": "追加",
+    "added": "追加済み"
+  },
+  "searchHistory": {
+    "label": "最近の検索",
+    "clear": "すべて消す",
+    "remove": "「{{ query }}」を履歴から外す",
+    "removeTitle": "履歴から外す"
+  },
+  "searchPanel": {
+    "empty": "キーワードを入力すると、ここに結果が表示されます。",
+    "notSearched": "Enter か「検索」で探します。",
+    "incomplete": "一部のリレーから結果を取得できませんでした。",
+    "noPosts": "まだ投稿がありません。",
+    "searching": "検索中…",
+    "search": "検索",
+    "openColumn": "この条件でカラムを開く"
+  },
+  "searchQuery": {
+    "label": "検索クエリ",
+    "placeholder": "ねこ #nostr from:npub1…",
+    "details": "詳細な条件"
+  },
+  "settingField": {
+    "reset": "{{ label }}を既定に戻す",
+    "resetTitle": "既定に戻す"
+  },
+  "sidePanel": {
+    "back": "戻る",
+    "close": "閉じる"
+  },
+  "unreadableLink": {
+    "message": "このリンクは読めませんでした：{{ entity }}",
+    "close": "閉じる"
+  },
+  "pip": {
+    "unsupported": "このブラウザはピクチャーインピクチャーに対応していません"
+  },
+  "columnSettings": {
+    "width": "幅",
+    "widthPx": "幅（px）",
+    "density": {
+      "label": "表示密度",
+      "comfortable": "ゆったり",
+      "compact": "高密度"
+    },
+    "expandMedia": "画像・動画を展開",
+    "linkCards": {
+      "label": "リンクのカード",
+      "off": "出さない",
+      "compact": "小さく",
+      "large": "大きく"
+    },
+    "muted": {
+      "label": "ミュートしている投稿",
+      "hide": "隠す",
+      "fold": "畳む",
+      "show": "そのまま"
+    },
+    "show": {
+      "label": "表示するもの",
+      "replies": "リプライ",
+      "quotes": "引用",
+      "mentions": "メンション",
+      "reposts": "リポスト",
+      "reactions": "リアクション",
+      "zaps": "Zap",
+      "chats": "チャンネルでの発言"
+    },
+    "delete": "このカラムを削除"
+  },
+  "searchForm": {
+    "unknownKind": "{{ kind }}（知らない kind）",
+    "words": "単語",
+    "wordsPlaceholder": "ねこ -いぬ",
+    "hashtags": "ハッシュタグ",
+    "followsOnly": "フォローしている人に限定",
+    "followsNeedLogin": "フォロー中の人を検索するにはログインしてください。",
+    "excludeFrom": "除く人",
+    "from": "書いた人",
+    "peopleSuggestions": "人の候補",
+    "to": "宛先",
+    "since": "この日から",
+    "until": "この日まで",
+    "kindSuggestions": "kind の候補",
+    "kindsPlaceholder": "1（省略すると投稿）",
+    "excludeBots": "botを除く",
+    "peopleNote": "人の指定は、入力欄では 16 進の公開鍵として書き戻されます（指すものは同じです）。"
+  },
+  "firstDeckName": "メイン",
+  "newDeckName": "デッキ {{ n }}"
+}
