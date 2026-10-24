@@ -33,12 +33,8 @@ export const setLocalePreference = (value: LocalePreference) => {
   }
 };
 
-// 英語の文言が揃うまでは、ブラウザの言語に従わず日本語にする。英語のブラウザで
-// 半分だけ英語の画面を出さない。設定で English を選んだときだけ英語にする。
-const followsBrowser = false;
-
 export const locale = (): Locale =>
-  resolveLocale(preference(), followsBrowser ? navigator.languages : ["ja"]);
+  resolveLocale(preference(), navigator.languages);
 
 // 切り替えのたびに平らにし直さないよう、起動時に両方作っておく。
 const dictionaries: Record<Locale, i18n.Flatten<typeof ja>> = {

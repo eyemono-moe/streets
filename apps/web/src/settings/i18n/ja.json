@@ -139,7 +139,7 @@
     },
     "language": {
       "title": "言語",
-      "keywords": ["Language", "English", "日本語"]
+      "keywords": ["Language", "English", "日本語", "ブラウザ"]
     },
     "theme": {
       "title": "カラーテーマ",
@@ -733,6 +733,7 @@
     "note": "色を確かめるためのノート。https://example.com/ へのリンク、#streets のハッシュタグ、nostr:{{ npub }} へのメンションが入っています。"
   },
   "language": {
-    "description": "画面の文字を表示する言語を選びます。"
+    "description": "画面の文字を表示する言語を選びます。「ブラウザに合わせる」では、ブラウザで選んでいる言語で表示します。日本語と英語のどちらでもないときは英語になります。",
+    "auto": "ブラウザに合わせる"
   }
 }

@@ -25,7 +25,7 @@ import type { ContentWarningMode } from "@streets/core/settings/content-warning-
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { EmojiSetRef } from "@streets/core/settings/emoji-list";
 import type { ShortcutAction } from "@streets/core/settings/keymap";
-import type { Locale } from "@streets/core/settings/locale-setting";
+import type { LocalePreference } from "@streets/core/settings/locale-setting";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRedundancy } from "@streets/core/settings/read-redundancy-setting";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
@@ -238,7 +238,7 @@ export type DeckEvent =
   /** 投稿の時刻を、絶対時間か相対時間で見せるか。この端末に保存する。 */
   | { type: "deck/set-time-format"; format: TimeFormat }
   /** 画面の言語。この端末に保存する。 */
-  | { type: "deck/set-locale"; locale: Locale }
+  | { type: "deck/set-locale"; locale: LocalePreference }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** リレーとの通信量を 0 から数え直す。 */

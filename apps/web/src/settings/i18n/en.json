@@ -139,7 +139,7 @@
     },
     "language": {
       "title": "Language",
-      "keywords": ["言語", "English", "日本語"]
+      "keywords": ["言語", "English", "日本語", "browser"]
     },
     "theme": {
       "title": "Color theme",
@@ -733,6 +733,7 @@
     "note": "A note for checking colors. It includes a link to https://example.com/, a #streets hashtag, and a mention of nostr:{{ npub }}."
   },
   "language": {
-    "description": "Choose the language used on the screen."
+    "description": "Choose the language used on the screen. \"Match browser\" uses the language set in your browser, or English if it is neither Japanese nor English.",
+    "auto": "Match browser"
   }
 }

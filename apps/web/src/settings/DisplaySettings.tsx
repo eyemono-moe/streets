@@ -23,7 +23,7 @@ import {
   type DeckLayout,
   loadDeckLayout,
 } from "@streets/core/settings/deck-layout-setting";
-import type { Locale } from "@streets/core/settings/locale-setting";
+import type { LocalePreference } from "@streets/core/settings/locale-setting";
 import {
   type SwipeMode,
   loadSwipeMode,
@@ -42,7 +42,7 @@ import {
 } from "@streets/core/settings/ui-contrast";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
 import type { Component } from "solid-js";
-import { locale, messageOrText, t } from "../i18n/locale";
+import { localePreference, messageOrText, t } from "../i18n/locale";
 import { DEFAULT_APPEARANCE, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
@@ -56,7 +56,8 @@ import { settingTitle } from "./setting-registry";
 import SettingsDetails from "./SettingsDetails";
 import SettingsSection from "./SettingsSection";
 
-const LOCALES: { value: Locale; label: string }[] = [
+const locales = (): { value: LocalePreference; label: string }[] => [
+  { value: "auto", label: t("settings.language.auto") },
   { value: "ja", label: "日本語" },
   { value: "en", label: "English" },
 ];
@@ -149,13 +150,18 @@ const DisplaySettings: Component<{
       <SettingsSection
         id="language"
         scope="device"
+        changed={localePreference() !== "auto"}
+        onReset={() => dispatch({ type: "deck/set-locale", locale: "auto" })}
         description={t("settings.language.description")}
       >
-        {/* 読めない言語に切り替えても戻せるよう、言語の名前はその言語で書く。 */}
+        {/*
+          読めない言語に切り替えても戻せるよう、言語の名前はその言語で書く。
+          「ブラウザに合わせる」だけは今の言語で書く。
+        */}
         <SegmentedControl
           label={settingTitle("language")}
-          options={LOCALES}
-          value={locale()}
+          options={locales()}
+          value={localePreference()}
           onChange={(value) =>
             dispatch({ type: "deck/set-locale", locale: value })
           }

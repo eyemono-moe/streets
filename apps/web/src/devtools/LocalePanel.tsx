@@ -4,10 +4,7 @@ import { locale, localePreference, setLocalePreference } from "../i18n/locale";
 
 const CHOICES: LocalePreference[] = ["auto", "ja", "en"];
 
-/**
- * 画面の言語を切り替える。英語の文言が揃って設定の画面に出すまでは、ここから英語を
- * 確かめる。
- */
+/** 画面の言語を切り替え、ブラウザに合わせたときに何が選ばれたかを見る。 */
 const LocalePanel: Component = () => (
   <section class="flex flex-col gap-2">
     <h2 class="font-bold">Language</h2>
