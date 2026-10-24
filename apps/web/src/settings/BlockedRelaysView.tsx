@@ -5,6 +5,10 @@ import type {
 } from "@streets/core/nostr/private-tags";
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type {
+  RelayFailure,
+  RelayFailureReason,
+} from "@streets/core/relay/relay-failures";
 import {
   type BlockedRelayEntry,
   blockedRelayUrls,
@@ -15,6 +19,7 @@ import { t, plural } from "../i18n/locale";
 import { VISIBILITY_LABEL } from "../lists/visibility";
 import VisibilityAddButton from "../lists/VisibilityAddButton";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
 import SettingsSection from "./SettingsSection";
 
@@ -28,6 +33,17 @@ const visibilityHint = (visibility: ItemVisibility): string =>
   visibility === "private"
     ? t("settings.blockedRelays.hintPrivate")
     : t("settings.blockedRelays.hintPublic");
+
+const failureReason = (reason: RelayFailureReason): string => {
+  switch (reason) {
+    case "unreachable":
+      return t("settings.blockedRelays.recent.unreachable");
+    case "auth-required":
+      return t("settings.blockedRelays.recent.authRequired");
+    case "restricted":
+      return t("settings.blockedRelays.recent.restricted");
+  }
+};
 
 const privatePartNotice = (status: PrivatePartStatus): string | undefined => {
   switch (status) {
@@ -49,6 +65,8 @@ export type BlockedRelaysViewProps = {
   account: readonly RelayListEntry[];
   /** 足す欄の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
+  /** このタブで繋がらなかった・断られたリレー。新しいものから。 */
+  failures?: readonly RelayFailure[];
 };
 
 /** 繋がないリレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -60,6 +78,8 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
   const [chosen, setChosen] = createSignal<ItemVisibility>("private");
   const visibility = (): ItemVisibility =>
     privateReady() ? chosen() : "public";
+  const recentFailures = () =>
+    (props.failures ?? []).filter((failure) => !urls().includes(failure.url));
   const ownBlocked = () =>
     props.account
       .map((entry) => entry.url)
@@ -173,6 +193,64 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
         />
         <p class="c-secondary text-caption">{visibilityHint(visibility())}</p>
       </div>
+      <Show when={recentFailures().length > 0}>
+        <div class="flex flex-col gap-2">
+          <h4 class="c-primary font-600 text-caption">
+            {t("settings.blockedRelays.recent.title")}
+          </h4>
+          <p class="c-secondary text-caption">
+            {t("settings.blockedRelays.recent.description")}
+          </p>
+          <ul class="flex max-h-80 flex-col gap-px overflow-y-auto rounded-2 border border-primary bg-tertiary">
+            <For each={recentFailures()}>
+              {(failure) => (
+                <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
+                  <div class="flex min-w-48 flex-1 flex-col gap-0.5">
+                    <span class="c-primary break-all text-body">
+                      {failure.url}
+                    </span>
+                    <span class="c-secondary text-caption">
+                      {failureReason(failure.reason)}
+                      {" · "}
+                      {plural(
+                        "settings.blockedRelays.recent.count",
+                        failure.count,
+                      )}
+                    </span>
+                    <Show when={failure.detail}>
+                      {(detail) => (
+                        <span class="c-secondary break-words text-caption">
+                          {t("settings.blockedRelays.recent.detail", {
+                            detail: detail(),
+                          })}
+                        </span>
+                      )}
+                    </Show>
+                  </div>
+                  <Button
+                    size="sm"
+                    icon="i-material-symbols:block"
+                    class="ml-auto"
+                    aria-label={t("settings.blockedRelays.recent.blockLabel", {
+                      relay: failure.url,
+                    })}
+                    disabled={props.saving}
+                    onClick={() =>
+                      dispatch({
+                        type: "blocked-relays/add",
+                        url: failure.url,
+                        visibility: visibility(),
+                      })
+                    }
+                  >
+                    {t("settings.blockedRelays.recent.block")}
+                  </Button>
+                </li>
+              )}
+            </For>
+          </ul>
+        </div>
+      </Show>
     </SettingsSection>
   );
 };

@@ -1,5 +1,6 @@
 import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persistence";
 import { createReadLayer } from "@streets/core/read/read-layer";
+import { createRelayFailures } from "@streets/core/relay/relay-failures";
 import { createRelayTraffic } from "@streets/core/relay/relay-traffic";
 import { createSubscriptionLimits } from "@streets/core/relay/subscription-limits";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
@@ -18,6 +19,7 @@ import { fallbackRelays } from "./fallback-relay-setting";
 import { locale } from "./i18n/locale";
 import { ReadLayerProvider } from "./read-layer";
 import { readRedundancy } from "./read-redundancy-setting";
+import { RelayFailuresProvider } from "./relay-failures";
 import { RelayTrafficProvider } from "./relay-traffic";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
@@ -35,12 +37,14 @@ const BACKGROUND_PAUSE_MS = 5 * 60_000;
 const App: Component = () => {
   const relayOverride = devRelayOverride(window.location.search);
   const relayTraffic = createRelayTraffic();
+  const relayFailures = createRelayFailures();
   const readLayer = createReadLayer({
     // session は pool を使うので後から作る。署名器は認証のときに読むので、それまでに決まっていればよい。
     connect: (url) =>
       connectRelay(url, {
         signer: () => session.signer,
         traffic: relayTraffic.recorder,
+        failures: relayFailures.recorder,
       }),
     persistence: createIndexedDbPersistence(),
     // 上限を超える REQ を、リレーは黙って捨てる。NIP-11 の値を超えないよう順番待ちにする。
@@ -106,11 +110,13 @@ const App: Component = () => {
       <Show when={session.pubkey() ?? GUEST} keyed>
         <ReadLayerProvider value={readLayer}>
           <RelayTrafficProvider value={relayTraffic}>
-            <DeckScreen
-              readLayer={readLayer}
-              session={session}
-              bootstrapIndexers={relayOverride}
-            />
+            <RelayFailuresProvider value={relayFailures}>
+              <DeckScreen
+                readLayer={readLayer}
+                session={session}
+                bootstrapIndexers={relayOverride}
+              />
+            </RelayFailuresProvider>
           </RelayTrafficProvider>
         </ReadLayerProvider>
       </Show>
