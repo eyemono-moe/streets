@@ -7,9 +7,9 @@
     "test": "vp test"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260923.1",
+    "@cloudflare/workers-types": "5.20261024.1",
     "typescript": "7.0.2",
     "vite-plus": "catalog:",
-    "wrangler": "4.137.0"
+    "wrangler": "4.152.0"
   }
 }
