@@ -271,7 +271,21 @@
       "other": "{{ count }} blocked relays"
     },
     "removeLabel": "Remove {{ relay }} from the list",
-    "remove": "Remove from list"
+    "remove": "Remove from list",
+    "recent": {
+      "title": "Relays that recently failed",
+      "description": "Relays that could not be reached or would not let you in since this tab was opened. \"Block\" adds the relay with the visibility chosen above.",
+      "unreachable": "Could not connect",
+      "authRequired": "Asked to sign in",
+      "restricted": "Only for allowed users",
+      "count": {
+        "one": "{{ count }} time",
+        "other": "{{ count }} times"
+      },
+      "detail": "From the relay: {{ detail }}",
+      "block": "Block",
+      "blockLabel": "Block {{ relay }}"
+    }
   },
   "searchRelays": {
     "saved": "Saved the search relays",

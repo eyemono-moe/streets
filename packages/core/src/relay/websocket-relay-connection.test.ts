@@ -655,3 +655,103 @@ describe("WebSocketRelayConnection", () => {
     });
   });
 });
+
+describe("WebSocketRelayConnection failures", () => {
+  const recorder = () => ({
+    opened: vi.fn(),
+    unreachable: vi.fn(),
+    refused: vi.fn(),
+  });
+
+  it("reports a socket that closes before opening as unreachable", () => {
+    const { socket } = fakeSocket();
+    const failures = recorder();
+    new WebSocketRelayConnection("wss://a/", socket, { failures });
+
+    socket.onerror?.();
+
+    expect(failures.unreachable).toHaveBeenCalledWith("wss://a/");
+  });
+
+  it("does not report a socket that dies after opening, or one closed on purpose", () => {
+    const opened = fakeSocket();
+    const failures = recorder();
+    new WebSocketRelayConnection("wss://a/", opened.socket, { failures });
+    opened.open();
+    opened.socket.onclose?.();
+
+    const closed = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://b/", closed.socket, {
+      failures,
+    });
+    connection.close();
+    closed.socket.onclose?.();
+
+    expect(failures.opened).toHaveBeenCalledWith("wss://a/");
+    expect(failures.unreachable).not.toHaveBeenCalled();
+  });
+
+  it("reports the reason a relay closed a subscription", () => {
+    const { socket, sent, open, receive } = fakeSocket();
+    const failures = recorder();
+    const connection = new WebSocketRelayConnection("wss://a/", socket, {
+      failures,
+    });
+    connection.subscribe([{ kinds: [1] }], {
+      onEvent: vi.fn(),
+      onEose: vi.fn(),
+      onClosed: vi.fn(),
+    });
+    open();
+    receive(["CLOSED", JSON.parse(sent[0])[1], "restricted: members only"]);
+
+    expect(failures.refused).toHaveBeenCalledWith(
+      "wss://a/",
+      "restricted: members only",
+    );
+  });
+
+  it("reports the reason a relay refused a published event", async () => {
+    const { socket, open, receive } = fakeSocket();
+    const failures = recorder();
+    const connection = new WebSocketRelayConnection("wss://a/", socket, {
+      failures,
+    });
+    open();
+    const published = connection.publish(event("note-1"));
+    receive(["OK", "note-1", false, "restricted: not allowed to write"]);
+    await expect(published).rejects.toThrow();
+
+    expect(failures.refused).toHaveBeenCalledWith(
+      "wss://a/",
+      "restricted: not allowed to write",
+    );
+  });
+
+  it("does not report auth-required while it can still authenticate", () => {
+    const { socket, sent, open, receive } = fakeSocket();
+    const failures = recorder();
+    const connection = new WebSocketRelayConnection("wss://a/", socket, {
+      failures,
+      signer: () => ({
+        getPublicKey: async () => "alice",
+        signEvent: async (template) => ({
+          ...template,
+          pubkey: "alice",
+          id: "auth",
+          sig: "sig",
+        }),
+      }),
+    });
+    connection.subscribe([{ kinds: [4] }], {
+      onEvent: vi.fn(),
+      onEose: vi.fn(),
+      onClosed: vi.fn(),
+    });
+    open();
+    receive(["AUTH", "ch1"]);
+    receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: dm"]);
+
+    expect(failures.refused).not.toHaveBeenCalled();
+  });
+});

@@ -271,7 +271,21 @@
       "other": "繋がないリレー {{ count }} 件"
     },
     "removeLabel": "{{ relay }} を一覧から外す",
-    "remove": "一覧から外す"
+    "remove": "一覧から外す",
+    "recent": {
+      "title": "最近つながらなかったリレー",
+      "description": "このタブを開いてから、つながらなかったリレーや、使わせてもらえなかったリレーです。「繋がない」を押すと、上で選んでいる公開範囲で追加します。",
+      "unreachable": "つながらない",
+      "authRequired": "ログインを求められた",
+      "restricted": "許可された人しか使えない",
+      "count": {
+        "one": "{{ count }} 回",
+        "other": "{{ count }} 回"
+      },
+      "detail": "リレーの説明：{{ detail }}",
+      "block": "繋がない",
+      "blockLabel": "{{ relay }} に繋がない"
+    }
   },
   "searchRelays": {
     "saved": "検索するリレーを保存しました",
