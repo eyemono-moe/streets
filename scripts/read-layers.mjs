@@ -35,6 +35,7 @@ const LAYERS = {
     "read/read-plan.ts",
     "read/read-routing.ts",
     "read/relay-selector.ts",
+    "read/author-relay-evidence.ts",
   ],
   pool: ["read/connection-pool.ts", "read/relay-session.ts"],
   store: [

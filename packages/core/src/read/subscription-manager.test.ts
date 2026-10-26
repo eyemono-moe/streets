@@ -16,6 +16,8 @@ import { IDLE_LINGER_MS } from "./relay-session";
 import { RoutingTable } from "./routing-table";
 import {
   DEGRADED_REPLAN_BATCH_MS,
+  EVIDENCE_REPLAN_BATCH_MS,
+  REPLAN_BATCH_MS,
   type SectionDelivery,
   type SectionHandle,
   type SectionPlan,
@@ -2626,6 +2628,91 @@ describe("SubscriptionManager の読み取り先の計画", () => {
 
     handle.close();
     expect(manager.readPlan.relays).toEqual([]);
+  });
+});
+
+describe("SubscriptionManager の取りこぼしによる選び直し", () => {
+  const DAMUS = "wss://a-damus/";
+  const EMPTY = "wss://b-empty/";
+  const GOOD = "wss://c-good/";
+  const lastSub = (connection: FakeRelayConnection | undefined) => {
+    if (!connection) throw new Error("繋いでいない");
+    return connection.subscriptions.length - 1;
+  };
+
+  it("割り当てたリレーどうしで取りこぼしたほうを外し、その人の別のリレーへ移る", () => {
+    const clock = createFakeClock();
+    const { manager, store, connections } = createManager({
+      redundancy: 2,
+      fallbackRelays: [],
+      scheduler: clock,
+    });
+    const seed = 47_001;
+    const author = pubkeyFor(seed);
+    store.put(relayListFor(author, [DAMUS, EMPTY, GOOD]), "wss://indexer/");
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    clock.advance(REPLAN_BATCH_MS);
+    expect([...(plans.at(-1)?.relays ?? [])].sort()).toEqual([DAMUS, EMPTY]);
+
+    // damus は昨日までの 2 件を返し、もう 1 本は何も返さない。
+    const yesterday = [
+      signed(seed, { created_at: 1_700_000_100, content: "y1" }),
+      signed(seed, { created_at: 1_700_000_200, content: "y2" }),
+    ];
+    const damus = connections.get(DAMUS);
+    for (const event of yesterday) damus?.emitEvent(lastSub(damus), event);
+    damus?.emitEose(lastSub(damus));
+    const empty = connections.get(EMPTY);
+    empty?.emitEose(lastSub(empty));
+
+    // 張り直しはまとめて行うので、窓が過ぎるまでは割り当てを変えない。
+    expect([...(plans.at(-1)?.relays ?? [])].sort()).toEqual([DAMUS, EMPTY]);
+    clock.advance(EVIDENCE_REPLAN_BATCH_MS);
+    expect([...(plans.at(-1)?.relays ?? [])].sort()).toEqual([DAMUS, GOOD]);
+    expect(manager.demotedAuthorRelays).toEqual([{ author, relay: EMPTY }]);
+
+    // 移った先は今日の 2 件も返す。damus は読み終えた範囲でそれを返していない。
+    const good = connections.get(GOOD);
+    for (const event of [
+      ...yesterday,
+      signed(seed, { created_at: 1_700_000_300, content: "t1" }),
+      signed(seed, { created_at: 1_700_000_400, content: "t2" }),
+    ]) {
+      good?.emitEvent(lastSub(good), event);
+    }
+    good?.emitEose(lastSub(good));
+    clock.advance(EVIDENCE_REPLAN_BATCH_MS);
+
+    // 外していないのは 1 本だけになったので、そこから読む。
+    expect(plans.at(-1)?.relays).toEqual([GOOD]);
+    manager.dispose();
+    expect(clock.pendingCount).toBe(0);
+  });
+
+  it("どのリレーも返さなければ、投稿が無いだけとみなして外さない", () => {
+    const clock = createFakeClock();
+    const { manager, store, connections } = createManager({
+      redundancy: 2,
+      fallbackRelays: [],
+      scheduler: clock,
+    });
+    const author = pubkeyFor(47_002);
+    store.put(relayListFor(author, [DAMUS, EMPTY, GOOD]), "wss://indexer/");
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    clock.advance(REPLAN_BATCH_MS);
+    for (const url of [DAMUS, EMPTY]) {
+      const connection = connections.get(url);
+      connection?.emitEose(lastSub(connection));
+    }
+    clock.advance(EVIDENCE_REPLAN_BATCH_MS);
+
+    expect([...(plans.at(-1)?.relays ?? [])].sort()).toEqual([DAMUS, EMPTY]);
+    expect(manager.demotedAuthorRelays).toEqual([]);
+    manager.dispose();
   });
 });
 

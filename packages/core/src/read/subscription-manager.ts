@@ -5,6 +5,10 @@ import type {
   RelayUrl,
 } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
+import {
+  AuthorRelayEvidence,
+  SectionRelayRounds,
+} from "./author-relay-evidence";
 import { collect } from "./collect";
 import {
   ConnectionPool,
@@ -134,6 +138,12 @@ export const FETCH_ONCE_SOFT_TIMEOUT_MS = 2_000;
  */
 export const DEGRADED_REPLAN_BATCH_MS = 200;
 
+/**
+ * 取りこぼしで候補を外したときの張り直しのまとめ。カラムを開いた直後は EOSE が
+ * 次々に届き、そのたびに外す組が増えるので、REQ の送り直しを 1 回にまとめる。
+ */
+export const EVIDENCE_REPLAN_BATCH_MS = 5_000;
+
 /** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
 type OpenSubscription = {
   subscription: PooledSubscription;
@@ -176,6 +186,8 @@ type SectionEntry = {
   resumeSince?: number;
   /** 復帰後の差分取得で EOSE を受けたリレー。 */
   caughtUp: Set<RelayUrl>;
+  /** 同じ人を読んだリレーどうしの答え。取りこぼしを見つけるのに使う。 */
+  rounds: SectionRelayRounds;
 };
 
 const EMPTY_PLAN: SectionPlan = {
@@ -263,6 +275,9 @@ export class SubscriptionManager {
   // degraded 出入りのバッチタイマー。#notify() と同じ「デバウンスでなく
   // バッチ」の形 —— 最初の出入りで 1 本張り、残りは相乗りする。
   #degradedReplanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  #evidenceReplanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  // 人とリレーの組ごとの取りこぼし。タブを開いている間だけ覚える。
+  readonly #evidence = new AuthorRelayEvidence();
   // セクションの出入りによる張り直しのまとめ（#requestReplan 参照）。
   #replanQueued = false;
   #replanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
@@ -447,6 +462,7 @@ export class SubscriptionManager {
       closed: false,
       refused: new Set(),
       caughtUp: new Set(),
+      rounds: new SectionRelayRounds(),
     };
     this.#entries.set(entry.id, entry);
 
@@ -576,7 +592,7 @@ export class SubscriptionManager {
       assigned: this.#lastAssignment.get(pubkey) ?? [],
       preferred: this.#readRouting.preferred ?? [],
       open: [...open],
-      declared: this.#options.routing.writeRelaysFor(pubkey),
+      declared: this.#writeRelaysFor(pubkey),
       excluded: (url) => this.#pool.isBlocked(url) || degraded.has(url),
       count,
     });
@@ -637,11 +653,36 @@ export class SubscriptionManager {
     }, DEGRADED_REPLAN_BATCH_MS);
   }
 
+  /** 取りこぼしが続いたので、その人の候補から外したリレー。 */
+  get demotedAuthorRelays(): { author: string; relay: RelayUrl }[] {
+    return this.#evidence.demoted;
+  }
+
+  #scheduleEvidenceReplan(): void {
+    if (this.#evidenceReplanTimer !== null) return;
+    this.#evidenceReplanTimer = this.#scheduler.setTimeout(() => {
+      this.#evidenceReplanTimer = null;
+      this.replan();
+    }, EVIDENCE_REPLAN_BATCH_MS);
+  }
+
+  /** その人が書き込みに使うと宣言したリレーのうち、取りこぼしで外していないもの。 */
+  #writeRelaysFor(author: string): readonly RelayUrl[] {
+    return this.#evidence.usable(
+      author,
+      this.#options.routing.writeRelaysFor(author),
+    );
+  }
+
   dispose(): void {
     // pool の通知購読とバッチタイマーを真っ先に断つ —— 後始末の順序に
     // 依存しない形にしておく。
     this.#offDegraded();
     this.#cancelRequestedReplan();
+    if (this.#evidenceReplanTimer !== null) {
+      this.#scheduler.clearTimeout(this.#evidenceReplanTimer);
+      this.#evidenceReplanTimer = null;
+    }
     if (this.#degradedReplanTimer !== null) {
       this.#scheduler.clearTimeout(this.#degradedReplanTimer);
       this.#degradedReplanTimer = null;
@@ -786,7 +827,7 @@ export class SubscriptionManager {
     return {
       routing: this.#readRouting,
       defaultRelays: this.#defaultRelays(),
-      writeRelaysFor: (author) => this.#options.routing.writeRelaysFor(author),
+      writeRelaysFor: (author) => this.#writeRelaysFor(author),
       budget: this.#options.maxConnections ?? MAX_CONNECTIONS,
       redundancy,
       openRelays: [...openRelays],
@@ -997,6 +1038,8 @@ export class SubscriptionManager {
     filters: RelayFilter[],
     catchup = false,
   ): RelaySubscriptionHandlers {
+    // 復帰後の差分取得は件数制限を外していて、ほかのリレーと同じ範囲を読んでいないので比べない。
+    if (!catchup) entry.rounds.sent(url, filters);
     return {
       onEvent: (event) => {
         if (entry.closed || this.paused) return;
@@ -1005,6 +1048,10 @@ export class SubscriptionManager {
         if (!matchesAnyFilter(event, filters)) {
           this.#recordUnrequested(url);
           return;
+        }
+        // 削除済みなどで store が受け取らなくても、リレーが持っていたことは数える。
+        if (!catchup) {
+          entry.rounds.received(url, event.id, event.pubkey, event.created_at);
         }
         const result = this.#options.store.put(event, url);
         // "rejected" は配信しないが "hidden" は配信する —— 削除の取り消し時に
@@ -1027,9 +1074,13 @@ export class SubscriptionManager {
           });
           return;
         }
+        if (this.#evidence.record(entry.rounds.completed(url))) {
+          this.#scheduleEvidenceReplan();
+        }
         entry.delivery.onRelayComplete(url);
       },
       onClosed: () => {
+        entry.rounds.closed(url);
         if (!entry.closed && !this.paused)
           entry.delivery.onRelayUnreachable(url);
       },

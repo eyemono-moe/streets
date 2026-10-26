@@ -57,7 +57,7 @@ flowchart TD
 
 ### 行き先決め
 
-- ファイル：`read/read-planner.ts`（`planReads`）、`read/relay-selector.ts`、`read/query-plan.ts`、`read/read-plan.ts`、`read/read-routing.ts`
+- ファイル：`read/read-planner.ts`（`planReads`）、`read/relay-selector.ts`、`read/query-plan.ts`、`read/read-plan.ts`、`read/read-routing.ts`、`read/author-relay-evidence.ts`（取りこぼしの突き合わせ。状態を持つが、時間と接続は知らない）
 - 受け取るもの：全カラムの要求と、環境（著者ごとの書き込みリレー、開いているリレー、止めているリレー、接続の予算 `MAX_CONNECTIONS`、1 人あたりの本数 `RELAY_REDUNDANCY`）。
 - 返すもの：リレーごとのフィルタ、行き先が分からなかった著者、予算で漏れた著者、画面に見せる `ReadPlan`。
 - 知らないこと：時間と接続。純粋な関数で、前回の結果も覚えない。差分を当てるのは帳簿の仕事。
@@ -103,7 +103,8 @@ flowchart TD
 5. 窓口は URL から `RelaySession` を取り出す（無ければ作る）。同時購読の枠が埋まっていれば待ち行列に入れ、空いたら `WebSocketRelayConnection` に REQ を送らせる。
 6. EVENT が戻ると、`RelaySession` を経て帳簿に届く。帳簿は `EventStore.put` で署名を検証し、重複をまとめて入れる。入った id だけを `SectionReader` へ渡す。
 7. `SectionReader` は id を並べ、本体を `EventStore` から引く。窓（`NOTIFY_BATCH_MS`）の間にたまった変化を 1 回の通知にして、`createSection` の signal を更新する。画面が描き直される。
-8. Alice が新しい kind:10002 を出すと、`EventStore` が置換可能イベントの最新版を差し替え、`ReadLayer` が `ROUTING_REPLAN_BATCH_MS` の窓でまとめて `replan()` を呼ぶ。手順 2 からやり直し、差分だけが窓口に当たる。
+8. 帳簿は、同じカラムで Alice を読んだリレーどうしの EOSE までの答えを突き合わせる（`SectionRelayRounds`）。片方が返したのに、読み終えた範囲でもう片方が返さなかった投稿が `MISSES_TO_DEMOTE` 件に達したら、そのリレーを Alice の候補から外し（`AuthorRelayEvidence`）、`EVIDENCE_REPLAN_BATCH_MS` の窓でまとめて `replan()` を呼ぶ。Alice の書き込みリレーの別の 1 本が割り当てられる。
+9. Alice が新しい kind:10002 を出すと、`EventStore` が置換可能イベントの最新版を差し替え、`ReadLayer` が `ROUTING_REPLAN_BATCH_MS` の窓でまとめて `replan()` を呼ぶ。手順 2 からやり直し、差分だけが窓口に当たる。
 
 ## 読み取り層以外
 
