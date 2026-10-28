@@ -13,7 +13,7 @@ import type { ContentWarningMode } from "@streets/core/settings/content-warning-
 import type { Component } from "solid-js";
 import { setActionLayout } from "../../action-layout-setting";
 import { setContentWarningMode } from "../../content-warning-setting";
-import { setDefaultReaction } from "../../default-reaction-setting";
+import { applyDefaultReaction } from "../../default-reaction-setting";
 import avatarUrl from "../../storybook/avatar-fixture.svg";
 import emojiUrl from "../../storybook/emoji-fixture.svg";
 import {
@@ -82,8 +82,8 @@ type Props = {
 };
 
 export const EventStory: Component<Props> = (props) => {
-  // 端末の設定をそのまま差し替える。どのストーリーも必ず当てるので、前の値は残らない。
-  setDefaultReaction(props.defaultReaction ?? { type: "like" });
+  // 設定をそのまま差し替える。どのストーリーも必ず当てるので、前の値は残らない。
+  applyDefaultReaction(props.defaultReaction ?? { type: "like" });
   setContentWarningMode(props.contentWarning ?? "hide");
   setActionLayout(props.actionLayout ?? defaultActionLayout());
   return (

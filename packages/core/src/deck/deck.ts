@@ -1,6 +1,8 @@
 import * as v from "valibot";
 import { encodeBech32 } from "../nostr/nip19";
+import type { ReactionInput } from "../nostr/reaction";
 import type { RelayUrl } from "../relay/relay-connection";
+import { defaultReactionSchema } from "../settings/default-reaction";
 import {
   type ColumnSource,
   TIMELINE_KINDS,
@@ -178,6 +180,8 @@ export type DeckSet = {
    * （多くのクライアントと同じ）。`false` を選んだ人だけ付けない。
    */
   notifyQuoted?: boolean;
+  /** いいねボタンで送るリアクション。無ければハート（`+`）。 */
+  defaultReaction?: ReactionInput;
 };
 
 /** テーマ色の元になる 2 色。50〜950 の段は画面側がこの 2 色から作る。`#rrggbb`。 */
@@ -339,6 +343,7 @@ const deckSetSchema = v.object({
   // 壊れた値は付けない（既定）に落とす。デッキごと捨てない。
   clientTag: v.fallback(v.optional(v.boolean()), undefined),
   notifyQuoted: v.fallback(v.optional(v.boolean()), undefined),
+  defaultReaction: v.fallback(v.optional(defaultReactionSchema), undefined),
 });
 
 /** 1 つのデッキだけを持っていた形。読むときに、そのデッキを最初のデッキとして移す。 */

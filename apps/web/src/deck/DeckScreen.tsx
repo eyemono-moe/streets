@@ -87,8 +87,8 @@ import {
   setDeckLayout,
 } from "../deck-layout-setting";
 import {
+  applyDefaultReaction,
   defaultReaction,
-  setDefaultReaction,
 } from "../default-reaction-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
@@ -688,6 +688,7 @@ const DeckScreen: Component<{
   const clientTag = (): boolean => deckStore.value()?.clientTag === true;
   // 引用した先の作者に知らせるか。無ければ知らせる。
   const notifyQuoted = (): boolean => deckStore.value()?.notifyQuoted !== false;
+  createEffect(() => applyDefaultReaction(deckStore.value()?.defaultReaction));
 
   let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
   // 保存し終えたら出す知らせ。保存はデッキの同期に任せている。
@@ -1059,7 +1060,8 @@ const DeckScreen: Component<{
         setColumnStretch(event.on);
         return true;
       case "deck/set-default-reaction":
-        setDefaultReaction(event.input);
+        savedNotice = t("deck.deckScreen.reactionSaved");
+        deckStore.update((set) => ({ ...set, defaultReaction: event.input }));
         return true;
       case "deck/set-action-layout":
         setActionLayout(event.layout);

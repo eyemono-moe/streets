@@ -49,7 +49,7 @@ export type EmojiSettingsViewProps = {
   emojis: readonly CustomEmoji[];
   sets: readonly EmojiSetRow[];
   saving: boolean;
-  /** いいねボタンで送るリアクション（この端末の設定）。 */
+  /** いいねボタンで送るリアクション（アカウントの設定）。 */
   defaultReaction: ReactionInput;
 };
 
@@ -61,7 +61,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
     <SettingsSection
       id="reactionEmoji"
-      scope="device"
+      scope="account"
       description={t("settings.emojiList.reactionDescription")}
     >
       <DefaultReactionField value={props.defaultReaction} />
