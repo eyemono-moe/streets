@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { encodeNaddr } from "../nostr/nip19";
 import { nappletPrelude } from "./prelude";
 import { NAPPLET_CSP, prepareNappletSrcdoc } from "./srcdoc";
@@ -18,6 +18,9 @@ type TestNapplet = {
     ): { close(): void };
   };
   identity: { getPublicKey(): Promise<string> };
+  resource: {
+    bytes(url: string, options?: { signal?: AbortSignal }): Promise<Blob>;
+  };
   theme: { onChanged(handler: (theme: unknown) => void): unknown };
   intent: {
     invoke(uri: string, options?: Record<string, unknown>): Promise<unknown>;
@@ -69,7 +72,7 @@ const run = (domains: string[]) => {
 
 describe("prepareNappletSrcdoc", () => {
   // NIP-5D: > shells SHOULD inject a CSP `meta` element as the first element in `head`
-  it("head の先頭に CSP を置き、その直後に window.napplet を作るスクリプトを置く", () => {
+  it("本体より先に CSP を置き、その直後に window.napplet を作るスクリプトを置く", () => {
     const srcdoc = prepareNappletSrcdoc(
       '<!doctype html><html><head lang="en"><script>app()</script></head></html>',
       ["relay"],
@@ -89,6 +92,70 @@ describe("prepareNappletSrcdoc", () => {
     expect(srcdoc.startsWith("<!DOCTYPE html><head><meta")).toBe(true);
   });
 
+  it("先頭の html と head の属性や間のコメントを残す", () => {
+    const prefix =
+      '<!doctype html><html lang="ja" data-text=">"><!-- <head> --><head id="app-head" data-text=">">';
+    const srcdoc = prepareNappletSrcdoc(`${prefix}<title>app</title>`, []);
+    expect(srcdoc.startsWith(`${prefix}<meta`)).toBe(true);
+  });
+
+  it("不正な属性の引用符を追って本体のスクリプトを飛ばさない", () => {
+    const body = '<html "><script>app()</script>"><head>';
+    const srcdoc = prepareNappletSrcdoc(body, []);
+    expect(srcdoc.startsWith("<head><meta")).toBe(true);
+    expect(srcdoc.endsWith(`</head>${body}`)).toBe(true);
+  });
+
+  it.each(["\u000b", "\u00a0", "\u2028", "\ufeff"])(
+    "HTML の空白ではない文字をタグの区切りとみなさない: %j",
+    (space) => {
+      const body = `<html${space}data-x="x"><head>`;
+      const srcdoc = prepareNappletSrcdoc(body, []);
+      expect(srcdoc.startsWith("<head><meta")).toBe(true);
+      expect(srcdoc.endsWith(`</head>${body}`)).toBe(true);
+    },
+  );
+
+  it("巨大な属性列は保持の探索をやめ、本体より前に初期化を置く", () => {
+    const body = `<head ${"a=a ".repeat(1_000_000)}><script>app()</script>`;
+    const srcdoc = prepareNappletSrcdoc(body, []);
+    expect(srcdoc.startsWith("<head><meta")).toBe(true);
+    expect(srcdoc.endsWith(`</head>${body}`)).toBe(true);
+  });
+
+  it("巨大なコメント列でも初期化を差し込める", () => {
+    const body = `${"<!-- -->".repeat(500_000)}<script>app()</script>`;
+    const srcdoc = prepareNappletSrcdoc(body, []);
+    expect(srcdoc.indexOf("<meta")).toBeLessThan(128 * 1024);
+    expect(srcdoc.endsWith("<script>app()</script>")).toBe(true);
+  });
+
+  it.each([
+    "<!-- <head> -->",
+    '<script>const text = "<head>";</script>',
+    "<template><head></head></template>",
+  ])("本体にあるタグ風の文字列へ起動コードを差し込まない: %s", (body) => {
+    const srcdoc = prepareNappletSrcdoc(`<!doctype html>${body}`, []);
+    expect(srcdoc.startsWith("<!doctype html><head><meta")).toBe(true);
+    expect(srcdoc.endsWith(`</head>${body}`)).toBe(true);
+  });
+
+  it("doctype の前にコメントがあっても描画モードを保つ", () => {
+    const prefix = "<!-- document -- > -->\n<!DOCTYPE html>";
+    const srcdoc = prepareNappletSrcdoc(`${prefix}<html lang="ja">`, []);
+    expect(srcdoc.startsWith(`${prefix}<head><meta`)).toBe(true);
+  });
+
+  it.each(["<!-->", "<!--->"])(
+    "ブラウザがすぐ閉じるコメントの後のスクリプトより先に初期化する: %s",
+    (comment) => {
+      const body = `${comment}<script>app()</script><!-- end --><head>`;
+      const srcdoc = prepareNappletSrcdoc(body, []);
+      expect(srcdoc.startsWith("<head><meta")).toBe(true);
+      expect(srcdoc.endsWith(`</head>${body}`)).toBe(true);
+    },
+  );
+
   // NIP-5D: > connect-src 'none' … an opaque sandbox origin does not by itself prevent `fetch`
   it("napplet が外へ直に通信できない CSP にする", () => {
     expect(NAPPLET_CSP).toContain("connect-src 'none'");
@@ -97,6 +164,148 @@ describe("prepareNappletSrcdoc", () => {
 });
 
 describe("nappletPrelude", () => {
+  it("書き込みの確認が 30 秒を超えても、承認後の結果を返す", async () => {
+    vi.useFakeTimers();
+    try {
+      const { win, sent, deliver } = run(["relay"]);
+      const result = win.napplet.relay.publish({
+        kind: 1,
+        content: "hello",
+        tags: [],
+      });
+      let settled = false;
+      void result.then(
+        () => (settled = true),
+        () => (settled = true),
+      );
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(settled).toBe(false);
+      const event = { id: "written" };
+      deliver({ type: "relay.publish.result", id: sent[0]?.id, event });
+      await expect(result).resolves.toEqual(event);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("開く先を 30 秒より長く選んでいても、選んだ結果を返す", async () => {
+    vi.useFakeTimers();
+    try {
+      const { win, sent, deliver } = run(["intent"]);
+      const result = win.napplet.intent.open("napplet:profile/open");
+      let settled = false;
+      void result.then(
+        () => (settled = true),
+        () => (settled = true),
+      );
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(settled).toBe(false);
+      deliver({
+        type: "intent.invoke.result",
+        id: sent[0]?.id,
+        result: { ok: true, handler: "streets" },
+      });
+      await expect(result).resolves.toEqual({ ok: true, handler: "streets" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("利用者の確認を待たない読み取りは 30 秒で時間切れにする", async () => {
+    vi.useFakeTimers();
+    try {
+      const { win } = run(["identity"]);
+      const result = win.napplet.identity.getPublicKey();
+      const timedOut = expect(result).rejects.toThrow(
+        "identity.getPublicKey timed out",
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      await timedOut;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("同じ URL の取得でも、中止した呼び出しだけを止める", async () => {
+    const { win, sent, deliver } = run(["resource"]);
+    const controller = new AbortController();
+    const first = win.napplet.resource.bytes("https://example.invalid/avatar", {
+      signal: controller.signal,
+    });
+    const aborted = expect(first).rejects.toMatchObject({ name: "AbortError" });
+    const second = win.napplet.resource.bytes("https://example.invalid/avatar");
+    controller.abort();
+    await aborted;
+    const requests = sent.filter(
+      (message) => message.type === "resource.bytes",
+    );
+    expect(requests).toHaveLength(2);
+    expect(sent.at(-1)).toMatchObject({
+      type: "resource.cancel",
+      id: requests[0]?.id,
+    });
+    const blob = new Blob(["avatar"]);
+    deliver({ type: "resource.bytes.result", id: requests[1]?.id, blob });
+    await expect(second).resolves.toBe(blob);
+  });
+
+  it("中止した取得のタイマーを片付け、同じ URL をすぐに取り直せる", async () => {
+    vi.useFakeTimers();
+    try {
+      const { win, sent, deliver } = run(["resource"]);
+      const controller = new AbortController();
+      const first = win.napplet.resource.bytes(
+        "https://example.invalid/avatar",
+        {
+          signal: controller.signal,
+        },
+      );
+      const aborted = expect(first).rejects.toMatchObject({
+        name: "AbortError",
+      });
+      controller.abort();
+      await aborted;
+      expect(vi.getTimerCount()).toBe(0);
+      const retried = win.napplet.resource.bytes(
+        "https://example.invalid/avatar",
+      );
+      const requests = sent.filter(
+        (message) => message.type === "resource.bytes",
+      );
+      expect(requests).toHaveLength(2);
+      const blob = new Blob(["avatar"]);
+      deliver({ type: "resource.bytes.result", id: requests[1]?.id, blob });
+      await expect(retried).resolves.toBe(blob);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("取得が終わったら中止の監視を外し、後から中止を送らない", async () => {
+    const { win, sent, deliver } = run(["resource"]);
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const work = win.napplet.resource.bytes("https://example.invalid/avatar", {
+      signal: controller.signal,
+    });
+    const blob = new Blob(["avatar"]);
+    deliver({ type: "resource.bytes.result", id: sent[0]?.id, blob });
+    await expect(work).resolves.toBe(blob);
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+    controller.abort();
+    expect(sent).toHaveLength(1);
+  });
+
+  it("中止の指定がない同じ URL の取得はまとめる", async () => {
+    const { win, sent, deliver } = run(["resource"]);
+    const first = win.napplet.resource.bytes("https://example.invalid/avatar");
+    const second = win.napplet.resource.bytes("https://example.invalid/avatar");
+    expect(sent).toHaveLength(1);
+    const blob = new Blob(["avatar"]);
+    deliver({ type: "resource.bytes.result", id: sent[0]?.id, blob });
+    await expect(Promise.all([first, second])).resolves.toEqual([blob, blob]);
+  });
+
   // NIP-5D: > The namespace MUST contain only the NAP domain objects the shell exposes
   it("渡した機能だけを window.napplet に生やす", () => {
     const { win } = run(["theme", "storage"]);

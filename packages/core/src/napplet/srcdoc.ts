@@ -27,18 +27,27 @@ export const prepareNappletSrcdoc = (
   const injected =
     `<meta http-equiv="Content-Security-Policy" content="${NAPPLET_CSP}">` +
     `<script>${escapeScript(nappletPrelude(domains))}</script>`;
-  const head = /<head(?:\s[^>]*)?>/i.exec(html);
+  // 本体の head を探すと、コメント・文字列・template の中へ差し込んでしまう。
+  // 先頭のコメントと doctype だけを残し、ブラウザに本体の html の属性を引き継がせる。
+  // `<!-->`・`<!--->` は直ちに閉じるので、後続のスクリプトまでコメント扱いしない。
+  // 巨大な属性列を正規表現で追うとスタックを使い切るので、保持するヘッダーだけを絞る。
+  const header = html.slice(0, 64 * 1024);
+  const prefix =
+    /^[\t\n\f\r ]*(?:<!--(?!>|->)(?:(?!--!?>)[\s\S])*--!?>[\t\n\f\r ]*)*(?:<!doctype[^>]*>)?/i.exec(
+      header,
+    );
+  const at = prefix?.[0].length ?? 0;
+  const rest = header.slice(at);
+  // 本体の先頭に本物の head がある場合だけ、属性も残してその中へ差し込む。
+  const trivia = String.raw`[\t\n\f\r ]*(?:<!--(?!>|->)(?:(?!--!?>)[\s\S])*--!?>[\t\n\f\r ]*)*`;
+  const attributes = String.raw`(?:[\t\n\f\r ]+[^\t\n\f\r "'<>/=\x60]+(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"[^"]*"|'[^']*'|[^\t\n\f\r "'=<>\x60]+))?)*[\t\n\f\r ]*`;
+  const head = new RegExp(
+    `^${trivia}(?:<html${attributes}>${trivia})?<head${attributes}>`,
+    "i",
+  ).exec(rest);
   if (head) {
-    const at = head.index + head[0].length;
-    return html.slice(0, at) + injected + html.slice(at);
+    const end = at + head[0].length;
+    return html.slice(0, end) + injected + html.slice(end);
   }
-  const root = /<html(?:\s[^>]*)?>/i.exec(html);
-  if (root) {
-    const at = root.index + root[0].length;
-    return `${html.slice(0, at)}<head>${injected}</head>${html.slice(at)}`;
-  }
-  // doctype より前に置くと互換モードで描かれるので、doctype の後に置く。
-  const doctype = /^\s*<!doctype[^>]*>/i.exec(html);
-  const at = doctype ? doctype[0].length : 0;
   return `${html.slice(0, at)}<head>${injected}</head>${html.slice(at)}`;
 };
