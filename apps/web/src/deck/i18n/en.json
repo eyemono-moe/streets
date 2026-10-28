@@ -250,6 +250,7 @@
   "deckScreen": {
     "appearanceSaved": "Display settings saved",
     "privacySaved": "Privacy settings saved",
+    "reactionSaved": "Reaction setting saved",
     "localOnlyTitle": "This login method can't sync your deck to other devices",
     "localOnlyBody": "Deck changes are saved only on this device. To sync, log in with an extension or signer app that supports encryption.",
     "sharedLogin": "Log in to post the content you shared",

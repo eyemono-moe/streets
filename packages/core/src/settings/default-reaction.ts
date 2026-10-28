@@ -3,12 +3,13 @@ import type { ReactionInput } from "../nostr/reaction";
 import type { ReactionContent } from "../nostr/reaction";
 
 /**
- * いいねボタンで送るリアクション。端末ごとの設定 —— 手元のピッカーの
- * 最近使った絵文字と同じく、ほかの端末へ持って行くほどのものではない。
+ * いいねボタンで送るリアクションを、端末に保存していたころのキー。いまはデッキと
+ * 一緒にアカウントへ保存する（`DeckSet.defaultReaction`）。アカウントにまだ無い
+ * 人のために、ここに残った値を読む。
  */
 export const DEFAULT_REACTION_STORAGE_KEY = "streets.v1.defaultReaction";
 
-const schema = v.union([
+export const defaultReactionSchema = v.union([
   v.object({ type: v.literal("like") }),
   v.object({
     type: v.literal("text"),
@@ -25,7 +26,7 @@ const schema = v.union([
 export const loadDefaultReaction = (raw: string | null): ReactionInput => {
   if (raw === null) return { type: "like" };
   try {
-    const result = v.safeParse(schema, JSON.parse(raw));
+    const result = v.safeParse(defaultReactionSchema, JSON.parse(raw));
     return result.success ? result.output : { type: "like" };
   } catch {
     return { type: "like" };
