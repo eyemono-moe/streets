@@ -4,10 +4,9 @@ import {
   USER_TRIGGER,
   rankUsers,
 } from "@streets/core/view/completion";
-import { searchEmojis } from "@streets/core/view/emoji-search";
 import { createSignal, onMount } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { EmojiRow, type UserEntry, UserRow } from "../completion/sources";
+import { type UserEntry, UserRow, emojiItems } from "../completion/sources";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
 import Completion, { type CompletionSource } from "./Completion";
@@ -44,6 +43,7 @@ const users = [
 
 const emojis = [
   { shortcode: "neko", url: emojiUrl, set: "自分の絵文字" },
+  { shortcode: "cat_dance", url: emojiUrl, set: "ねこセット" },
   { shortcode: "nekomimi", url: emojiUrl, set: "ねこセット" },
   {
     shortcode: "neko_with_a_very_long_shortcode_name",
@@ -77,17 +77,41 @@ const userSource: CompletionSource = {
     })),
 };
 
+// Unicode の絵文字は一覧を読まず、見本だけを並べる。
+const unicodeEmojis = [
+  {
+    kind: "unicode",
+    char: "🙇",
+    label: "お辞儀をする人",
+    tags: ["お辞儀", "謝罪", "ごめんなさい"],
+    shortcodes: ["bow"],
+  },
+  {
+    kind: "unicode",
+    char: "🙇‍♂️",
+    label: "お辞儀をする男性",
+    tags: ["お辞儀", "男性"],
+    shortcodes: ["man-bowing"],
+  },
+  {
+    kind: "unicode",
+    char: "🎳",
+    label: "ボウリング",
+    tags: ["ボウリング"],
+    shortcodes: ["bowling"],
+  },
+  {
+    kind: "unicode",
+    char: "🐱",
+    label: "猫の顔",
+    tags: ["ねこ", "猫"],
+    shortcodes: ["cat"],
+  },
+] as const;
+
 const emojiSource: CompletionSource = {
   trigger: EMOJI_TRIGGER,
-  items: (query) =>
-    searchEmojis(
-      emojis.map((emoji) => ({ ...emoji, shortcodes: [emoji.shortcode] })),
-      query,
-    ).map((emoji) => ({
-      key: emoji.shortcode,
-      insert: `:${emoji.shortcode}:`,
-      view: () => <EmojiRow {...emoji} />,
-    })),
+  items: (query) => emojiItems(emojis, unicodeEmojis, query),
 };
 
 /** 欄全体で人を探す（検索の「書いた人」など）。選ぶと欄が nprofile だけになる。 */
@@ -111,7 +135,7 @@ type Args = {
 };
 
 /**
- * 打つと候補が出る。`@` で人、`:` の後に英数字でスタンプ。開いた状態を
+ * 打つと候補が出る。`@` で人、`:` の後に英数字でスタンプと絵文字。開いた状態を
  * 見せるため、最初から欄にカーソルを置いておく。
  */
 const Story = (props: Args) => {
@@ -176,6 +200,8 @@ export const 人: S = {};
 export const 人を名前で絞る: S = { args: { initial: "こんにちは @えい" } };
 export const 当たる人がいない: S = { args: { initial: "@zzz" } };
 export const スタンプ: S = { args: { initial: "かわいい:ne" } };
+export const Unicodeの絵文字: S = { args: { initial: "すみません:bow" } };
+export const スタンプと絵文字が混ざる: S = { args: { initial: "かわいい:c" } };
 export const スタンプだけの1行の欄: S = {
   args: { initial: "えいも:ne", multiline: false, emojiOnly: true },
 };
