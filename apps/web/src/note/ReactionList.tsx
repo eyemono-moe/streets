@@ -68,7 +68,7 @@ export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
             alt={`:${emoji().name}:`}
             loading="lazy"
             decoding="async"
-            class="h-4.5 w-auto max-w-12 object-contain"
+            class="h-4.5 w-auto max-w-12 object-contain aspect-pending-square"
             onError={() => setBroken(true)}
           />
         )}
