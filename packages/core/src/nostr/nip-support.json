@@ -335,6 +335,18 @@
     "gap": "NIP-51 のリストをすべて扱うわけではない。ピン留めは並べ替えられない。流れてきたリスト（リレーセット・ブックマークセットなど）は表示だけで、Streets では作れない。公開の中身だけを数える"
   },
   {
+    "nip": "56",
+    "status": "一部",
+    "summary": "アップレットに頼まれた通報（kind:1984）を書く",
+    "kinds": [1984],
+    "tags": ["p", "e"],
+    "paths": [
+      "packages/core/src/nostr/report.ts",
+      "apps/web/src/napplet/common-host.tsx"
+    ],
+    "gap": "Streets の画面からは通報できない（アップレットの NAP-COMMON からだけ）。届いた通報は読まず、ミュートにも使わない。x タグ（ファイルの通報）と NIP-32 のラベルは付けない"
+  },
+  {
     "nip": "57",
     "status": "一部",
     "summary": "投稿・プロフィールへの Zap の送信と受領の表示",
@@ -355,6 +367,41 @@
       "packages/core/src/zap/zap-receipt.ts"
     ],
     "gap": "Zap のすべてのオプションや受領形式には対応していない"
+  },
+  {
+    "nip": "5D",
+    "status": "一部",
+    "summary": "アップレット（napplet。Nostr で配る小さなアプリ）をカラムで動かす",
+    "kinds": [5129, 15129, 35129],
+    "tags": [
+      "d",
+      "x",
+      "R",
+      "O",
+      "z",
+      "icon",
+      "server",
+      "title",
+      "source",
+      "path",
+      "description",
+      "requires"
+    ],
+    "paths": [
+      "packages/core/src/napplet/manifest.ts",
+      "packages/core/src/napplet/session.ts",
+      "packages/core/src/napplet/prelude.ts",
+      "packages/core/src/napplet/resource.ts",
+      "packages/core/src/napplet/intent.ts",
+      "packages/core/src/napplet/publish.ts",
+      "packages/core/src/napplet/link.ts",
+      "apps/web/src/columns/blocks/Napplet.tsx",
+      "packages/core/src/napplet/common.ts",
+      "packages/core/src/napplet/catalog.ts",
+      "packages/core/src/napplet/lists.ts",
+      "packages/core/src/napplet/config.ts"
+    ],
+    "gap": "NIP は未マージ（PR #2303 の 2026-10-17 版に合わせた）。名前付き（35129）だけを開く。10 月より前の形式は index.html 1 枚のものだけ開く。渡す機能は shell・theme・identity・storage・resource（https・blossom・data。種類は中身から決め、SVG は PNG に描き直して渡す）・intent・inc（話題で送り合うものだけ。1 対 1 の channel は渡さない）・relay（リレーを指定した購読は、1 つのアップレットで同時に 4 本まで）・outbox・link（http(s) は新しいタブ、nostr: は Streets のカラム。押されずに開くときは確かめる）・keys（押したキーを Streets のショートカットへ送る。操作の登録は受け付けるが、キーは割り当てない）・common（NIP-19・プロフィール・フォロー・リアクション・通報。書き込みは確かめてから行う）・catalog（インストールしたアップレットだけ）・notify（アップレットごとに一度許可を取り、Streets のトーストで出す。バッジとチャンネルは渡さない）・upload（Streets のアップロード先へ上げる。確かめてから行い、進み具合の知らせは送らない）・lists（Streets が書く NIP-51 のリストと NIP-65 の公開の項目だけ。いまの版を読み、ほかのタグと非公開の中身を残して書き直す）・config（Core Subset の JSON Schema をカラムの設定に描き、この端末に置く。節への移動はしない）を渡す。書き込み（relay.publish・publishEncrypted・outbox.publish）はカラムの中で確かめてから Streets が署名する（「今後は確認しない」にした kind を除く。置き換え・削除は毎回確かめる）。暗号化は NIP-44 だけで、認証の kind（22242・24133・24242・27235）と、暗号文を運ぶ kind のそのままの書き込みには署名しない。onDelivery を使わず inc.on の話題で依頼を受けるアップレットには、依頼をその話題で渡す。intent の受け手は、インストールしたアップレットと、Streets（profile・note・article の open、article/author、composer/open）。前の版の intent.open(役割, 中身, { convention }) も受け付ける"
   },
   {
     "nip": "65",

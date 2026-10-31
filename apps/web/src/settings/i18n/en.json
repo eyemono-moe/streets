@@ -9,6 +9,7 @@
     "keyboard": "Keyboard",
     "display": "Display",
     "privacy": "Privacy",
+    "applets": "Applets",
     "stats": "Statistics"
   },
   "items": {
@@ -213,6 +214,11 @@
     "errorReport": {
       "title": "Error and performance reports",
       "keywords": ["error reports", "telemetry"]
+    },
+    "intentDefaults": {
+      "title": "Default apps to open with",
+      "description": "Which applet opens people and posts",
+      "keywords": ["default app", "open with", "napplet", "NAP-INTENT"]
     }
   },
   "section": {

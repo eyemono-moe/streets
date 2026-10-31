@@ -11,6 +11,7 @@ export type SettingPage =
   | "keyboard"
   | "display"
   | "privacy"
+  | "applets"
   | "stats";
 
 /** 設定のページの名前。言語を切り替えると変わるので、描くところで呼ぶ。 */
@@ -86,6 +87,7 @@ const placements = {
   clientTag: { page: "privacy" },
   notifyQuoted: { page: "privacy" },
   errorReport: { page: "privacy" },
+  intentDefaults: { page: "applets" },
 } as const satisfies Record<string, SettingInfo>;
 
 export type SettingId = keyof typeof placements;

@@ -14,6 +14,7 @@
       "info": "About {{ name }}",
       "followSets": "Lists",
       "channels": "Channels",
+      "napplets": "Applets",
       "welcome": "Welcome to Streets",
       "relays": {
         "one": "{{ count }} relay",

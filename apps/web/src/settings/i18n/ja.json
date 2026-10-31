@@ -9,6 +9,7 @@
     "keyboard": "キーボード",
     "display": "表示",
     "privacy": "プライバシー",
+    "applets": "アップレット",
     "stats": "統計"
   },
   "items": {
@@ -213,6 +214,11 @@
     "errorReport": {
       "title": "不具合と動作の速さの報告",
       "keywords": ["エラー報告", "計測"]
+    },
+    "intentDefaults": {
+      "title": "開く先の既定",
+      "description": "人や投稿を、どのアップレットで開くか",
+      "keywords": ["既定のアプリ", "アプリで開く", "napplet", "NAP-INTENT"]
     }
   },
   "section": {

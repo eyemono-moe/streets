@@ -43,8 +43,10 @@
   },
   "syncNotice": {
     "saveFailed": "Couldn't save the deck: {{ message }}",
+    "appletsSaveFailed": "Couldn't save the applets: {{ message }}",
     "retry": "Try again",
     "conflict": "The deck changed on another device. Which version do you want to keep?",
+    "appletsConflict": "The applets changed on another device. Which version do you want to keep?",
     "keepLocal": "Keep this device's version",
     "useRemote": "Use the other device's version"
   },
@@ -86,6 +88,11 @@
         "label": "Channels",
         "description": "Chat channels where everyone can talk",
         "keywords": ["chat", "room"]
+      },
+      "napplets": {
+        "label": "Applets",
+        "description": "Find and open small apps distributed over Nostr",
+        "keywords": ["apps", "mini apps", "NIP-5D", "napp"]
       },
       "bookmarks": {
         "label": "Bookmarks",

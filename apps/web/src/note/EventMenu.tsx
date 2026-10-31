@@ -1,5 +1,11 @@
 import { Drawer } from "@ark-ui/solid/drawer";
 import { Menu } from "@ark-ui/solid/menu";
+import {
+  buildArticleColumn,
+  buildThreadColumn,
+  buildUserColumn,
+} from "@streets/core/deck/column-presets";
+import type { ColumnDef } from "@streets/core/deck/deck";
 import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
@@ -8,6 +14,7 @@ import {
   canPin,
   canReply,
 } from "@streets/core/nostr/event-actions";
+import { LONG_FORM_KIND } from "@streets/core/nostr/long-form";
 import { buildRepost } from "@streets/core/nostr/repost";
 import {
   type EventActionId,
@@ -34,6 +41,7 @@ import ReactionPicker from "../emoji/ReactionPicker";
 import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
+import { useAppletIntents } from "../napplet/applet-intents";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import Avatar from "../ui/Avatar";
@@ -83,6 +91,10 @@ type MenuItem = {
   /** いまは押せない（送っている途中・ログインしていない・相手が受け取れない）。押せる見た目にしない。 */
   todo?: boolean;
 };
+
+/** 「○○ で開く」の項目の値の頭。続きは受け手の id。 */
+const OPEN_IN = "open-in:";
+const OPEN_AUTHOR_IN = "open-author-in:";
 
 const authorRelaysItem = (): MenuItem => ({
   value: "author-relays",
@@ -337,6 +349,39 @@ const EventMenu: Component<{
     pubkey: props.event.pubkey,
     on: !following(),
   }));
+  // インストールしたアップレットのうち、この投稿・この人を開けるもの（NAP-INTENT）。
+  const intents = useAppletIntents();
+  const eventColumn = () => {
+    if (props.event.kind === LONG_FORM_KIND) {
+      const identifier = props.event.tags.find((tag) => tag[0] === "d")?.[1];
+      return identifier === undefined
+        ? undefined
+        : buildArticleColumn(props.event.pubkey, identifier);
+    }
+    return props.event.kind === 1
+      ? buildThreadColumn(props.event.id)
+      : undefined;
+  };
+  const appletItems = (
+    prefix: string,
+    column: ColumnDef | undefined,
+  ): MenuItem[] =>
+    (column && intents?.handlersFor(column))?.map((handler) => ({
+      value: `${prefix}${handler.id}`,
+      label: t("note.eventMenu.openIn", { name: handler.title }),
+      icon: "i-material-symbols:widgets-outline-rounded",
+    })) ?? [];
+  const openInApplet = (handlerId: string, column: ColumnDef | undefined) => {
+    const opened = column && intents?.openIn(handlerId, column);
+    if (opened) {
+      dispatch({
+        type: "stack/open",
+        ...opened,
+        from: props.event.id,
+        direct: true,
+      });
+    }
+  };
   const authorItems = (): MenuItem[] => {
     // 自分もリストに入れられる（自分の投稿もそのリストのカラムに流したいことがある）。
     const addToList: MenuItem = {
@@ -346,7 +391,11 @@ const EventMenu: Component<{
       todo: lists === undefined,
     };
     // 自分はフォローできず、ミュートしても自分の投稿は隠さない。押せても意味が無いので出さない。
-    if (mine()) return [addToList, authorRelaysItem()];
+    const openAuthor = appletItems(
+      OPEN_AUTHOR_IN,
+      buildUserColumn(props.event.pubkey),
+    );
+    if (mine()) return [...openAuthor, addToList, authorRelaysItem()];
     const muted = authorMuteEntry() !== undefined;
     const muteAuthor: MenuItem[] =
       props.onMute && !muted
@@ -375,6 +424,7 @@ const EventMenu: Component<{
         // ログインしていないと、フォローの一覧を書けない。
         todo: actions === undefined || followSending(),
       },
+      ...openAuthor,
       addToList,
       ...muteAuthor,
       authorRelaysItem(),
@@ -506,6 +556,15 @@ const EventMenu: Component<{
       case "delete":
         setConfirmingDelete(true);
         break;
+      default:
+        if (value.startsWith(OPEN_IN)) {
+          openInApplet(value.slice(OPEN_IN.length), eventColumn());
+        } else if (value.startsWith(OPEN_AUTHOR_IN)) {
+          openInApplet(
+            value.slice(OPEN_AUTHOR_IN.length),
+            buildUserColumn(props.event.pubkey),
+          );
+        }
     }
   };
 
@@ -531,6 +590,7 @@ const EventMenu: Component<{
         customReply={props.onReply !== undefined}
         customMute={props.onMute !== undefined}
       />
+      <Items items={appletItems(OPEN_IN, eventColumn())} />
       <Show when={props.onMute}>
         <Items
           items={[
