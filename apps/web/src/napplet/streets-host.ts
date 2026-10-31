@@ -16,6 +16,7 @@ import type {
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { imageDownscaling } from "../image-downscaling-setting";
 import { resizedImageUrl } from "../media/image-proxy";
+import { rasterizeSvg } from "./rasterize-svg";
 
 /** Streets が napplet に渡す機能。ここに無い機能（publish・intent など）はまだ渡さない。 */
 export const STREETS_NAPPLET_DOMAINS = [
@@ -228,6 +229,7 @@ export const createStreetsNappletHost = (
       // 画像を縮めない設定なら、中継も通さない（中継は縮めて返す）。
       proxy: (source) =>
         imageDownscaling() ? resizedImageUrl(source, "napplet") : undefined,
+      rasterizeSvg,
     }),
   writeRelays: (pubkey) =>
     inputs.readLayer.manager.relaysForAuthor(pubkey, NAPPLET_RESOLVED_RELAYS),

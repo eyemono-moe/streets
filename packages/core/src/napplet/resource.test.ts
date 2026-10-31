@@ -10,6 +10,7 @@ import {
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const HASH = bytesToHex(sha256(PNG));
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
 
 describe("fetchNappletResource", () => {
   it("https は直接取り、種類は返事の Content-Type ではなく中身から決める", async () => {
@@ -68,6 +69,68 @@ describe("fetchNappletResource", () => {
       },
     });
     expect(result.ok && (await result.blob.text())).toBe("hello");
+  });
+
+  // NAP-RESOURCE: > Never pass upstream `Content-Type` through.
+  it("中身から種類が分からなければ、返事の Content-Type を使わず種類を名乗らない", async () => {
+    const result = await fetchNappletResource("https://a.example/x", {
+      fetch: async () =>
+        new Response("<h1>hi</h1>", {
+          headers: { "content-type": "text/html" },
+        }),
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      mime: "application/octet-stream",
+    });
+    expect(result.ok && result.blob.type).toBe("application/octet-stream");
+  });
+
+  // NAP-RESOURCE: > Raw `image/svg+xml` MUST NOT be delivered. Rasterize to PNG/WebP …
+  it("SVG はそのまま渡さず、描き直した画像を渡す", async () => {
+    const drawn: string[] = [];
+    const result = await fetchNappletResource("https://a.example/logo.svg", {
+      fetch: async () =>
+        new Response(SVG, { headers: { "content-type": "image/svg+xml" } }),
+      rasterizeSvg: async (bytes) => {
+        drawn.push(new TextDecoder().decode(bytes));
+        return new Blob([PNG], { type: "image/png" });
+      },
+    });
+    expect(drawn).toEqual([SVG]);
+    expect(result).toMatchObject({ ok: true, mime: "image/png" });
+  });
+
+  it("SVG を描き直せないときは渡さない", async () => {
+    const fetch = async () => new Response(SVG);
+    expect(
+      await fetchNappletResource("https://a.example/logo.svg", { fetch }),
+    ).toMatchObject({ ok: false, error: "decode-failed" });
+    expect(
+      await fetchNappletResource("https://a.example/logo.svg", {
+        fetch,
+        rasterizeSvg: async () => undefined,
+      }),
+    ).toMatchObject({ ok: false, error: "decode-failed" });
+  });
+
+  it("data: の SVG も描き直してから渡し、data: が名乗る種類は使わない", async () => {
+    const fetch = async () => {
+      throw new Error("should not fetch");
+    };
+    const svg = await fetchNappletResource(
+      `data:image/svg+xml,${encodeURIComponent(SVG)}`,
+      {
+        fetch,
+        rasterizeSvg: async () => new Blob([PNG], { type: "image/png" }),
+      },
+    );
+    expect(svg).toMatchObject({ ok: true, mime: "image/png" });
+    const disguised = await fetchNappletResource(
+      `data:image/png,${encodeURIComponent(SVG)}`,
+      { fetch },
+    );
+    expect(disguised).toMatchObject({ ok: false, error: "decode-failed" });
   });
 
   it("http や知らない scheme は取らない", async () => {

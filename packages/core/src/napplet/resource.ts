@@ -24,11 +24,23 @@ export type NappletResourceResult =
 
 /** 1 つの napplet が 1 回で受け取れる大きさ。動画を丸ごと渡す用途は考えない。 */
 export const NAPPLET_RESOURCE_MAX_BYTES = 10 * 1024 * 1024;
+// > Recommended caps: 5 MiB input, 4096 x 4096 output, 2 s raster time.
+export const NAPPLET_SVG_MAX_BYTES = 5 * 1024 * 1024;
 /** `bytesMany` で一度に頼める数と、URL ごとに添えられる Blossom のサーバーの数。 */
 export const NAPPLET_RESOURCE_MAX_URLS = 20;
 export const NAPPLET_RESOURCE_MAX_SERVERS = 4;
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
+
+/**
+ * SVG を PNG などの画像に描き直す。描けなければ `undefined`。
+ *
+ * > Raw `image/svg+xml` MUST NOT be delivered. Rasterize to PNG/WebP in a no-network sandboxed Worker.
+ */
+export type RasterizeSvg = (
+  bytes: Uint8Array,
+  signal?: AbortSignal,
+) => Promise<Blob | undefined>;
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 
@@ -67,24 +79,19 @@ export const sniffMime = (bytes: Uint8Array): string | undefined => {
   return undefined;
 };
 
-const decodeDataUrl = (url: string): NappletResourceResult => {
-  const match = /^data:([^,]*?)(;base64)?,(.*)$/s.exec(url);
-  if (!match) return { ok: false, error: "decode-failed" };
-  const [, type = "", base64, body = ""] = match;
+// data: URL が名乗る種類は使わない。種類は中身から決める（`toResult`）。
+const decodeDataUrl = (url: string): Uint8Array | undefined => {
+  const match = /^data:[^,]*?(;base64)?,(.*)$/s.exec(url);
+  if (!match) return undefined;
+  const [, base64, body = ""] = match;
   try {
-    const bytes = base64
+    return base64
       ? Uint8Array.from(atob(decodeURIComponent(body)), (char) =>
           char.charCodeAt(0),
         )
       : new TextEncoder().encode(decodeURIComponent(body));
-    const mime = type.split(";")[0] || "text/plain";
-    return {
-      ok: true,
-      blob: new Blob([bytes as BlobPart], { type: mime }),
-      mime,
-    };
   } catch {
-    return { ok: false, error: "decode-failed" };
+    return undefined;
   }
 };
 
@@ -121,18 +128,31 @@ const readLimited = async (
   return bytes.byteLength > NAPPLET_RESOURCE_MAX_BYTES ? "too-large" : bytes;
 };
 
-const toResult = (
+/*
+ * > Classify bytes by sniffing. Enforce scheme-appropriate allowlists. Never pass upstream `Content-Type` through.
+ */
+const toResult = async (
   bytes: Uint8Array,
-  declared: string | null,
-): NappletResourceResult => {
-  const mime =
-    sniffMime(bytes) ??
-    declared?.split(";")[0]?.trim() ??
-    "application/octet-stream";
+  rasterize: RasterizeSvg | undefined,
+  signal: AbortSignal | undefined,
+): Promise<NappletResourceResult> => {
+  const mime = sniffMime(bytes);
+  if (mime === "image/svg+xml") {
+    if (bytes.byteLength > NAPPLET_SVG_MAX_BYTES) {
+      return { ok: false, error: "too-large" };
+    }
+    const raster = await rasterize?.(bytes, signal);
+    if (!raster) {
+      return { ok: false, error: "decode-failed", message: "svg" };
+    }
+    const rasterMime = raster.type || "image/png";
+    return { ok: true, blob: raster, mime: rasterMime };
+  }
+  const type = mime ?? "application/octet-stream";
   return {
     ok: true,
-    blob: new Blob([bytes as BlobPart], { type: mime }),
-    mime,
+    blob: new Blob([bytes as BlobPart], { type }),
+    mime: type,
   };
 };
 
@@ -147,6 +167,8 @@ export const fetchNappletResource = async (
     servers?: readonly string[];
     /** 直接取れなかった https の取り直し先。無ければ取り直さない。 */
     proxy?: (url: string) => string | undefined;
+    /** 無ければ SVG は渡さない。 */
+    rasterizeSvg?: RasterizeSvg;
     signal?: AbortSignal;
   },
 ): Promise<NappletResourceResult> => {
@@ -157,8 +179,11 @@ export const fetchNappletResource = async (
     return { ok: false, error: "invalid-request", message: "invalid URL" };
   }
   switch (parsed.protocol) {
-    case "data:":
-      return decodeDataUrl(url);
+    case "data:": {
+      const bytes = decodeDataUrl(url);
+      if (!bytes) return { ok: false, error: "decode-failed" };
+      return toResult(bytes, options.rasterizeSvg, options.signal);
+    }
     case "blossom:": {
       const blossom = parseBlossomUri(url);
       if (!blossom) return { ok: false, error: "invalid-request" };
@@ -181,7 +206,7 @@ export const fetchNappletResource = async (
           message: result.error,
         };
       }
-      return toResult(result.bytes, null);
+      return toResult(result.bytes, options.rasterizeSvg, options.signal);
     }
     case "https:": {
       const init: RequestInit = {
@@ -218,7 +243,7 @@ export const fetchNappletResource = async (
       }
       const bytes = await readLimited(response);
       if (bytes === "too-large") return { ok: false, error: "too-large" };
-      return toResult(bytes, response.headers.get("content-type"));
+      return toResult(bytes, options.rasterizeSvg, options.signal);
     }
     default:
       return { ok: false, error: "unsupported-scheme" };
