@@ -93,6 +93,8 @@ export type SubscriptionManagerOptions = {
   random?: ConnectionPoolOptions["random"];
   /** ConnectionPool へそのまま渡す。 */
   allowLocalNetwork?: ConnectionPoolOptions["allowLocalNetwork"];
+  /** ConnectionPool へそのまま渡す。 */
+  refuseInsecure?: ConnectionPoolOptions["refuseInsecure"];
   /** ConnectionPool へそのまま渡す、リレーごとの同時購読の枠。 */
   maxSubscriptions?: ConnectionPoolOptions["maxSubscriptions"];
   /** ConnectionPool へそのまま渡す。 */
@@ -290,6 +292,7 @@ export class SubscriptionManager {
       scheduler: this.#scheduler,
       random: options.random,
       allowLocalNetwork: options.allowLocalNetwork,
+      refuseInsecure: options.refuseInsecure,
       maxSubscriptions: options.maxSubscriptions,
       onQueued: options.onQueued,
     });
@@ -544,12 +547,12 @@ export class SubscriptionManager {
    * 返した関数で取り下げる。
    */
   allowLocalRelays(urls: readonly RelayUrl[]): () => void {
-    const fresh = urls.filter((url) => this.#pool.isLocalRefused(url));
+    const fresh = urls.filter((url) => this.#pool.isRefusedHere(url));
     const release = this.#pool.allowLocalRelays(urls);
     if (fresh.length > 0) this.replan();
     return () => {
       release();
-      if (urls.some((url) => this.#pool.isLocalRefused(url))) this.replan();
+      if (urls.some((url) => this.#pool.isRefusedHere(url))) this.replan();
     };
   }
 
@@ -793,7 +796,7 @@ export class SubscriptionManager {
       degraded: this.#pool.degradedRelays,
       blocked: this.#pool.blockedRelays,
       isBlocked: (url) => this.#pool.isBlocked(url),
-      isLocalRefused: (url) => this.#pool.isLocalRefused(url),
+      isRefusedHere: (url) => this.#pool.isRefusedHere(url),
     };
   }
 

@@ -19,6 +19,6 @@ export const useRelayInfo = (
     queryKey: relayInfoQueryKey(url()),
     queryFn: () => fetchRelayInfo(url()),
     // 繋がないことにしている手元のリレーは、HTTP で聞いてもブラウザが許可を求める。
-    enabled: enabled() && !pool?.isLocalRefused(url()),
+    enabled: enabled() && !pool?.isRefusedHere(url()),
   }));
 };

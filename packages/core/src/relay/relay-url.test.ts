@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { isLocalNetworkRelay, normalizeRelayUrl } from "./relay-url";
+import type { RelayUrl } from "./relay-connection";
+import {
+  isInsecureRelay,
+  isLocalNetworkRelay,
+  normalizeRelayUrl,
+} from "./relay-url";
 
 describe("normalizeRelayUrl", () => {
   it("adds a trailing slash to a bare host", () => {
@@ -33,6 +38,28 @@ describe("normalizeRelayUrl", () => {
   it("rejects garbage", () => {
     expect(normalizeRelayUrl("not a url")).toBeUndefined();
     expect(normalizeRelayUrl("")).toBeUndefined();
+  });
+});
+
+describe("isInsecureRelay", () => {
+  // Mutation: `ws://` をすべて止める（https のページからでも繋げる手元のリレーを失う）、
+  // または `ws://` を見ない（.onion などへ試みて混在コンテンツの警告を出し続ける）。
+  it.each([
+    "ws://5izlqtjuyxwgfqzo3mdmsfzwlhxzqsxvv3dchr5iuctthqdvtamwvrad.onion/",
+    "ws://relay.example.com/",
+    "ws://192.168.1.10/",
+  ])("treats %s as insecure", (url) => {
+    expect(isInsecureRelay(url as RelayUrl)).toBe(true);
+  });
+
+  it.each([
+    "wss://relay.damus.io/",
+    "ws://localhost:7777/",
+    "ws://relay.localhost/",
+    "ws://127.0.0.1:4870/",
+    "ws://[::1]:8080/",
+  ])("does not treat %s as insecure", (url) => {
+    expect(isInsecureRelay(url as RelayUrl)).toBe(false);
   });
 });
 

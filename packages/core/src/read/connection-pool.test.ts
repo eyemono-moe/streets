@@ -121,6 +121,7 @@ type CreatePoolOptions = {
    */
   neverOpens?: RelayUrl[];
   allowLocalNetwork?: boolean;
+  refuseInsecure?: boolean;
   /**
    * NIP-11 の `max_subscriptions` にあたる、URL ごとの同時購読の枠。`null` は上限が
    * 書いていないと分かったリレー、キーが無いリレーはまだ分からない。渡さなければ
@@ -182,6 +183,7 @@ const createPool = (options: CreatePoolOptions = {}) => {
     scheduler: clock,
     random: options.random,
     allowLocalNetwork: options.allowLocalNetwork,
+    refuseInsecure: options.refuseInsecure,
     maxSubscriptions: options.maxSubscriptions
       ? (url) => options.maxSubscriptions?.[url]
       : undefined,
@@ -1891,6 +1893,24 @@ describe("ConnectionPool の繋がないリレー", () => {
       }),
     ).toBeUndefined();
     expect(connectCalls).toEqual([]);
+  });
+
+  // Mutation: `refuseInsecure` を見ない。https のページから .onion などの `ws://` へ
+  // 試みて、そのたびに混在コンテンツの警告を出す。
+  it("https のページでは ws:// のリレーへソケットを作らず、wss:// と手元の ws:// には繋ぐ", () => {
+    const { pool, connectCalls } = createPool({
+      refuseInsecure: true,
+      allowLocalNetwork: true,
+    });
+    const onion = "ws://abc.onion/" as RelayUrl;
+
+    expect(pool.isRefusedHere(onion)).toBe(true);
+    expect(
+      pool.subscribe(onion, [{ kinds: [1] }], noopHandlers()),
+    ).toBeUndefined();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    pool.subscribe("ws://localhost:7777/", [{ kinds: [1] }], noopHandlers());
+    expect(connectCalls).toEqual(["wss://one/", "ws://localhost:7777/"]);
   });
 
   it("開いている接続をブロックしたら閉じ、待っていた購読に 1 回だけ知らせる", () => {
