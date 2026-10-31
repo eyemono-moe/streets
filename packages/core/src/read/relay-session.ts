@@ -161,9 +161,31 @@ export class RelaySession {
     return this.#connection && this.#linger ? this.#linger.since : null;
   }
 
-  /** 予算チェックとソケット生成を一本化しないと、片方だけ直されて迂回する経路が残る。 */
-  ensureConnected(reserved: boolean): boolean {
+  /** 再接続を待っている。待つ間に足された購読は、繋がったときにまとめて送る。 */
+  get waitingToReconnect(): boolean {
+    return this.#connection === null && this.#timer !== null;
+  }
+
+  /**
+   * 予算チェックとソケット生成を一本化しないと、片方だけ直されて迂回する経路が残る。
+   * `waitMs` は、窓口の外で数えたバックオフの残り。`"now"` は待たずに開く（書き込み）。
+   */
+  ensureConnected(reserved: boolean, waitMs: number | "now" = "now"): boolean {
     this.#cancelLinger();
+    if (!this.#connection && waitMs !== "now") {
+      // 購読が足されるたびに開くと、待っていたバックオフが飛ばされる。開いてすぐ
+      // 切ってくるリレーへ、カラムの組み直しのたびに繋ぎ直していた。
+      if (this.#timer === null && waitMs > 0) {
+        this.#timer = this.#options.scheduler.setTimeout(() => {
+          this.#timer = null;
+          this.#reconnect();
+        }, waitMs);
+      }
+      if (this.#timer !== null) {
+        if (reserved) this.#reserved = true;
+        return true;
+      }
+    }
     if (!this.#connection) {
       if (!reserved && !this.#options.makeRoom()) return false;
       try {

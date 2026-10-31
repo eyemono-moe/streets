@@ -286,37 +286,34 @@ export class ConnectionPool {
     return session;
   }
 
-  /**
-   * 窓口の中の再接続と同じ間隔を、窓口の外にも当てる。一度きりの取得は窓口ごと
-   * 片付くので、窓口の中のバックオフが効かず、取得のたびに死んだリレーへ繋ぎにいく。
-   */
-  #backingOff(url: RelayUrl): boolean {
+  /** 最後の失敗から、窓口の再接続と同じ間隔が過ぎるまでの残り。 */
+  #backoffRemaining(url: RelayUrl): number {
     const failure = this.#failures.get(url);
-    if (!failure || failure.hard === 0) return false;
-    return (
-      this.#scheduler.now() - failure.hardAt <
-      reconnectDelayMs(failure.hard - 1)
-    );
+    if (!failure || failure.hard === 0) return 0;
+    const until = failure.hardAt + reconnectDelayMs(failure.hard - 1);
+    return Math.max(0, until - this.#scheduler.now());
   }
 
+  /** `revive` は書き込み。押した人を待たせないよう、バックオフ中でもすぐ開く。 */
   #acquire(
     url: RelayUrl,
     options?: SubscribeOptions,
+    revive = false,
   ): RelaySession | undefined {
     if (this.isBlocked(url)) return undefined;
     const key = sessionKey(url, options?.lane);
     let session = this.#pool.get(key);
     const created = !session;
-    // 流し続ける購読と書き込みは断らない。断った購読は計画を立て直すまで戻らず、
-    // 書き込みは押した人へ失敗として返ってしまう。
-    if (!session && options?.once && this.#backingOff(url)) return undefined;
+    // 窓口の外でも数えるのは、一度きりの取得が窓口ごと片付き、窓口の中のバックオフが
+    // 残らないから。待つ間の購読には窓口が「繋がらない」と返すので、取得はすぐ片付く。
+    const waitMs = revive ? "now" : this.#backoffRemaining(url);
     if (!session) {
       // 接続を開く前に表へ載せる。接続数の最大値 (`#recordPeak`) が、この窓口を数えるため。
       session = this.#createSession(url, key);
       this.#pool.set(key, session);
     }
     const reserved = (options?.reserved ?? false) || options?.lane === "signer";
-    if (!session.ensureConnected(reserved)) {
+    if (!session.ensureConnected(reserved, waitMs)) {
       if (created) this.#pool.delete(key);
       return undefined;
     }
@@ -346,7 +343,7 @@ export class ConnectionPool {
     if (this.isBlocked(url)) {
       return Promise.reject(new Error(`blocked relay: ${url}`));
     }
-    const session = this.#acquire(url, options);
+    const session = this.#acquire(url, options, true);
     if (!session) {
       return Promise.reject(
         new Error(`connection budget exhausted for ${url}`),
