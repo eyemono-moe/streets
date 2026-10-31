@@ -35,7 +35,7 @@ const environment = (
     degraded: [],
     blocked: [],
     isBlocked: () => false,
-    isLocalRefused: () => false,
+    isRefusedHere: () => false,
     ...rest,
   };
 };
@@ -76,7 +76,7 @@ describe("planReads", () => {
       [request(1, [{ kinds: [1], authors: ["a"] }])],
       environment({
         writeRelays: { a: ["ws://localhost:7777/"] },
-        isLocalRefused: (url) => url.includes("localhost"),
+        isRefusedHere: (url) => url.includes("localhost"),
         isBlocked: (url) => url.includes("localhost"),
       }),
     );

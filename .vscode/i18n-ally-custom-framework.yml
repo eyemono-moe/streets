@@ -1,0 +1,7 @@
+# t("settings.pages.account") のように、apps/web の t() に渡したキーを拾う。
+languageIds:
+  - typescript
+  - typescriptreact
+usageMatchRegex:
+  - "\\bt\\(\\s*['\"`]({key})['\"`]"
+monopoly: true

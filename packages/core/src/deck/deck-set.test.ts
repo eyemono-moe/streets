@@ -123,8 +123,10 @@ describe("moveDeckTo", () => {
 });
 
 describe("nextDeckName", () => {
+  const nameFor = (n: number) => `デッキ ${n}`;
+
   it("数の続きで、使われていない名前を返す", () => {
-    expect(nextDeckName(setOf("a"))).toBe("デッキ 2");
+    expect(nextDeckName(setOf("a"), nameFor)).toBe("デッキ 2");
     const set: DeckSet = {
       version: 3,
       decks: [
@@ -132,6 +134,6 @@ describe("nextDeckName", () => {
         { id: "b", name: "デッキ 3", columns: [] },
       ],
     };
-    expect(nextDeckName(set)).toBe("デッキ 4");
+    expect(nextDeckName(set, nameFor)).toBe("デッキ 4");
   });
 });

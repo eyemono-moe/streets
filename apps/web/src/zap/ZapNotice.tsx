@@ -2,6 +2,7 @@ import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { parseZapReceipt } from "@streets/core/zap/zap-receipt";
 import { type Component, Show } from "solid-js";
+import { locale, t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import { EventRefView, type EventSize } from "../note/Event";
 import EventTime from "../note/EventTime";
@@ -14,7 +15,9 @@ const isInteractive = (target: EventTarget | null) =>
   target.closest("a, button, input, textarea, [role='button']") !== null;
 
 const formatSats = (msat: number) =>
-  `${Math.floor(msat / 1000).toLocaleString("ja-JP")} sats`;
+  t("zap.notice.sats", {
+    amount: Math.floor(msat / 1000).toLocaleString(locale()),
+  });
 
 /**
  * 通知に流れる Zap。誰から・いくら・一言と、Zap された投稿を出す。1 件ずつ出し、
@@ -89,7 +92,7 @@ const ZapNotice: Component<{
                   pubkey={current().sender}
                   class="c-primary min-w-6 truncate font-600"
                 />
-                <span class="shrink-0">から</span>
+                <span class="shrink-0">{t("zap.notice.from")}</span>
               </p>
               {/* 金額は切らない。桁が欠けると別の額に読めてしまう。 */}
               <Show when={props.size === "compact"}>

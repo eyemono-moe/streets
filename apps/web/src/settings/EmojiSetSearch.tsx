@@ -10,6 +10,7 @@ import {
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useCustomEmojis } from "../emoji/custom-emojis";
+import { t } from "../i18n/locale";
 import { useReadLayer } from "../read-layer";
 import EmojiSetSearchView, { type EmojiSetResult } from "./EmojiSetSearchView";
 import { useRelayEdit } from "./RelayMediator";
@@ -29,7 +30,7 @@ const EmojiSetSearch: Component = () => {
   const search = (text: string) => {
     const next = parseEmojiSetQuery(text);
     if (!next) {
-      setError("絵文字セットの住所（naddr）ではありません");
+      setError(t("settings.emojiSearch.invalidAddress"));
       return;
     }
     setError(undefined);

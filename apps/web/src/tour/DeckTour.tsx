@@ -1,5 +1,6 @@
 import { Tour, type TourStepDetails, useTour } from "@ark-ui/solid/tour";
 import { type Component, For, createEffect, on } from "solid-js";
+import { t } from "../i18n/locale";
 import { markTourSeen } from "../tour-setting";
 import Button from "../ui/Button";
 import { Portal } from "../ui/Portal";
@@ -13,9 +14,9 @@ type Step = TourStepDetails;
 type Placement = NonNullable<Step["placement"]>;
 type Action = NonNullable<Step["actions"]>[number];
 
-const SKIP = { label: "スキップ", action: "skip" } as const;
-const BACK = { label: "戻る", action: "prev" } as const;
-const NEXT = { label: "次へ", action: "next" } as const;
+const skip = () => ({ label: t("tour.actions.skip"), action: "skip" }) as const;
+const back = () => ({ label: t("tour.actions.back"), action: "prev" }) as const;
+const next = () => ({ label: t("tour.actions.next"), action: "next" }) as const;
 
 const pointAt = (
   id: TourTarget,
@@ -33,8 +34,8 @@ const pointAt = (
   backdrop: true,
   actions: last
     ? // 最後のステップに「次」は無いので、閉じる動きにする（next のままだと押せない）。
-      [BACK, { label: "はじめる", action: "dismiss" }]
-    : [SKIP, BACK, NEXT],
+      [back(), { label: t("tour.actions.start"), action: "dismiss" }]
+    : [skip(), back(), next()],
 });
 
 /**
@@ -45,19 +46,18 @@ export const tourSteps = (wide: boolean): Step[] => [
   {
     id: "welcome",
     type: "dialog",
-    title: "Streets へようこそ！",
-    description:
-      "Streetsでは、見たいものをカラムに並べて、自分だけのタイムラインを作れます。このアプリの使い方をちょっとだけご案内します。",
+    title: t("tour.steps.welcome.title"),
+    description: t("tour.steps.welcome.description"),
     backdrop: true,
     meta: { welcome: true },
-    actions: [SKIP, { label: "見てみる", action: "next" }],
+    actions: [skip(), { label: t("tour.actions.look"), action: "next" }],
   },
   pointAt(
     "columns",
-    "これがカラム",
+    t("tour.steps.columns.title"),
     wide
-      ? "タイムラインや通知など、見たい情報がカラムごとに流れます。投稿をクリックして開くと、リプライも確認できます。"
-      : "タイムラインや通知など、見たい情報がカラムごとに流れます。下のアイコンをタップしたり、画面を左右にスワイプして、ほかのカラムへ移れます。",
+      ? t("tour.steps.columns.descriptionWide")
+      : t("tour.steps.columns.descriptionNarrow"),
     wide ? "right-start" : "top",
   ),
   // 狭い画面では、カラムの追加は左上のメニューの中にあるので、最後のステップでまとめて指す。
@@ -65,30 +65,30 @@ export const tourSteps = (wide: boolean): Step[] => [
     ? [
         pointAt(
           "add-column",
-          "好きなカラムを追加",
-          "ユーザーの投稿、ハッシュタグでの検索結果など、気になるものを新しいカラムとして追加できます。",
+          t("tour.steps.addColumn.title"),
+          t("tour.steps.addColumn.description"),
           "right",
         ),
       ]
     : []),
   pointAt(
     "compose",
-    "投稿する",
-    "ここからNostrへ投稿できます。",
+    t("tour.steps.compose.title"),
+    t("tour.steps.compose.description"),
     wide ? "right-start" : "top-end",
   ),
   wide
     ? pointAt(
         "account",
-        "設定",
-        "テーマやリレー、ミュート、プロフィールなどはここから変更できます。この案内も、いつでも見直せます。",
+        t("tour.steps.settings.title"),
+        t("tour.steps.settings.description"),
         "right-end",
         true,
       )
     : pointAt(
         "account",
-        "メニュー",
-        "カラムの追加や検索、設定はここから開くメニューにあります。この案内も、いつでも見直せます。",
+        t("tour.steps.menu.title"),
+        t("tour.steps.menu.description"),
         "bottom-start",
         true,
       ),

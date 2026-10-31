@@ -9,6 +9,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { createDisplayImage, createNearViewport } from "../media/display-image";
 import { createMediaAttempts } from "../media/media-attempts";
 import IconButton from "../ui/IconButton";
@@ -121,7 +122,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
       target="_blank"
       rel="noopener noreferrer"
       class="block max-w-full"
-      aria-label="画像を開く"
+      aria-label={t("note.media.open")}
       onClick={(event) => {
         // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
         if (
@@ -174,12 +175,26 @@ const MediaImage: Component<MediaViewProps> = (props) => {
   );
 };
 
+/**
+ * 外した要素の再生器は GC されるまで残り、ページごとの上限を食う。仮想スクロールで
+ * 行が入れ替わるたびに溜まって新しい動画を作れなくなるので、src を外して読み直し、
+ * その場で手放す。
+ */
+const releasePlayer = (media: HTMLMediaElement | undefined) => {
+  if (!media) return;
+  media.removeAttribute("src");
+  media.load();
+};
+
 const MediaVideo: Component<MediaViewProps> = (props) => {
   let video: HTMLVideoElement | undefined;
   const [loaded, setLoaded] = createSignal(false);
   const [actual, setActual] = createSignal<Dimensions>();
   let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(fallbackTimer));
+  onCleanup(() => {
+    clearTimeout(fallbackTimer);
+    releasePlayer(video);
+  });
   const source = () =>
     props.src.includes("#") ? props.src : `${props.src}#t=0.1`;
   return (
@@ -222,7 +237,7 @@ const MediaVideo: Component<MediaViewProps> = (props) => {
             size="sm"
             circle
             icon="i-material-symbols:open-in-full-rounded"
-            label="拡大して見る"
+            label={t("note.media.enlarge")}
             class="absolute top-2 right-2"
             onClick={() => {
               // 拡大表示でも再生するので、音が重ならないよう止める。
@@ -239,10 +254,13 @@ const MediaVideo: Component<MediaViewProps> = (props) => {
 /** 音声には絵が無いので、枠を取らずにブラウザの再生バーを本文の幅で置く。 */
 export const NoteAudio: Component<{ url: string }> = (props) => {
   const [broken, setBroken] = createSignal(false);
+  let audio: HTMLAudioElement | undefined;
+  onCleanup(() => releasePlayer(audio));
   return (
     <Show when={!broken()} fallback={<MediaLink url={props.url} />}>
       {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。 */}
       <audio
+        ref={audio}
         src={props.url}
         controls
         preload="metadata"

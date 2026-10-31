@@ -3,6 +3,7 @@ import { parseContent } from "@streets/core/nostr/content";
 import { type Profile, shortNpub } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
+import { t } from "../i18n/locale";
 import { createDisplayImage } from "../media/display-image";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
@@ -183,7 +184,7 @@ const ProfileHeaderView: Component<{
                 icon="i-material-symbols:add-reaction-outline-rounded"
                 onClick={edit}
               >
-                ステータスを設定
+                {t("profile.header.setStatus")}
               </Button>
             </div>
           </Show>
@@ -207,11 +208,16 @@ const ProfileHeaderView: Component<{
           <Count
             count={props.followeeCount}
             label={
-              props.followeeCount === undefined ? "フォローを見る" : "フォロー"
+              props.followeeCount === undefined
+                ? t("profile.header.showFollowees")
+                : t("profile.header.followees")
             }
             onOpen={props.onOpenFollowees}
           />
-          <Count label="フォロワーを見る" onOpen={props.onOpenFollowers} />
+          <Count
+            label={t("profile.header.showFollowers")}
+            onOpen={props.onOpenFollowers}
+          />
         </div>
       }
     />

@@ -10,6 +10,7 @@ import {
   applyFollowSetChanges,
   changeFollowSet,
   decodeFollowSet,
+  followSetLabel,
   followSetName,
   followSetsIncluding,
   latestFollowSets,
@@ -84,9 +85,9 @@ describe("readFollowSet", () => {
   it("題名が無ければ d で呼ぶ", () => {
     // 捕まえる変異: 題名が無いと空の名前になる（カラムの題名が消える）
     expect(followSetName(readFollowSet(listEvent()))).toBe("friends");
-    expect(followSetName({ title: undefined, identifier: "" })).toBe(
-      "名前のないリスト",
-    );
+    expect(followSetLabel({ title: undefined, identifier: "" })).toEqual({
+      key: "lists.unnamed",
+    });
   });
 });
 

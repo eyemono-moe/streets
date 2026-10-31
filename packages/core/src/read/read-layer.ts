@@ -1,5 +1,6 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
 import { createAddressRequests } from "./address-requests";
+import { createDeletionRequests } from "./deletion-requests";
 import {
   type CreateEngagementRequestsOptions,
   type EngagementRequests,
@@ -35,6 +36,8 @@ export type ReadLayerOptions = {
   replanBatchMs?: number;
   /** ローカルネットワークのリレーへ、許したもの以外も繋ぐか（`ConnectionPoolOptions` 参照）。 */
   allowLocalNetwork?: boolean;
+  /** https のページからの `ws://` を繋がないか（`ConnectionPoolOptions` 参照）。 */
+  refuseInsecure?: boolean;
   /** リレーごとの同時購読の枠（`ConnectionPoolOptions` 参照）。 */
   maxSubscriptions?: (url: RelayUrl) => number | null | undefined;
   /** 枠が埋まって REQ を待たせたときの通知（Devtools で数える）。 */
@@ -84,6 +87,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     random: options.random,
     replanBatchMs: options.replanBatchMs ?? REPLAN_BATCH_MS,
     allowLocalNetwork: options.allowLocalNetwork,
+    refuseInsecure: options.refuseInsecure,
     maxSubscriptions: options.maxSubscriptions,
     onQueued: options.onQueued,
   });
@@ -106,6 +110,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     scheduler,
   };
   const engagements = createEngagementRequests(engagementRequestsOptions);
+  const deletions = createDeletionRequests({ store, manager, scheduler });
 
   const offSweep = store.onSweep((dropped) => {
     const ids = dropped.map((event) => event.id);
@@ -117,6 +122,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       ),
     ];
     events.forget(ids);
+    deletions.forget(ids);
     engagements.forget(targets);
     polls.forget(targets);
   });
@@ -166,6 +172,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       addresses,
       profiles,
       engagements,
+      deletions,
       polls,
       followLists,
     }),
@@ -184,6 +191,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       polls.dispose();
       followLists.dispose();
       engagements.dispose();
+      deletions.dispose();
       manager.dispose();
       options.persistence.dispose();
     },

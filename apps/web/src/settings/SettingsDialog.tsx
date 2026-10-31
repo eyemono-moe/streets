@@ -18,6 +18,7 @@ import {
 import { actionLayout } from "../action-layout-setting";
 import { chatOrder } from "../chat-order-setting";
 import { contentWarningMode } from "../content-warning-setting";
+import { t } from "../i18n/locale";
 import { timeFormat } from "../time-format-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
@@ -36,7 +37,7 @@ import SearchSettings from "./SearchSettings";
 import {
   ACCOUNT_PAGES,
   availableSettings,
-  pageNames,
+  pageName,
   type SettingEntry,
   type SettingPage,
 } from "./setting-registry";
@@ -123,57 +124,87 @@ const SettingsDialog: Component<{
     ),
   );
 
+  // 名前は getter で引く。ダイアログを開いたまま言語を切り替えても、並びの名前が変わる。
   const allPages: (DialogPage & { value: SettingPage })[] = [
     {
       value: "account",
-      label: pageNames.account,
+      get label() {
+        return pageName("account");
+      },
       icon: "i-material-symbols:person-outline-rounded",
-      title: pageNames.account,
+      get title() {
+        return pageName("account");
+      },
       content: () => <AccountSettings />,
     },
     {
       value: "relays",
-      label: pageNames.relays,
+      get label() {
+        return pageName("relays");
+      },
       icon: "i-material-symbols:globe",
-      title: pageNames.relays,
+      get title() {
+        return pageName("relays");
+      },
       content: () => <RelaySettings />,
     },
 
     {
       value: "media",
-      label: pageNames.media,
+      get label() {
+        return pageName("media");
+      },
       icon: "i-material-symbols:image-outline-rounded",
-      title: pageNames.media,
+      get title() {
+        return pageName("media");
+      },
       content: () => <MediaSettings />,
     },
     {
       value: "search",
-      label: pageNames.search,
+      get label() {
+        return pageName("search");
+      },
       icon: "i-material-symbols:search-rounded",
-      title: pageNames.search,
+      get title() {
+        return pageName("search");
+      },
       content: () => <SearchSettings />,
     },
     {
       value: "emoji",
-      label: pageNames.emoji,
+      get label() {
+        return pageName("emoji");
+      },
       icon: "i-material-symbols:add-reaction-outline-rounded",
-      title: pageNames.emoji,
-      description:
-        "いいねボタンで送る絵文字と、リアクションのピッカーに出る絵文字を設定します",
+      get title() {
+        return pageName("emoji");
+      },
+      get description() {
+        return t("settings.emoji.pageDescription");
+      },
       content: () => <EmojiSettings defaultReaction={props.defaultReaction} />,
     },
     {
       value: "mute",
-      label: pageNames.mute,
+      get label() {
+        return pageName("mute");
+      },
       icon: "i-material-symbols:volume-off-outline-rounded",
-      title: pageNames.mute,
+      get title() {
+        return pageName("mute");
+      },
       content: () => <MuteSettings />,
     },
     {
       value: "keyboard",
-      label: pageNames.keyboard,
+      get label() {
+        return pageName("keyboard");
+      },
       icon: "i-material-symbols:keyboard-outline-rounded",
-      title: pageNames.keyboard,
+      get title() {
+        return pageName("keyboard");
+      },
       content: () => (
         <KeyboardSettings
           keymap={props.keymap}
@@ -183,9 +214,13 @@ const SettingsDialog: Component<{
     },
     {
       value: "display",
-      label: pageNames.display,
+      get label() {
+        return pageName("display");
+      },
       icon: "i-material-symbols:visibility-outline-rounded",
-      title: pageNames.display,
+      get title() {
+        return pageName("display");
+      },
       content: () => (
         <DisplaySettings
           scheme={props.scheme}
@@ -204,9 +239,13 @@ const SettingsDialog: Component<{
     },
     {
       value: "privacy",
-      label: pageNames.privacy,
+      get label() {
+        return pageName("privacy");
+      },
       icon: "i-material-symbols:lock-person-outline-rounded",
-      title: pageNames.privacy,
+      get title() {
+        return pageName("privacy");
+      },
       content: () => (
         <PrivacySettings
           clientTag={props.clientTag}
@@ -217,18 +256,27 @@ const SettingsDialog: Component<{
     },
     {
       value: "applets",
-      label: pageNames.applets,
+      get label() {
+        return pageName("applets");
+      },
       icon: "i-material-symbols:widgets-outline-rounded",
-      title: pageNames.applets,
+      get title() {
+        return pageName("applets");
+      },
       content: () => <AppletSettings />,
     },
     {
       value: "stats",
-      label: pageNames.stats,
+      get label() {
+        return pageName("stats");
+      },
       icon: "i-material-symbols:bar-chart-rounded",
-      title: pageNames.stats,
-      description:
-        "リレーとやりとりしたデータの量と、いま投稿を読んでいるリレーです。",
+      get title() {
+        return pageName("stats");
+      },
+      get description() {
+        return t("settings.stats.pageDescription");
+      },
       content: () => <StatsSettings />,
     },
   ];
@@ -240,14 +288,14 @@ const SettingsDialog: Component<{
 
   const searchPage: DialogPage = {
     value: "settings-results",
-    label: "検索結果",
+    label: t("settings.search.resultsLabel"),
     icon: "i-material-symbols:search-rounded",
-    title: "設定の検索結果",
+    title: t("settings.search.resultsTitle"),
     content: () => (
       <Show
         when={hits().length > 0}
         fallback={
-          <p class="c-secondary text-body">該当する設定はありません。</p>
+          <p class="c-secondary text-body">{t("settings.search.noResults")}</p>
         }
       >
         <div class="flex flex-col gap-7">
@@ -285,17 +333,17 @@ const SettingsDialog: Component<{
       <PagedDialog
         open={props.open}
         wide={props.wide}
-        title="設定"
+        title={t("settings.dialog.title")}
         description={
           props.signedIn
-            ? "アカウントと、この端末の表示を設定します。"
-            : "この端末の表示を設定します。アカウントの設定は、ログインすると使えます。"
+            ? t("settings.dialog.descriptionSignedIn")
+            : t("settings.dialog.descriptionSignedOut")
         }
         pages={pages()}
         navigationBefore={
           <SearchInput
-            label="設定を検索"
-            placeholder="設定を検索"
+            label={t("settings.search.label")}
+            placeholder={t("settings.search.label")}
             value={query()}
             onValueChange={(value) => {
               setTarget(undefined);

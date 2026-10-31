@@ -10,6 +10,7 @@ import {
 } from "@streets/core/settings/keymap";
 import { formatForDisplay, validateHotkey } from "@tanstack/solid-hotkeys";
 import { createSignal } from "solid-js";
+import { message } from "./i18n/locale";
 
 /**
  * キーボードの位置（`[KeyN]`）に対して、その端末で実際に刻印されている文字を
@@ -77,8 +78,8 @@ export const displayHotkey = (hotkey: string): string =>
 export const shortcutTitle = (action: ShortcutAction): string => {
   const key = displayHotkey(keymap()[action]);
   return key === ""
-    ? SHORTCUT_LABELS[action]
-    : `${SHORTCUT_LABELS[action]} ${key}`;
+    ? message(SHORTCUT_LABELS[action])
+    : `${message(SHORTCUT_LABELS[action])} ${key}`;
 };
 
 /** `aria-keyshortcuts` の修飾キーの名前は決まっている（Ctrl や ⌘ では通じない）。 */

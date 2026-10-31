@@ -2,6 +2,7 @@ import type { Attachment } from "@streets/core/view/compose";
 import { type Component, For, Show, createSignal, onMount } from "solid-js";
 import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
 import type { PickerEmoji } from "../emoji/emoji-data";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
@@ -29,7 +30,11 @@ const ToolButton: Component<{
   <IconButton
     size="md"
     icon={props.icon}
-    label={props.onClick ? props.label : `${props.label}（未対応）`}
+    label={
+      props.onClick
+        ? props.label
+        : t("note.composeParts.unsupported", { label: props.label })
+    }
     title={props.title}
     class={props.muted ? "opacity-50" : undefined}
     disabled={props.onClick === undefined}
@@ -99,7 +104,7 @@ const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
           <span class="pointer-events-none absolute inset-0 grid place-items-center">
             <span
               class="i-material-symbols:play-circle-outline c-white size-8 opacity-90"
-              aria-label="動画"
+              aria-label={t("note.composeParts.video")}
             />
           </span>
         </>
@@ -223,12 +228,12 @@ export const ComposeAttachments: Component<{
                 aria-label={
                   isVideo(attachment)
                     ? attachment.name
-                    : `${attachment.name} を切り抜く`
+                    : t("note.composeParts.crop", { name: attachment.name })
                 }
                 title={
                   isVideo(attachment)
-                    ? "動画は切り抜けません"
-                    : `${attachment.name} を切り抜く`
+                    ? t("note.composeParts.videoNotCroppable")
+                    : t("note.composeParts.crop", { name: attachment.name })
                 }
                 disabled={props.disabled || isVideo(attachment)}
                 onClick={() => setCropping(attachment)}
@@ -240,7 +245,7 @@ export const ComposeAttachments: Component<{
                 <span class="absolute inset-0 grid place-items-center bg-black/50">
                   <span
                     class="i-material-symbols:progress-activity c-white size-6 animate-spin"
-                    aria-label="アップロード中"
+                    aria-label={t("note.composeParts.uploading")}
                   />
                 </span>
               </Show>
@@ -250,7 +255,9 @@ export const ComposeAttachments: Component<{
                   variant="overlay"
                   circle
                   icon="i-material-symbols:close-rounded"
-                  label={`${attachment.name} を外す`}
+                  label={t("note.composeParts.remove", {
+                    name: attachment.name,
+                  })}
                   class="absolute top-0.5 right-0.5"
                   onClick={() =>
                     dispatch({
@@ -267,7 +274,9 @@ export const ComposeAttachments: Component<{
                       variant="overlay"
                       circle
                       icon="i-material-symbols:chevron-left-rounded"
-                      label={`${attachment.name} を前へ`}
+                      label={t("note.composeParts.moveEarlier", {
+                        name: attachment.name,
+                      })}
                       disabled={index() === 0}
                       onClick={() =>
                         dispatch({
@@ -281,7 +290,9 @@ export const ComposeAttachments: Component<{
                       variant="overlay"
                       circle
                       icon="i-material-symbols:chevron-right-rounded"
-                      label={`${attachment.name} を後ろへ`}
+                      label={t("note.composeParts.moveLater", {
+                        name: attachment.name,
+                      })}
                       disabled={index() === props.attachments.length - 1}
                       onClick={() =>
                         dispatch({
@@ -338,9 +349,6 @@ export const ComposeAttachments: Component<{
   );
 };
 
-const NO_SERVER_MESSAGE =
-  "画像を添えるには、設定の「画像」でアップロード先を決めてください";
-
 /** アップロード先が無いときの案内。押した・貼った・落としたときにだけ出す。 */
 export const useAttachGuard = () => {
   const uploader = useUploader();
@@ -348,11 +356,14 @@ export const useAttachGuard = () => {
     /** 添えられるか。添えられないときは案内を出して false を返す。 */
     allow: () => {
       if (uploader && uploader.servers().length > 0) return true;
-      notifyError(new Error(NO_SERVER_MESSAGE), "画像を添えられません");
+      notifyError(
+        new Error(t("note.composeParts.noServer")),
+        t("note.composeParts.cannotAttach"),
+      );
       return false;
     },
     ready: () => (uploader?.servers().length ?? 0) > 0,
-    message: NO_SERVER_MESSAGE,
+    message: () => t("note.composeParts.noServer"),
   };
 };
 
@@ -396,10 +407,10 @@ export const ImageButton: Component = () => {
         disabled にすると、なぜ使えないのかを知らせる機会が無くなる。
       */}
       <ToolButton
-        label="画像を添える"
+        label={t("note.composeParts.attach")}
         icon="i-material-symbols:image-outline-rounded"
         muted={!guard.ready()}
-        title={guard.ready() ? "画像を添える" : guard.message}
+        title={guard.ready() ? t("note.composeParts.attach") : guard.message()}
         onClick={() => {
           if (!guard.allow()) return;
           input?.click();
@@ -432,7 +443,11 @@ const ContentWarningButton: Component<{
     <IconButton
       size="md"
       icon="i-material-symbols:warning-outline-rounded"
-      label={props.on ? "閲覧注意を外す" : "閲覧注意にする"}
+      label={
+        props.on
+          ? t("note.composeParts.warningOff")
+          : t("note.composeParts.warningOn")
+      }
       active={props.on}
       disabled={props.disabled}
       onClick={() => dispatch({ type: "compose/warning-toggle" })}
@@ -447,7 +462,7 @@ const KeepDraftButton: Component<{ disabled: boolean }> = (props) => {
     <IconButton
       size="md"
       icon="i-material-symbols:draft-outline-rounded"
-      label="下書きに入れる"
+      label={t("note.composeParts.keepDraft")}
       disabled={props.disabled}
       onClick={() => dispatch({ type: "compose/draft-keep" })}
     />
@@ -490,8 +505,8 @@ const ContentWarningInput: Component<{
       <input
         ref={input}
         type="text"
-        aria-label="閲覧注意の理由"
-        placeholder="閲覧注意の理由（任意）"
+        aria-label={t("note.composeParts.warningReason")}
+        placeholder={t("note.composeParts.warningReasonOptional")}
         class={`${textInputClass} min-w-0 flex-1`}
         disabled={props.disabled}
         value={props.reason}
@@ -534,7 +549,7 @@ export const ComposeTools: Component<{
       variant="primary"
       disabled={props.sending || props.disabled}
     >
-      <Show when={!props.sending} fallback="送信中…">
+      <Show when={!props.sending} fallback={t("note.composeParts.sending")}>
         {props.label}
       </Show>
     </Button>

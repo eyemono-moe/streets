@@ -1,3 +1,4 @@
+import { MessageError } from "../i18n/message";
 import type { PutResult } from "../read/event-store";
 
 /**
@@ -16,17 +17,11 @@ export const verifyOptimisticInsert = (
   putResult: PutResult,
 ): Exclude<PutResult, "rejected" | "hidden"> => {
   if (putResult === "hidden") {
-    throw new Error(
-      "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
-    );
+    throw new MessageError({ key: "write.error.deleted" });
   }
   if (putResult === "rejected") {
-    throw new Error(
-      // Stryker disable next-line StringLiteral: 呼び出し側は例外の有無
-      // (throw されたかどうか) だけを見ており、rejected のメッセージ文言は
-      // 判定に使わない。hidden は行動可能な文面を別の分岐で固定する。
-      "投稿の検証に失敗しました (拡張機能の応答が壊れています)。",
-    );
+    // 呼び出し側は例外の有無だけを見る。hidden は行動できる文面を別の分岐で固定する。
+    throw new MessageError({ key: "write.error.verifyFailed" });
   }
   return putResult;
 };

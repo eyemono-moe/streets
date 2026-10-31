@@ -1,5 +1,6 @@
 import { Collapsible, Presence } from "@ark-ui/solid";
 import { type Component, type JSX, Show, children } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 
@@ -45,7 +46,7 @@ const SidePanel: Component<{
             <IconButton
               size="md"
               icon="i-material-symbols:arrow-back-rounded"
-              label="戻る"
+              label={t("deck.sidePanel.back")}
               onClick={() => back()()}
             />
           )}
@@ -57,7 +58,7 @@ const SidePanel: Component<{
           variant="filled"
           size="md"
           icon="i-material-symbols:close-rounded"
-          label="閉じる"
+          label={t("deck.sidePanel.close")}
           onClick={() => dispatch({ type: "deck/close-panel" })}
         />
       </header>

@@ -1,0 +1,194 @@
+{
+  "loading": "Loading…",
+  "header": {
+    "hideProfile": "Hide user details",
+    "showProfile": "Show user details",
+    "keepTemporary": "Keep as column",
+    "close": "Close",
+    "backToDeck": "Return to deck",
+    "settings": "Column settings",
+    "scrollToTop": "Back to top",
+    "back": "Back",
+    "backToBefore": "Back to ",
+    "backToAfter": "",
+    "openInDeck": "Open as a deck column"
+  },
+  "body": {
+    "alertWithAction": "{{ message }}. {{ action }}",
+    "broken": "This column couldn't be shown.",
+    "retry": "Try again"
+  },
+  "needsAccount": {
+    "description": "\"{{ title }}\" is a column that shows posts for the signed-in account. Sign in to see it.",
+    "login": "Sign in"
+  },
+  "newer": {
+    "post": {
+      "one": "{{ count }} new post",
+      "other": "{{ count }} new posts"
+    },
+    "reaction": {
+      "one": "{{ count }} new reaction",
+      "other": "{{ count }} new reactions"
+    },
+    "notification": {
+      "one": "{{ count }} new notification",
+      "other": "{{ count }} new notifications"
+    },
+    "message": {
+      "one": "{{ count }} new message",
+      "other": "{{ count }} new messages"
+    }
+  },
+  "thread": {
+    "ancestorsMissing": "The earlier part of this thread couldn't be fetched.",
+    "ancestorsLoading": "Loading the earlier part of this thread…"
+  },
+  "sample": {
+    "label": "Sample",
+    "login": "Sign in",
+    "names": {
+      "you": "You",
+      "sora": "Sora",
+      "nanami": "Nanami",
+      "haru": "Haru"
+    },
+    "notes": {
+      "hello": "Just started Nostr with Streets. Nice to meet you all!",
+      "coffee": "Home, notifications and #coffee side by side in columns. Looking through them has become my morning routine.",
+      "portable": "Love that my Nostr account works as-is in other apps too.",
+      "lime": "Switched my theme color to lime. Feels fresh.",
+      "bakery": "The bakery by the station has cinnamon rolls only on Tuesdays.",
+      "books": "Rainy days are for working through my reading pile.",
+      "welcome": "Welcome! Feel free to ask if anything's unclear.",
+      "nice": "Nice to meet you! I just started too."
+    },
+    "lists": {
+      "music": {
+        "title": "Music",
+        "description": "People who make songs"
+      },
+      "food": {
+        "title": "Food",
+        "description": "Cooking and eating out"
+      },
+      "photo": {
+        "title": "Photos",
+        "description": "People who take and enjoy photos"
+      }
+    }
+  },
+  "blocks": {
+    "empty": {
+      "posts": "No posts yet.",
+      "reactions": "No reactions yet.",
+      "following": "Not following anyone yet.",
+      "followers": "Couldn't fetch followers.",
+      "media": "No posts with images or videos yet."
+    },
+    "activity": {
+      "partial": "Some relays couldn't be reached.",
+      "failed": "Couldn't fetch.",
+      "label": "Activity type",
+      "reposts": "Reposts",
+      "repostsEmpty": "No reposts yet.",
+      "quotes": "Quotes",
+      "quotesEmpty": "No quotes yet.",
+      "reactions": "Reactions",
+      "reactionsEmpty": "No reactions yet."
+    },
+    "article": {
+      "comment": "Comment",
+      "failed": "Couldn't load the article."
+    },
+    "channel": {
+      "muteFailed": "Couldn't mute",
+      "messageNotLoaded": "The message hasn't loaded",
+      "writeFailed": "Couldn't write to the channel",
+      "loginReason": "Log in to write to channels",
+      "loginToWrite": "Sign in to write"
+    },
+    "followSet": {
+      "notFound": "This list wasn't found. It may have been deleted, or the relays couldn't provide it."
+    },
+    "media": {
+      "warning": "Sensitive content",
+      "warningHint": ". Press to show",
+      "openImage": "Open image",
+      "openVideo": "Open video"
+    }
+  },
+  "views": {
+    "groupActions": "Group reactions and reposts on the same post",
+    "channelInfo": "Channel info",
+    "followSetInfo": "List info",
+    "followSetFallbackName": "List",
+    "favorite": {
+      "remove": "Remove from favorites",
+      "add": "Add to favorites"
+    },
+    "subtitle": {
+      "relay": "Everything on the chosen relays",
+      "condition": "Chosen conditions",
+      "search": "Search",
+      "followees": "Following",
+      "timeslip": "Back from {{ time }}",
+      "followeesActivity": "Reactions and reposts from people you follow",
+      "notifications": "Replies, reactions and reposts to you",
+      "bookmarks": "Saved posts",
+      "article": "Long-form articles",
+      "thread": "Thread",
+      "activity": "Reposts, quotes and reactions",
+      "user": "Posts and replies",
+      "channelInfo": "Channel info",
+      "channelList": "Chat channels everyone can join",
+      "channel": "Channel",
+      "followeesList": "People they follow",
+      "followersList": "Followers",
+      "followSets": "Lists of people",
+      "followSet": "Timeline of people in the list",
+      "followSetInfo": "List info",
+      "welcome": "Introduction and sign-in"
+    },
+    "sample": {
+      "followees": {
+        "heading": "Posts from people you follow show up here",
+        "body": "This is a sample. Sign in and it will change to posts from the people you follow."
+      },
+      "timeslip": {
+        "heading": "Read back through the past timeline of people you follow",
+        "body": "This is a sample. Sign in and it will change to the timeline at the date and time you choose."
+      },
+      "followeesActivity": {
+        "heading": "Reactions and reposts from people you follow arrive here",
+        "body": "This is a sample. Sign in and it will change to the reactions of people you follow."
+      },
+      "notifications": {
+        "heading": "Replies and reactions to you arrive here",
+        "body": "This is a sample. Sign in and it will change to your notifications."
+      },
+      "bookmarks": {
+        "heading": "Posts you bookmark are listed here",
+        "body": "This is a sample. Sign in and it will change to the posts you bookmarked."
+      },
+      "followSets": {
+        "heading": "You can make lists of people",
+        "body": "This is a sample. Sign in and it will change to the lists you made."
+      }
+    },
+    "settings": {
+      "relays": "Relays to read from",
+      "relaysTitle": "Relays ({{ count }})",
+      "searchQuery": "Search conditions",
+      "timeslip": "Go back in time from this date and time",
+      "timeslipInput": "Date and time to start from"
+    },
+    "userTabs": {
+      "label": "What to show for this person",
+      "posts": "Posts",
+      "media": "Media",
+      "pinned": "Pinned",
+      "reactions": "Reactions"
+    }
+  }
+}

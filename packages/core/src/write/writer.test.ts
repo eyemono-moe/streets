@@ -1,6 +1,8 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vite-plus/test";
+import type { EventDraft } from "../nostr/build/draft";
+import { buildDeletion } from "../nostr/deletion";
 import { computeEventId } from "../nostr/event";
 import type { NostrEvent } from "../nostr/event";
 import { buildReplyTo } from "../nostr/reply";
@@ -272,11 +274,47 @@ describe("publish", () => {
       fetchLatest: async () => undefined,
     });
 
-    await expect(
-      writer.publish({ kind: 5, tags: [["e", target.id]], content: "" }),
-    ).rejects.toBeInstanceOf(WriteFailedError);
+    await expect(writer.publish(buildDeletion(target))).rejects.toBeInstanceOf(
+      WriteFailedError,
+    );
 
     expect(store.get(target.id)).toEqual(target);
+  });
+
+  it("自分の投稿の削除依頼は、届く前に投稿を隠し、受け取ったリレーへも送る", async () => {
+    // 捕まえる変異: 送り終えるまで投稿を出したままにする / relays を落とす（ほかのリレーに投稿が残る）
+    const store = new EventStore();
+    const signer = createFakeSigner(SK);
+    const target = await signer.signEvent({
+      pubkey: PUBKEY,
+      kind: 1,
+      created_at: 1_699_999_900,
+      tags: [],
+      content: "delete me",
+    });
+    store.put(target, "wss://seen.example/" as RelayUrl);
+    let visibleWhileSending: boolean | undefined;
+    let additional: readonly RelayUrl[] | undefined;
+    const writer = createWriter({
+      signer,
+      store,
+      publisher: stubPublisher(async (_event, options) => {
+        visibleWhileSending = store.get(target.id) !== undefined;
+        additional = options?.additionalRelays;
+        return ok;
+      }),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.publish(buildDeletion(target), undefined, {
+      relays: store.seenRelays(target.id),
+    });
+
+    expect(visibleWhileSending).toBe(false);
+    expect(additional).toEqual(["wss://seen.example/"]);
+    expect(store.get(target.id)).toBeUndefined();
   });
 
   it("1 本でも accepted なら残す", async () => {
@@ -1012,6 +1050,141 @@ describe("replace", () => {
     }));
 
     expect(additional).toEqual([["wss://old/"], ["wss://current/"]]);
+  });
+
+  describe("first-accept", () => {
+    const NEW = "wss://new/" as RelayUrl;
+    const OLD = "wss://old/" as RelayUrl;
+
+    /**
+     * 1 回の publish ごとに、NEW がすぐ受け取り、残り（追加送信先）の返事は
+     * `finish(回, 結果)` を呼ぶまで来ない Publisher。
+     */
+    const slowRest = (targets: () => RelayUrl[]) => {
+      const sent: { additional: readonly RelayUrl[]; event: NostrEvent }[] = [];
+      const rest: ((outcome: "accepted" | "rejected") => void)[] = [];
+      const publisher: Publisher = {
+        targets,
+        publish: async (event, options) => {
+          const additional = options?.additionalRelays ?? [];
+          sent.push({ additional, event });
+          const others = additional.filter((relay) => relay !== NEW);
+          options?.onProgress?.([
+            { relay: NEW, state: "accepted" },
+            ...others.map((relay) => ({ relay, state: "pending" as const })),
+          ]);
+          const outcome = await new Promise<"accepted" | "rejected">(
+            (resolve) => rest.push(resolve),
+          );
+          return outcome === "accepted"
+            ? { accepted: [NEW, ...others], rejected: [] }
+            : {
+                accepted: [NEW],
+                rejected: others.map((relay) => ({ relay, reason: "down" })),
+              };
+        },
+      };
+      return {
+        publisher,
+        sent,
+        finish: (index: number, outcome: "accepted" | "rejected") =>
+          rest[index]?.(outcome),
+      };
+    };
+
+    const writerWith = (publisher: Publisher) => {
+      const store = new EventStore();
+      return createWriter({
+        signer: createFakeSigner(SK),
+        store,
+        publisher,
+        pubkey: () => PUBKEY,
+        now: () => 1_700_000_000,
+        // 本物の fetchLatest と同じく、問い合わせの後は store の最新版を返す。
+        fetchLatest: async (kind, identifier, pubkey) =>
+          store.latestReplaceable(kind, pubkey, identifier),
+      });
+    };
+
+    const follow =
+      (followee: string) =>
+      (current: NostrEvent | undefined): EventDraft => ({
+        kind: 3,
+        tags: [...(current?.tags ?? []), ["p", followee]],
+        content: "",
+      });
+
+    it("1 本が受け取った時点で返し、同じ対象の次の置換を残りの返事を待たずに始める", async () => {
+      // 捕まえる変異: replace が settle を無視して全部の返事を待つ（フォローを続けて押すと遅いリレーの数だけ待たされる）
+      const { publisher, sent, finish } = slowRest(() => [NEW]);
+      const writer = writerWith(publisher);
+
+      const first = await writer.replace(3, undefined, follow("a"), undefined, {
+        settle: "first-accept",
+      });
+      const second = await writer.replace(
+        3,
+        undefined,
+        follow("b"),
+        undefined,
+        { settle: "first-accept" },
+      );
+
+      expect(first.accepted).toEqual([NEW]);
+      expect(sent).toHaveLength(2);
+      // 前の版を元に組み立て、同じ秒でも新しい版として繰り上げる。
+      expect(second.event.tags).toEqual([
+        ["p", "a"],
+        ["p", "b"],
+      ]);
+      expect(second.event.created_at).toBe(first.event.created_at + 1);
+      finish(0, "accepted");
+      finish(1, "accepted");
+    });
+
+    it("前の置換がまだ送っている旧送信先へ、次の置換も送る", async () => {
+      // 捕まえる変異: 次の置換の追加送信先を、楽観挿入後の宛先と記録済みの失敗だけで決める（外したリレーに古い版だけが残る）
+      let call = 0;
+      const { publisher, sent, finish } = slowRest(() =>
+        call++ === 0 ? [OLD] : [NEW],
+      );
+      const writer = writerWith(publisher);
+
+      await writer.replace(3, undefined, follow("a"), undefined, {
+        settle: "first-accept",
+      });
+      await writer.replace(3, undefined, follow("b"), undefined, {
+        settle: "first-accept",
+      });
+
+      expect(sent.map((entry) => entry.additional)).toEqual([
+        [OLD],
+        [NEW, OLD],
+      ]);
+      finish(0, "accepted");
+      finish(1, "accepted");
+    });
+
+    it("遅れて届いた失敗は、送り始めた順に当てて次の置換で送り直す", async () => {
+      // 捕まえる変異: 前の書き込みの失敗を、後の書き込みの結果より後に当てる（後の書き込みが届けた旧送信先を、また送り直す）
+      let call = 0;
+      const { publisher, sent, finish } = slowRest(() =>
+        call++ === 0 ? [OLD] : [NEW],
+      );
+      const writer = writerWith(publisher);
+      const options = { settle: "first-accept" } as const;
+
+      await writer.replace(3, undefined, follow("a"), undefined, options);
+      await writer.replace(3, undefined, follow("b"), undefined, options);
+      // 後の書き込みが旧送信先に届いてから、前の書き込みの失敗が届く。
+      finish(1, "accepted");
+      finish(0, "rejected");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await writer.replace(3, undefined, follow("c"), undefined, options);
+
+      expect(sent.at(-1)?.additional).toEqual([NEW]);
+      finish(2, "accepted");
+    });
   });
 });
 

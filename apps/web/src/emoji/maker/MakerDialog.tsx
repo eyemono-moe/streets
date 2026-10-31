@@ -22,6 +22,7 @@ import {
 import { defaultShortcode } from "@streets/core/emoji-maker/url";
 import { isValidShortcode } from "@streets/core/nostr/content";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
+import { t, message } from "../../i18n/locale";
 import Button from "../../ui/Button";
 import ColorField from "../../ui/ColorField";
 import {
@@ -37,12 +38,12 @@ import TextField from "../../ui/TextField";
 import { createPreview } from "./preview";
 
 /** テキストが空のときに、入力欄と見本に出す言葉。 */
-const PLACEHOLDER = "カスタム";
+const placeholder = () => t("emoji.maker.placeholder");
 
-const FONT_OPTIONS: { value: FontId; label: string }[] = [
-  { value: "gothic", label: "ゴシック" },
-  { value: "rounded", label: "丸ゴシック" },
-  { value: "serif", label: "明朝" },
+const fontOptions = (): { value: FontId; label: string }[] => [
+  { value: "gothic", label: t("emoji.maker.fonts.gothic") },
+  { value: "rounded", label: t("emoji.maker.fonts.rounded") },
+  { value: "serif", label: t("emoji.maker.fonts.serif") },
 ];
 
 type OutlineMode = "auto" | "pick" | "none";
@@ -50,9 +51,12 @@ type OutlineMode = "auto" | "pick" | "none";
 const problemMessage = (problem: TextProblem | undefined) => {
   switch (problem?.type) {
     case "too-many-chars":
-      return `${MAX_CHARS} 字までです（いま ${problem.count} 字）`;
+      return t("emoji.maker.tooManyChars", {
+        max: MAX_CHARS,
+        count: problem.count,
+      });
     case "too-many-lines":
-      return `${MAX_LINES} 行までです`;
+      return t("emoji.maker.tooManyLines", { max: MAX_LINES });
     default:
       return undefined;
   }
@@ -110,11 +114,6 @@ export type MakerSubmit = { shortcode: string; register: boolean };
 
 /** 作ったものをどうするか。リアクションとして送るか、本文に入れるか。 */
 export type MakerVerb = "send" | "insert";
-
-const SUBMIT_LABEL: Record<MakerVerb, { plain: string; register: string }> = {
-  send: { plain: "これで送る", register: "登録して送る" },
-  insert: { plain: "これで入れる", register: "登録して入れる" },
-};
 
 export const MakerEditor: Component<{
   initialText: string;
@@ -179,7 +178,7 @@ export const MakerEditor: Component<{
   const specFor = (s: Style): EmojiSpec => {
     // 空の間は、見本を「カスタム」で描く（何も無い枠では、見た目を選びようがない）。
     const layout = layoutOf(
-      text().trim() === "" ? PLACEHOLDER : text(),
+      text().trim() === "" ? placeholder() : text(),
       autoBreak(),
     );
     return {
@@ -211,7 +210,7 @@ export const MakerEditor: Component<{
   const shortcodeError = () => {
     const value = shortcode().trim();
     return value !== "" && !isValidShortcode(value)
-      ? "半角の英数字・「_」・「-」だけが使えます"
+      ? t("emoji.maker.shortcodeInvalid")
       : undefined;
   };
   const replacing = () =>
@@ -262,30 +261,28 @@ export const MakerEditor: Component<{
               <Sample dark />
             </div>
             <div class="flex flex-wrap items-center gap-2">
-              <span class="c-secondary text-caption">実際の大きさ</span>
+              <span class="c-secondary text-caption">
+                {t("emoji.maker.realSize")}
+              </span>
               <RealSize src={image()?.src} />
             </div>
             <Show when={missing()}>
               {(chars) => (
                 <p class="c-danger text-caption">
-                  描けない文字があります（{chars().join(" ")}
-                  ）。使えるのは、かな・漢字（JIS の第 2
-                  水準まで）・英数字・記号です。
+                  {t("emoji.maker.missingChars", { chars: chars().join(" ") })}
                 </p>
               )}
             </Show>
             <Show when={!missing() && cramped(spec())}>
-              <p class="c-secondary text-caption">
-                小さく表示された時に読みにくいかもしれません。横長にすると読みやすくなります。
-              </p>
+              <p class="c-secondary text-caption">{t("emoji.maker.cramped")}</p>
             </Show>
           </div>
           <div class="flex min-w-0 flex-col gap-3">
             <TextField
-              label="テキスト"
+              label={t("emoji.maker.text")}
               multiline
               value={text()}
-              placeholder={PLACEHOLDER}
+              placeholder={placeholder()}
               onInput={(value) => {
                 // 自動のまま改行を打ったら、打った行を使いたいとみなして自動を切る。
                 if (
@@ -299,22 +296,28 @@ export const MakerEditor: Component<{
               }}
               hint={
                 autoBreak()
-                  ? `文字数に合わせて改行します。${MAX_CHARS} 字・${MAX_LINES} 行まで。`
-                  : `打った改行のとおりに並べます。${MAX_CHARS} 字・${MAX_LINES} 行まで。`
+                  ? t("emoji.maker.hintAuto", {
+                      maxChars: MAX_CHARS,
+                      maxLines: MAX_LINES,
+                    })
+                  : t("emoji.maker.hintManual", {
+                      maxChars: MAX_CHARS,
+                      maxLines: MAX_LINES,
+                    })
               }
               error={problemMessage(problem())}
             />
             <Switch
-              label="自動で改行する"
+              label={t("emoji.maker.autoBreak")}
               checked={autoBreak()}
               onChange={setAutoBreak}
             />
-            <Field label="プリセット">
+            <Field label={t("emoji.maker.preset")}>
               <div class="grid grid-cols-6 gap-1">
                 <For each={PRESETS}>
                   {(preset) => (
                     <PresetButton
-                      label={preset.label}
+                      label={message(preset.label)}
                       selected={presetId() === preset.id}
                       spec={{
                         ...spec(),
@@ -330,7 +333,7 @@ export const MakerEditor: Component<{
               </div>
             </Field>
             <ColorField
-              label="文字の色"
+              label={t("emoji.maker.color")}
               value={color()}
               onPreview={(hex) => {
                 setPresetId(undefined);
@@ -338,9 +341,9 @@ export const MakerEditor: Component<{
               }}
               onCommit={(hex) => setColor(hex as HexColor)}
             />
-            <Field label="縁取り">
+            <Field label={t("emoji.maker.outline")}>
               <SegmentedControl
-                label="縁取り"
+                label={t("emoji.maker.outline")}
                 block
                 variant="secondary"
                 value={outlineMode()}
@@ -349,23 +352,23 @@ export const MakerEditor: Component<{
                   setOutlineMode(mode);
                 }}
                 options={[
-                  { value: "auto", label: "自動" },
-                  { value: "pick", label: "色を選ぶ" },
-                  { value: "none", label: "なし" },
+                  { value: "auto", label: t("emoji.maker.outlineAuto") },
+                  { value: "pick", label: t("emoji.maker.outlinePick") },
+                  { value: "none", label: t("emoji.maker.outlineNone") },
                 ]}
               />
             </Field>
             <Show when={outlineMode() === "pick"}>
               <ColorField
-                label="縁取りの色"
+                label={t("emoji.maker.outlineColor")}
                 value={outlineColor()}
                 onPreview={(hex) => setOutlineColor(hex as HexColor)}
                 onCommit={(hex) => setOutlineColor(hex as HexColor)}
               />
             </Show>
-            <Field label="フォント">
+            <Field label={t("emoji.maker.font")}>
               <SegmentedControl
-                label="フォント"
+                label={t("emoji.maker.font")}
                 block
                 variant="secondary"
                 value={font()}
@@ -373,69 +376,74 @@ export const MakerEditor: Component<{
                   setPresetId(undefined);
                   setFont(id);
                 }}
-                options={FONT_OPTIONS}
+                options={fontOptions()}
               />
             </Field>
             <div class="grid grid-cols-2 gap-2">
-              <Field label="形">
+              <Field label={t("emoji.maker.shape")}>
                 <SegmentedControl
-                  label="形"
+                  label={t("emoji.maker.shape")}
                   block
                   variant="secondary"
                   value={spec().shape}
                   onChange={setShape}
                   options={[
-                    { value: "square", label: "正方形" },
-                    { value: "wide", label: "横長" },
+                    {
+                      value: "square",
+                      label: t("emoji.maker.shapeSquare"),
+                    },
+                    { value: "wide", label: t("emoji.maker.shapeWide") },
                   ]}
                 />
               </Field>
-              <Field label="字の形">
+              <Field label={t("emoji.maker.fit")}>
                 <SegmentedControl
-                  label="字の形"
+                  label={t("emoji.maker.fit")}
                   block
                   variant="secondary"
                   value={spec().fit}
                   onChange={setFit}
                   options={[
-                    { value: "stretch", label: "伸ばす" },
-                    { value: "keep", label: "保つ" },
+                    { value: "stretch", label: t("emoji.maker.fitStretch") },
+                    { value: "keep", label: t("emoji.maker.fitKeep") },
                   ]}
                 />
               </Field>
             </div>
             <Show when={spec().fit === "keep" && spec().lines.length > 1}>
-              <Field label="そろえ">
+              <Field label={t("emoji.maker.align")}>
                 <SegmentedControl
-                  label="そろえ"
+                  label={t("emoji.maker.align")}
                   block
                   variant="secondary"
                   value={spec().align}
                   onChange={setAlign}
                   options={[
-                    { value: "left", label: "左" },
-                    { value: "center", label: "中央" },
-                    { value: "right", label: "右" },
+                    { value: "left", label: t("emoji.maker.alignLeft") },
+                    { value: "center", label: t("emoji.maker.alignCenter") },
+                    { value: "right", label: t("emoji.maker.alignRight") },
                   ]}
                 />
               </Field>
             </Show>
             <div class="b-t-1 flex flex-col gap-3 border-primary pt-3">
               <TextField
-                label="ショートコード（任意）"
+                label={t("emoji.maker.shortcode")}
                 value={shortcode()}
                 placeholder={autoShortcode()}
                 onInput={setShortcode}
                 hint={
                   replacing()
-                    ? `「${finalShortcode()}」はもう自分の絵文字にあります。登録すると、この絵文字に置き換わります。`
-                    : "「:名前:」で呼び出すときの名前です。カスタム絵文字を表示できないアプリでは、この名前が文字で出ます。空なら自動で付けます。"
+                    ? t("emoji.maker.shortcodeReplace", {
+                        shortcode: finalShortcode(),
+                      })
+                    : t("emoji.maker.shortcodeHint")
                 }
                 error={shortcodeError()}
               />
               <Show when={!registerOnly()}>
                 <Switch
-                  label="自分の絵文字に登録する"
+                  label={t("emoji.maker.register")}
                   checked={register()}
                   onChange={setRegister}
                 />
@@ -446,7 +454,7 @@ export const MakerEditor: Component<{
       </div>
       <div class="b-t-1 flex shrink-0 justify-end gap-2 border-primary px-4 py-3">
         <Button variant="ghost" size="sm" onClick={() => props.onBack()}>
-          戻る
+          {t("emoji.maker.back")}
         </Button>
         <Show
           when={props.onSend}
@@ -457,7 +465,7 @@ export const MakerEditor: Component<{
               disabled={blocked() || text().trim() === ""}
               onClick={() => props.onRegister(spec(), finalShortcode())}
             >
-              登録する
+              {t("emoji.maker.registerOnly")}
             </Button>
           }
         >
@@ -470,7 +478,7 @@ export const MakerEditor: Component<{
                   disabled={blocked() || text().trim() === ""}
                   onClick={() => props.onRegister(spec(), finalShortcode())}
                 >
-                  登録だけする
+                  {t("emoji.maker.registerOnlyShort")}
                 </Button>
               </Show>
               <Button
@@ -484,9 +492,9 @@ export const MakerEditor: Component<{
                   })
                 }
               >
-                {register()
-                  ? SUBMIT_LABEL[props.verb ?? "send"].register
-                  : SUBMIT_LABEL[props.verb ?? "send"].plain}
+                {t(
+                  `emoji.maker.submit.${props.verb ?? "send"}.${register() ? "register" : "plain"}`,
+                )}
               </Button>
             </>
           )}
@@ -552,7 +560,7 @@ const MakerDialog: Component<{
       <DialogContent class="w-full max-w-170 rounded-3 border border-primary">
         <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
           <DialogTitle class="min-w-0 flex-1 font-600 text-body">
-            カスタム絵文字を作る
+            {t("emoji.maker.title")}
           </DialogTitle>
           <DialogClose />
         </div>

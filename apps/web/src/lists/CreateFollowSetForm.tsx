@@ -1,4 +1,5 @@
 import { type Component, createSignal, onMount } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
 
@@ -34,8 +35,8 @@ const CreateFollowSetForm: Component<{
       <input
         ref={input}
         class={`${textInputClass} w-full`}
-        aria-label="リストの名前"
-        placeholder="リストの名前"
+        aria-label={t("lists.createForm.name")}
+        placeholder={t("lists.createForm.name")}
         aria-invalid={error()}
         value={title()}
         onInput={(event) => {
@@ -48,12 +49,12 @@ const CreateFollowSetForm: Component<{
         classList={{ "c-danger": error(), "c-secondary": !error() }}
       >
         {error()
-          ? "リストの名前を入力してください"
-          : "リストの名前と説明は、ほかの人も見られます。"}
+          ? t("lists.createForm.nameRequired")
+          : t("lists.createForm.visibleToOthers")}
       </p>
       <div class="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => props.onCancel()}>
-          やめる
+          {t("lists.common.cancel")}
         </Button>
         <Button type="submit" variant="primary">
           {props.submitLabel}

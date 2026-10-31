@@ -1,14 +1,17 @@
 import { parseContent } from "../nostr/content";
+import {
+  DELETION_KIND,
+  deletionTargetAddresses,
+  deletionTargetIds,
+} from "../nostr/deletion";
 import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
+import { reportIsolated } from "./report-isolated";
 import { type Scheduler, defaultScheduler } from "./scheduler";
 import { SignatureGate } from "./signature-gate";
 
-/** NIP-09 の削除依頼イベント。対象は `e` / `a` タグで運ばれる。 */
-const DELETION_KIND = 5;
 const HEX_64 = /^[0-9a-f]{64}$/;
-const CANONICAL_DECIMAL = /^(?:0|[1-9]\d*)$/;
 
 export type StoredEvent = {
   event: NostrEvent;
@@ -76,45 +79,11 @@ const replacementKey = (address: ReplaceableAddress): string =>
     ...(address.identifier === undefined ? [] : [address.identifier]),
   ]);
 
-const deletionEventTargetIds = (deletion: NostrEvent): string[] => [
-  ...new Set(
-    deletion.tags
-      .filter(
-        (tag): tag is [string, string] =>
-          tag[0] === "e" && typeof tag[1] === "string" && HEX_64.test(tag[1]),
-      )
-      .map((tag) => tag[1]),
-  ),
-];
-
-const parseDeletionAddress = (
-  raw: string,
-  author: string,
-): ReplaceableAddress | undefined => {
-  const firstColon = raw.indexOf(":");
-  const secondColon = raw.indexOf(":", firstColon + 1);
-  if (firstColon <= 0 || secondColon < 0) return undefined;
-  const rawKind = raw.slice(0, firstColon);
-  if (!CANONICAL_DECIMAL.test(rawKind)) return undefined;
-  const kind = Number(rawKind);
-  const pubkey = raw.slice(firstColon + 1, secondColon);
-  if (
-    !Number.isInteger(kind) ||
-    !isAddressableKind(kind) ||
-    !HEX_64.test(pubkey) ||
-    pubkey !== author
-  ) {
-    return undefined;
-  }
-  return { kind, pubkey, identifier: raw.slice(secondColon + 1) };
-};
-
+/** 同じ住所を 2 度指す削除依頼でも、索引には 1 度だけ入れる。 */
 const deletionAddressTargets = (deletion: NostrEvent): ReplaceableAddress[] => {
   const unique = new Map<string, ReplaceableAddress>();
-  for (const tag of deletion.tags) {
-    if (tag[0] !== "a" || typeof tag[1] !== "string") continue;
-    const address = parseDeletionAddress(tag[1], deletion.pubkey);
-    if (address) unique.set(replacementKey(address), address);
+  for (const address of deletionTargetAddresses(deletion)) {
+    unique.set(replacementKey(address), address);
   }
   return [...unique.values()];
 };
@@ -307,7 +276,7 @@ export class EventStore {
       try {
         listener(dropped);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "EventStore: a sweep listener threw; isolating it so the remaining listeners still forget what was dropped.",
           error,
         );
@@ -441,7 +410,7 @@ export class EventStore {
     if (this.#deletionRequests.has(deletion.id)) return;
     this.#deletionRequests.set(deletion.id, deletion);
 
-    const directTargets = deletionEventTargetIds(deletion);
+    const directTargets = deletionTargetIds(deletion);
     for (const targetId of directTargets) {
       this.#addDeletionIndex(this.#deletionsByEvent, targetId, deletion.id);
       const target = this.#events.get(targetId)?.event;
@@ -491,7 +460,7 @@ export class EventStore {
     if (target.kind === DELETION_KIND || target.pubkey !== deletion.pubkey) {
       return false;
     }
-    if (deletionEventTargetIds(deletion).includes(target.id)) return true;
+    if (deletionTargetIds(deletion).includes(target.id)) return true;
     const targetAddress = addressForEvent(target);
     if (!targetAddress || !isAddressableKind(target.kind)) return false;
     return deletionAddressTargets(deletion).some(
@@ -541,7 +510,7 @@ export class EventStore {
   #removeDeletionRequest(deletion: NostrEvent): void {
     if (!this.#deletionRequests.delete(deletion.id)) return;
     const affected = new Set<string>();
-    for (const targetId of deletionEventTargetIds(deletion)) {
+    for (const targetId of deletionTargetIds(deletion)) {
       this.#removeDeletionIndex(this.#deletionsByEvent, targetId, deletion.id);
       affected.add(targetId);
     }
@@ -646,7 +615,7 @@ export class EventStore {
       try {
         listener(change);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "EventStore: an onReplaceableChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );
@@ -659,7 +628,7 @@ export class EventStore {
       try {
         listener(change);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "EventStore: a change listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );

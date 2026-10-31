@@ -1,12 +1,13 @@
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import type { EventActions } from "./actions";
+import { t } from "./i18n/locale";
 
 /**
  * ログインの要る操作の手前で呼ぶ。続けてよければ true。ログインしていなければ
  * ログインを案内して false を返す —— 書いてから「送れませんでした」と言うより、
- * 書き始める前に伝える。
+ * 書き始める前に伝える。`reason` は案内の一文そのもの。
  */
-export type LoginGate = (what: string) => boolean;
+export type LoginGate = (reason: string) => boolean;
 
 // ログインしている画面では、何もせずに通す。
 const LoginGateContext = createContext<LoginGate>(() => true);
@@ -24,7 +25,7 @@ export const useLoginGate = (): LoginGate => useContext(LoginGateContext);
 /** 書き込みの手前で止め損ねたとき。止める場所の書き忘れなので、トーストに出す。 */
 class LoginRequiredError extends Error {
   constructor() {
-    super("ログインが必要です");
+    super(t("app.errors.loginRequired"));
   }
 }
 
@@ -61,4 +62,5 @@ export const createGuestActions = (): EventActions => ({
   setFollow: refuse,
   broadcastTargets: () => ({ mine: [], author: [] }),
   broadcast: refuse,
+  deleteEvent: refuse,
 });

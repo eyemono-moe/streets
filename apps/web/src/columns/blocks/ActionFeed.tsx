@@ -25,8 +25,10 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
+import { t } from "../../i18n/locale";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
+import { reportError } from "../../telemetry";
 import VirtualList from "../../ui/VirtualList";
 import { createBlockSection, useColumnScope } from "../column-scope";
 import { type ListWindow, NewerEdge, listWindow } from "../list-window";
@@ -112,7 +114,7 @@ export const ActionFeedView: Component<{
           itemKey={(row) => row.key}
           followsStart={props.windowing?.followsStart}
           newer={{
-            noun: "反応",
+            noun: "reaction",
             authorOf: rowAuthor,
             pending: props.windowing?.pending,
             latest: props.windowing?.latest,
@@ -124,6 +126,7 @@ export const ActionFeedView: Component<{
             <ErrorBoundary
               fallback={(error) => {
                 console.error("反応を描けませんでした", row.key, error);
+                reportError(error, "action-render");
                 return <BrokenEvent />;
               }}
             >
@@ -169,10 +172,12 @@ export const ActionFeedView: Component<{
       {props.footer}
     </Match>
     <Match when={props.settled}>
-      <p class="c-secondary p-4 text-caption">まだ反応がありません。</p>
+      <p class="c-secondary p-4 text-caption">
+        {t("columns.blocks.empty.reactions")}
+      </p>
     </Match>
     <Match when={true}>
-      <p class="c-secondary p-4 text-caption">読み込み中…</p>
+      <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
     </Match>
   </Switch>
 );

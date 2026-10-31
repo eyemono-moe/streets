@@ -1,5 +1,6 @@
 import type { FollowSet } from "@streets/core/lists/follow-set";
 import { type Component, For, Match, Show, Switch } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
 import FollowSetSummary from "./FollowSetSummary";
@@ -40,7 +41,7 @@ const Section: Component<{
         <p class="c-secondary text-caption">{props.empty}</p>
       </Match>
       <Match when={true}>
-        <p class="c-secondary text-caption">読み込み中…</p>
+        <p class="c-secondary text-caption">{t("lists.common.loading")}</p>
       </Match>
     </Switch>
   </section>
@@ -67,14 +68,14 @@ const FollowSetListView: Component<{
   const tabs = (): ColumnTab[] => [
     {
       value: "own",
-      label: "作ったリスト",
+      label: t("lists.listView.ownTab"),
       content: () => (
         <div class="flex flex-col gap-3 p-3">
           <Section
-            title="あなたが作ったリスト（名前順）"
+            title={t("lists.listView.ownTitle")}
             sets={props.own}
             settled={props.ownSettled}
-            empty="まだリストがありません。人をまとめて、その人たちの投稿だけを流すカラムを作れます。"
+            empty={t("lists.listView.ownEmpty")}
             onOpen={props.onOpen}
           />
         </div>
@@ -82,18 +83,18 @@ const FollowSetListView: Component<{
     },
     {
       value: "member-of",
-      label: "入っているリスト",
+      label: t("lists.listView.memberOfTab"),
       content: () => (
         <div class="flex flex-col gap-3 p-3">
           <Section
-            title="あなたを公開で入れているリスト"
+            title={t("lists.listView.memberOfTitle")}
             sets={props.memberOf}
             settled={props.memberOfSettled}
-            empty="あなたを公開で入れているリストは見つかりませんでした。"
+            empty={t("lists.listView.memberOfEmpty")}
             onOpen={props.onOpen}
           />
           <p class="c-secondary text-caption">
-            非公開で入れられたリストは、作った人にしか分からないので、ここには出ません。
+            {t("lists.listView.memberOfPrivateNote")}
           </p>
         </div>
       ),
@@ -111,13 +112,14 @@ const FollowSetListView: Component<{
               icon="i-material-symbols:add-rounded"
               onClick={() => create()()}
             >
-              リストを作る
+              {t("lists.common.createList")}
             </Button>
           </div>
         )}
       </Show>
       <ColumnTabs
-        label="リストの一覧"
+        label={t("lists.listView.label")}
+        name="follow-sets"
         scroll="column"
         tabs={tabs()}
         defaultValue={props.initialTab ?? "own"}

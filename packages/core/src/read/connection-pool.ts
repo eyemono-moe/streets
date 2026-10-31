@@ -5,14 +5,16 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
-import { isLocalNetworkRelay } from "../relay/relay-url";
+import { isInsecureRelay, isLocalNetworkRelay } from "../relay/relay-url";
 import { MAX_CONNECTIONS } from "./default-relays";
 import {
   type ReconnectReason,
   RelaySession,
   type SessionHold,
   type SessionSubscription,
+  reconnectDelayMs,
 } from "./relay-session";
+import { reportIsolated } from "./report-isolated";
 import { type Scheduler, defaultScheduler } from "./scheduler";
 
 export type PooledSubscription = SessionSubscription;
@@ -57,6 +59,11 @@ export type ConnectionPoolOptions = {
   /** ページ自体が手元で開かれていればブラウザは許可を求めないので、そのときだけ真にする。 */
   allowLocalNetwork?: boolean;
   /**
+   * ページが https なら真にする。`ws://` のリレーはブラウザが必ず止めるので、試みずに
+   * 繋がないリレーとして扱う。試みると、そのたびにコンソールへ混在コンテンツの警告が出る。
+   */
+  refuseInsecure?: boolean;
+  /**
    * そのリレーが同時に受け付ける購読の数（NIP-11 の `max_subscriptions`）。数は書いて
    * ある上限、`null` は NIP-11 を取って上限が書いていないと分かった（枠なし）、
    * `undefined` はまだ取れていないか取れなかった（`DEFAULT_MAX_SUBSCRIPTIONS`）。
@@ -84,7 +91,13 @@ export class ConnectionPool {
   /** 窓口が消えても失敗の記録は残したいので、プールが持つ。 */
   readonly #failures = new Map<
     RelayUrl,
-    { count: number; hard: number; timer: ReturnType<Scheduler["setTimeout"]> }
+    {
+      count: number;
+      hard: number;
+      /** 最後にリレーの側で失敗した時刻。予算で断った分では動かさない。 */
+      hardAt: number;
+      timer: ReturnType<Scheduler["setTimeout"]>;
+    }
   >();
 
   /** `replan()` を呼ぶのは `subscribe()` と `handle.close()` だけなので、無いと degraded が積み上がっても再選択が起きない。 */
@@ -144,10 +157,12 @@ export class ConnectionPool {
   }
 
   isBlocked(url: RelayUrl): boolean {
-    return this.#blocked.has(url) || this.isLocalRefused(url);
+    return this.#blocked.has(url) || this.isRefusedHere(url);
   }
 
-  isLocalRefused(url: RelayUrl): boolean {
+  /** このページからは繋がないリレーか。許していないローカルネットワークと、https のページからの `ws://`。 */
+  isRefusedHere(url: RelayUrl): boolean {
+    if (this.#options.refuseInsecure && isInsecureRelay(url)) return true;
     return (
       !this.#options.allowLocalNetwork &&
       !this.#localAllowed.has(url) &&
@@ -203,7 +218,7 @@ export class ConnectionPool {
       try {
         listener(url);
       } catch (error) {
-        console.error(
+        reportIsolated(
           "ConnectionPool: an onDegradedChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );
@@ -223,12 +238,14 @@ export class ConnectionPool {
     const count = (existing?.count ?? 0) + 1;
     const previousHard = existing?.hard ?? 0;
     const hard = previousHard + (reason === "relay" ? 1 : 0);
+    const hardAt =
+      reason === "relay" ? this.#scheduler.now() : (existing?.hardAt ?? 0);
     const timer = this.#scheduler.setTimeout(() => {
       // `#failures.delete` を直に呼ばない —— クールダウン満了は degraded
       // 集合からの離脱そのものなので、通知経路 (`#clearFailures`) を通す。
       this.#clearFailures(url);
     }, DEGRADED_COOLDOWN_MS);
-    this.#failures.set(url, { count, hard, timer });
+    this.#failures.set(url, { count, hard, hardAt, timer });
 
     if (
       previousHard < DEGRADED_AFTER_FAILURES &&
@@ -276,21 +293,34 @@ export class ConnectionPool {
     return session;
   }
 
+  /** 最後の失敗から、窓口の再接続と同じ間隔が過ぎるまでの残り。 */
+  #backoffRemaining(url: RelayUrl): number {
+    const failure = this.#failures.get(url);
+    if (!failure || failure.hard === 0) return 0;
+    const until = failure.hardAt + reconnectDelayMs(failure.hard - 1);
+    return Math.max(0, until - this.#scheduler.now());
+  }
+
+  /** `revive` は書き込み。押した人を待たせないよう、バックオフ中でもすぐ開く。 */
   #acquire(
     url: RelayUrl,
     options?: SubscribeOptions,
+    revive = false,
   ): RelaySession | undefined {
     if (this.isBlocked(url)) return undefined;
     const key = sessionKey(url, options?.lane);
     let session = this.#pool.get(key);
     const created = !session;
+    // 窓口の外でも数えるのは、一度きりの取得が窓口ごと片付き、窓口の中のバックオフが
+    // 残らないから。待つ間の購読には窓口が「繋がらない」と返すので、取得はすぐ片付く。
+    const waitMs = revive ? "now" : this.#backoffRemaining(url);
     if (!session) {
       // 接続を開く前に表へ載せる。接続数の最大値 (`#recordPeak`) が、この窓口を数えるため。
       session = this.#createSession(url, key);
       this.#pool.set(key, session);
     }
     const reserved = (options?.reserved ?? false) || options?.lane === "signer";
-    if (!session.ensureConnected(reserved)) {
+    if (!session.ensureConnected(reserved, waitMs)) {
       if (created) this.#pool.delete(key);
       return undefined;
     }
@@ -320,7 +350,7 @@ export class ConnectionPool {
     if (this.isBlocked(url)) {
       return Promise.reject(new Error(`blocked relay: ${url}`));
     }
-    const session = this.#acquire(url, options);
+    const session = this.#acquire(url, options, true);
     if (!session) {
       return Promise.reject(
         new Error(`connection budget exhausted for ${url}`),

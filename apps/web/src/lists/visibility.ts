@@ -1,15 +1,19 @@
 import type { ItemVisibility } from "@streets/core/nostr/private-tags";
+import { t } from "../i18n/locale";
 
+// 設定の画面からも引かれる。最上位で t() を呼ぶと言語を切り替えても変わらないので、
+// 読んだ時点で引く getter にする。
 export const VISIBILITY_LABEL: Record<ItemVisibility, string> = {
-  private: "非公開",
-  public: "公開",
+  get private() {
+    return t("lists.visibility.label.private");
+  },
+  get public() {
+    return t("lists.visibility.label.public");
+  },
 };
 
-export const MEMBER_VISIBILITY_HINT: Record<ItemVisibility, string> = {
-  private:
-    "非公開：暗号化して保存するので、この人をリストに入れたことはほかの人には分かりません。",
-  public: "公開：この人をリストに入れたことを、ほかの人も見られます。",
-};
+export const memberVisibilityHint = (visibility: ItemVisibility): string =>
+  t(`lists.visibility.memberHint.${visibility}`);
 
 /** 公開範囲を選ぶ欄の選択肢。非公開を扱えない署名器では、非公開を選べなくする。 */
 export const visibilityOptions = (privateReady: boolean) => [
@@ -17,7 +21,7 @@ export const visibilityOptions = (privateReady: boolean) => [
     value: "private" as const,
     label: VISIBILITY_LABEL.private,
     disabled: !privateReady,
-    hint: "今のログインの方法では、非公開のメンバーを扱えません",
+    hint: t("lists.visibility.privateUnavailable"),
   },
   { value: "public" as const, label: VISIBILITY_LABEL.public },
 ];
@@ -27,9 +31,9 @@ export type Membership = ItemVisibility | "none";
 
 /** 「リストに追加」で、リストごとに選ぶ欄の選択肢。 */
 export const membershipOptions = (privateReady: boolean) => [
-  { value: "none" as const, label: "入れない" },
+  { value: "none" as const, label: t("lists.visibility.none") },
   ...visibilityOptions(privateReady),
 ];
 
-export const MEMBERSHIP_HINT =
-  "非公開で入れると暗号化して保存するので、入れたことはほかの人には分かりません。公開で入れたことは、ほかの人も見られます。";
+export const membershipHint = (): string =>
+  t("lists.visibility.membershipHint");

@@ -1,0 +1,107 @@
+{
+  "picker": {
+    "insert": "Insert emoji",
+    "react": "React",
+    "search": "Search emoji",
+    "searchPlaceholder": "Search emoji (e.g. cat)",
+    "groups": "Emoji categories",
+    "recent": "Frequently used",
+    "results": "Search results",
+    "loading": "Loading…",
+    "notFound": "Nothing found"
+  },
+  "groups": {
+    "smileys": "Smileys & emotion",
+    "people": "People & body",
+    "animals": "Animals & nature",
+    "food": "Food & drink",
+    "travel": "Travel & places",
+    "activities": "Activities",
+    "objects": "Objects",
+    "symbols": "Symbols",
+    "flags": "Flags"
+  },
+  "write": {
+    "saved": "Saved your emoji",
+    "saveFailed": "Couldn't save your emoji",
+    "makeFailed": "Couldn't create the custom emoji",
+    "registerFailed": "Couldn't add it to your emoji"
+  },
+  "set": {
+    "unnamed": "Emoji sets without a name can't be shown",
+    "count": {
+      "one": "{{ count }} emoji",
+      "other": "{{ count }} emoji"
+    },
+    "imageFailed": "Couldn't load the image",
+    "empty": "No emoji in this set",
+    "more": "{{ count }} more",
+    "added": "In your emoji list",
+    "add": "Add to your emoji list"
+  },
+  "maker": {
+    "title": "Create a custom emoji",
+    "placeholder": "Custom",
+    "fonts": {
+      "gothic": "Sans-serif",
+      "rounded": "Rounded sans-serif",
+      "serif": "Serif"
+    },
+    "tooManyChars": "Up to {{ max }} characters (currently {{ count }})",
+    "tooManyLines": "Up to {{ max }} lines",
+    "submit": {
+      "send": {
+        "plain": "Send this",
+        "register": "Save and send"
+      },
+      "insert": {
+        "plain": "Insert this",
+        "register": "Save and insert"
+      }
+    },
+    "shortcodeInvalid": "Only half-width letters, numbers, “_” and “-” are allowed",
+    "realSize": "Actual size",
+    "missingChars": "Some characters can't be drawn ({{ chars }}). You can use kana, kanji (up to JIS level 2), letters, numbers and symbols.",
+    "cramped": "It may be hard to read when shown small. A wide shape reads better.",
+    "text": "Text",
+    "hintAuto": "Lines break automatically to fit. Up to {{ maxChars }} characters and {{ maxLines }} lines.",
+    "hintManual": "Lines follow the breaks you type. Up to {{ maxChars }} characters and {{ maxLines }} lines.",
+    "autoBreak": "Break lines automatically",
+    "preset": "Presets",
+    "color": "Text color",
+    "outline": "Outline",
+    "outlineAuto": "Auto",
+    "outlinePick": "Pick a color",
+    "outlineNone": "None",
+    "outlineColor": "Outline color",
+    "font": "Font",
+    "shape": "Shape",
+    "shapeSquare": "Square",
+    "shapeWide": "Wide",
+    "fit": "Letter shape",
+    "fitStretch": "Stretch",
+    "fitKeep": "Keep",
+    "align": "Align",
+    "alignLeft": "Left",
+    "alignCenter": "Center",
+    "alignRight": "Right",
+    "shortcode": "Shortcode (optional)",
+    "shortcodeReplace": "“{{ shortcode }}” is already in your emoji. Saving will replace it with this one.",
+    "shortcodeHint": "The name used to call it as :name:. Apps that can't show custom emoji display this name as text. If empty, one is chosen for you.",
+    "register": "Save to your emoji",
+    "back": "Back",
+    "registerOnly": "Save",
+    "registerOnlyShort": "Save only"
+  },
+  "footer": {
+    "lastStyle": "Last used style",
+    "create": "Create a custom emoji",
+    "tooLong": "Custom emoji can be up to {{ max }} characters",
+    "missingChars": "Some characters can't be drawn ({{ chars }})",
+    "candidate": {
+      "send": "Send “{{ text }}” in {{ style }} style",
+      "insert": "Insert “{{ text }}” in {{ style }} style"
+    },
+    "adjust": "Adjust"
+  }
+}

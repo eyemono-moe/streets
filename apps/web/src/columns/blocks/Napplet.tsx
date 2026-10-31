@@ -40,7 +40,7 @@ import {
   type NappletSession,
 } from "@streets/core/napplet/session";
 import { prepareNappletSrcdoc } from "@streets/core/napplet/srcdoc";
-import { kindLabel } from "@streets/core/nostr/kind-support";
+import { kindName } from "@streets/core/nostr/kind-support";
 import {
   type Component,
   Show,
@@ -52,6 +52,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { useEventActions } from "../../actions";
+import { locale } from "../../i18n/locale";
 import { useUploader } from "../../media/uploader";
 import ActionSheet from "../../napplet/ActionSheet";
 import { appletConfig } from "../../napplet/applet-config";
@@ -386,16 +387,13 @@ const Napplet: Component<{
           rememberable(draft.kind) &&
           hasGrant(library() ?? emptyAppletLibrary(), self, key);
         if (!granted) {
-          const label = kindLabel(draft.kind);
+          const label = kindName(draft.kind, locale());
           const approved = await new Promise<{ remember: boolean } | undefined>(
             (answer) =>
               setWriting({
                 source: sourceTitle,
                 kind: draft.kind,
-                kindLabel:
-                  label === "イベント"
-                    ? `kind:${draft.kind} のイベント`
-                    : label,
+                kindLabel: label ?? `kind:${draft.kind} のイベント`,
                 content: draft.content,
                 mentions: [
                   ...new Set(

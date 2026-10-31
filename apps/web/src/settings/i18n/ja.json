@@ -1,0 +1,754 @@
+{
+  "pages": {
+    "account": "アカウント",
+    "relays": "リレー",
+    "media": "画像",
+    "search": "検索",
+    "emoji": "絵文字",
+    "mute": "ミュート",
+    "keyboard": "キーボード",
+    "display": "表示",
+    "privacy": "プライバシー",
+    "applets": "アップレット",
+    "stats": "統計"
+  },
+  "items": {
+    "profile": {
+      "title": "プロフィール",
+      "keywords": []
+    },
+    "profileDisplayName": {
+      "title": "表示名",
+      "keywords": ["プロフィール名", "名前"]
+    },
+    "profileName": {
+      "title": "ユーザー名",
+      "keywords": ["ハンドル"]
+    },
+    "profileAbout": {
+      "title": "自己紹介",
+      "description": "ほかの人に見えるプロフィールの文章",
+      "keywords": ["プロフィール文", "bio"]
+    },
+    "profilePicture": {
+      "title": "アイコン画像",
+      "description": "プロフィールに表示する画像",
+      "keywords": ["プロフィール画像", "アバター"]
+    },
+    "profileBanner": {
+      "title": "ヘッダー画像",
+      "keywords": ["バナー画像"]
+    },
+    "profileNip05": {
+      "title": "ドメインでの本人確認（NIP-05）",
+      "keywords": ["認証", "ドメイン"]
+    },
+    "profileWebsite": {
+      "title": "Web サイト",
+      "keywords": ["URL", "ホームページ"]
+    },
+    "profileLud16": {
+      "title": "Zap の受け取り先（ライトニングアドレス）",
+      "keywords": ["投げ銭", "ウォレット"]
+    },
+    "accountId": {
+      "title": "あなたの ID",
+      "keywords": ["公開鍵", "npub"]
+    },
+    "relays": {
+      "title": "使うリレー",
+      "keywords": ["接続先", "投稿先", "読むリレー"]
+    },
+    "blockedRelays": {
+      "title": "繋がないリレー",
+      "keywords": ["ブロック", "接続拒否"]
+    },
+    "relayRecommendations": {
+      "title": "おすすめのリレー",
+      "keywords": []
+    },
+    "readRouting": {
+      "title": "投稿を読むリレー",
+      "keywords": ["読み取り", "ルーティング"]
+    },
+    "readRedundancy": {
+      "title": "投稿を探すリレーの数",
+      "keywords": ["1 人あたり", "取りこぼし", "冗長"]
+    },
+    "fallbackRelays": {
+      "title": "既定のリレー",
+      "keywords": ["フォールバック", "fallback"]
+    },
+    "relayPlan": {
+      "title": "いま使っているリレー",
+      "keywords": []
+    },
+    "relayTraffic": {
+      "title": "リレーとの通信量",
+      "keywords": []
+    },
+    "imageDisplay": {
+      "title": "画像の表示",
+      "description": "画像を画面に合う大きさに縮め、メモリの使用を減らす",
+      "keywords": ["画像を縮める", "メモリ"]
+    },
+    "imageUpload": {
+      "title": "画像のアップロード先",
+      "description": "投稿に付ける画像を置くサーバー",
+      "keywords": ["Blossom", "サーバー"]
+    },
+    "searchHistory": {
+      "title": "検索履歴",
+      "description": "探した条件を、検索パネルからすぐ探し直せるように残す",
+      "keywords": ["履歴", "最近の検索"]
+    },
+    "searchRelays": {
+      "title": "検索するリレー",
+      "keywords": ["検索先"]
+    },
+    "reactionEmoji": {
+      "title": "いいねボタンの絵文字",
+      "keywords": ["リアクション"]
+    },
+    "emojiList": {
+      "title": "自分の絵文字リスト",
+      "keywords": []
+    },
+    "emojiFind": {
+      "title": "絵文字セットを探す",
+      "keywords": []
+    },
+    "emojiManage": {
+      "title": "もっと絵文字を管理する",
+      "keywords": []
+    },
+    "muteAdd": {
+      "title": "ミュートを足す",
+      "keywords": ["非表示"]
+    },
+    "muteList": {
+      "title": "ミュートしているもの",
+      "keywords": ["非表示", "解除"]
+    },
+    "shortcuts": {
+      "title": "ショートカットキー",
+      "keywords": ["キー割り当て"]
+    },
+    "columnDigits": {
+      "title": "数字キーでのカラム移動",
+      "keywords": ["カラム切替"]
+    },
+    "language": {
+      "title": "言語",
+      "keywords": ["Language", "English", "日本語", "ブラウザ"]
+    },
+    "theme": {
+      "title": "カラーテーマ",
+      "description": "画面を明るい色にするか暗い色にするか選ぶ",
+      "keywords": ["ダークモード", "ライトモード"]
+    },
+    "contrast": {
+      "title": "コントラスト",
+      "description": "文字と背景の明るさの差を選ぶ",
+      "keywords": ["文字", "背景", "見やすさ", "濃さ"]
+    },
+    "accent": {
+      "title": "アクセントカラー",
+      "keywords": ["色", "テーマ"]
+    },
+    "preview": {
+      "title": "プレビュー",
+      "keywords": []
+    },
+    "deckLayout": {
+      "title": "カラムの並べ方",
+      "description": "カラムを横に並べるか一列ずつ切り替えるかを選ぶ",
+      "keywords": ["レイアウト", "1列", "複数列"]
+    },
+    "swipeMode": {
+      "title": "スワイプでカラムを切り替える",
+      "description": "1 列ずつのときに左右へ払うと何が起きるかを選ぶ",
+      "keywords": ["スワイプ", "左右", "一周", "ループ", "メニュー"]
+    },
+    "columnWidth": {
+      "title": "カラムの幅",
+      "description": "横に並べたカラムを画面の幅いっぱいに広げる",
+      "keywords": ["column width", "横幅", "広げる"]
+    },
+    "contentWarning": {
+      "title": "閲覧注意の投稿",
+      "keywords": ["センシティブ", "警告"]
+    },
+    "chatOrder": {
+      "title": "チャットの並び順",
+      "description": "チャットで新しい発言を下に足すか上に足すかを選ぶ",
+      "keywords": [
+        "パブリックチャット",
+        "チャンネル",
+        "新しい発言",
+        "上から",
+        "下から"
+      ]
+    },
+    "timeFormat": {
+      "title": "投稿の時刻",
+      "description": "投稿の時刻を絶対時間で出すか相対時間で出すかを選ぶ",
+      "keywords": ["相対時間", "絶対時間", "経過時間", "何分前", "日時"]
+    },
+    "writeProgress": {
+      "title": "ローディング表示",
+      "keywords": ["保存の進み具合", "アップロード"]
+    },
+    "actionLayout": {
+      "title": "アクション欄",
+      "keywords": ["投稿の操作", "並べ替え"]
+    },
+    "clientTag": {
+      "title": "使用しているアプリの表示",
+      "keywords": ["client tag", "クライアント"]
+    },
+    "notifyQuoted": {
+      "title": "引用した相手への通知",
+      "keywords": ["引用", "quote", "メンション", "p tag"]
+    },
+    "errorReport": {
+      "title": "不具合と動作の速さの報告",
+      "keywords": ["エラー報告", "計測"]
+    },
+    "intentDefaults": {
+      "title": "開く先の既定",
+      "description": "人や投稿を、どのアップレットで開くか",
+      "keywords": ["既定のアプリ", "アプリで開く", "napplet", "NAP-INTENT"]
+    }
+  },
+  "section": {
+    "reset": "既定に戻す",
+    "resetLabel": "{{title}}を既定に戻す"
+  },
+  "privacy": {
+    "clientTag": {
+      "description": "投稿に、Streets から投稿したことを示す印を付けます。ほかのアプリでは「Streets から投稿」のように表示され、どのアプリを使っているかを誰でも見られるようになります。一度送った投稿からは、あとから外せません。",
+      "switch": "投稿に Streets から投稿したことを示す"
+    },
+    "notifyQuoted": {
+      "description": "投稿を引用したとき、引用した投稿を書いた人に通知が届くようにします。オフにすると、引用したことは相手に知らされません。引用ボタンを使ったときも、本文に投稿へのリンクを貼ったときも同じです。本文で名前を書いて呼びかけた人には、オフでも通知が届きます。",
+      "switch": "引用した投稿を書いた人に通知する"
+    },
+    "errorReport": {
+      "description": "不具合が起きたときのエラーの内容と、画面の読み込みや操作にかかった時間を、端末・ブラウザの情報とあわせて開発元へ送信します。署名やログインで失敗したときは、ログインの方法（拡張機能の種類、署名器とやりとりするリレー）も送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。",
+      "switch": "不具合と動作の速さの報告を送信する"
+    }
+  },
+  "details": {
+    "title": "詳しく"
+  },
+  "fallbackRelays": {
+    "description": "リレーの設定が見つからない人の投稿を読むときや、あなたの書き込みリレーが無いときの送り先に使うリレーです。{{ max }} 本まで指定できます。1 本も指定しなければ、Streets が決めたリレーを使います。",
+    "usingDefault": "いまは Streets が決めたリレー（{{ relays }}）を使っています。",
+    "listLabel": "既定のリレー"
+  },
+  "defaultReaction": {
+    "heart": "ハート",
+    "pickerTitle": "いいねボタンの絵文字を選ぶ",
+    "pick": "絵文字を選ぶ",
+    "reset": "ハートに戻す"
+  },
+  "palettes": {
+    "label": "色の組み合わせ",
+    "purple": "紫",
+    "cyan": "シアン",
+    "lime": "ライム",
+    "orange": "オレンジ",
+    "pink": "ピンク"
+  },
+  "blockedRelays": {
+    "saved": "繋がないリレーを保存しました",
+    "saveFailed": "繋がないリレーを保存できませんでした",
+    "hintPrivate": "非公開：暗号化して保存するので、どのリレーに繋がないかはほかの人には分かりません。",
+    "hintPublic": "公開：どのリレーに繋がないかを、ほかの人も見られます。",
+    "noticeUnavailable": "今のログインの方法では非公開の項目を扱えないため、公開の項目だけを表示しています。",
+    "noticeInvalid": "非公開の項目を読み取れませんでした。公開の項目だけを表示しています。前に非公開で入れたリレーにも、引き続きつなぎません。",
+    "description": "フォローしている人の投稿を読むときや、返信を相手に届けるときは、その人が使っているリレーへ自動でつなぎます。ここに入れたリレーには、どの場面でもつなぎません。",
+    "ownBlocked": "自分のアカウントで使っているリレーのうち {{ relays }} も繋がないリレーに入っているため、そこへは読み書きしません。",
+    "separator": "、",
+    "empty": "まだありません。つないでほしくないリレーの URL を入力してください。",
+    "count": {
+      "one": "繋がないリレー {{ count }} 件",
+      "other": "繋がないリレー {{ count }} 件"
+    },
+    "removeLabel": "{{ relay }} を一覧から外す",
+    "remove": "一覧から外す",
+    "recent": {
+      "title": "最近つながらなかったリレー",
+      "description": "このタブを開いてから、つながらなかったリレーや、使わせてもらえなかったリレーです。「繋がない」を押すと、上で選んでいる公開範囲で追加します。",
+      "unreachable": "つながらない",
+      "authRequired": "ログインを求められた",
+      "restricted": "許可された人しか使えない",
+      "count": {
+        "one": "{{ count }} 回",
+        "other": "{{ count }} 回"
+      },
+      "detail": "リレーの説明：{{ detail }}",
+      "block": "繋がない",
+      "blockLabel": "{{ relay }} に繋がない"
+    }
+  },
+  "searchRelays": {
+    "saved": "検索するリレーを保存しました",
+    "saveFailed": "検索するリレーを保存できませんでした"
+  },
+  "media": {
+    "notAdded": "アップロード先に足しませんでした",
+    "added": "アップロード先に追加しました",
+    "nip96Warning": "{{ host }} は古い方式（NIP-96）のアップロード先です。将来的にこのアップロード先は使用できなくなる可能性があります",
+    "unknownWarning": "{{ host }} から応答を読み取れませんでした。画像のアップロードに失敗する可能性があります",
+    "saved": "画像のアップロード先を保存しました",
+    "saveFailed": "画像のアップロード先を保存できませんでした",
+    "downscaling": {
+      "description": "オンにすると、画像を画面に合う大きさに縮めてから表示します。使うメモリが減り、動作が軽くなる可能性がありますが、最初の表示は遅くなります。オフにすると、元の画像をそのまま読むため、最初の表示は早くなりますが、メモリを多く使う場合があります。",
+      "switch": "画像を縮めて表示する"
+    },
+    "upload": {
+      "description": "投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へアップロードして、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへアップロードします。",
+      "notChosen": "まだ自分で選んでいません。いまは下のアップロード先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。",
+      "empty": "アップロード先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL を入れてください。",
+      "nip96": "古い方式（NIP-96）のアップロード先です。将来的にこのアップロード先は使用できなくなる可能性があります",
+      "primary": "いちばん先に試す",
+      "removeLabel": "{{ server }} を一覧から外す",
+      "remove": "一覧から外す",
+      "recommended": "おすすめ",
+      "urlLabel": "足すアップロード先の URL",
+      "add": "追加",
+      "hint": "アップロード先は自分で選べます。運営者や保存期間はサーバーごとに違うので、アップロードしたものが消えても困らないものだけを置いてください。"
+    }
+  },
+  "mute": {
+    "saved": "ミュートを保存しました",
+    "saveFailed": "ミュートを保存できませんでした",
+    "types": {
+      "pubkey": {
+        "label": "ユーザー",
+        "placeholder": "npub1… または nprofile1…",
+        "invalid": "npub1… か nprofile1… で始まる、ユーザーの ID を入力してください",
+        "inputLabel": "ミュートするユーザー"
+      },
+      "thread": {
+        "label": "イベント",
+        "placeholder": "note1… または nevent1…",
+        "invalid": "note1… か nevent1… で始まる、イベントの ID を入力してください",
+        "inputLabel": "ミュートするイベント"
+      },
+      "hashtag": {
+        "label": "ハッシュタグ",
+        "placeholder": "# は付けなくてもかまいません",
+        "invalid": "ハッシュタグを入力してください",
+        "inputLabel": "ミュートするハッシュタグ"
+      },
+      "word": {
+        "label": "単語",
+        "placeholder": "隠したい言葉",
+        "invalid": "単語を入力してください",
+        "inputLabel": "ミュートする単語"
+      }
+    },
+    "hintPrivate": "非公開：暗号化して保存するので、ミュートしていることはほかの人には分かりません。",
+    "hintPublic": "公開：ミュートしていることを、ほかの人も見られます。",
+    "description": "見たくない人・イベント・ハッシュタグ・単語を、ホームや通知、検索から隠します。人のページやスレッドを自分で開いたときは隠しません。",
+    "noticeUnavailable": "今のログインの方法では非公開のミュートを扱えないため、公開のミュートだけを表示しています。",
+    "noticeInvalid": "非公開のミュートを読み取れませんでした。公開のミュートだけを表示しています。",
+    "listTitle": "ミュートしているもの（{{ count }}）",
+    "empty": "まだ何もミュートしていません。",
+    "menuHint": "イベントやユーザーは、投稿の右上のメニューからもミュートできます。",
+    "already": "もうミュートしています",
+    "typeLabel": "ミュートするものの種類",
+    "private": "非公開",
+    "public": "公開",
+    "peopleLabel": "人の候補",
+    "unmute": "ミュートを解除",
+    "openEvent": "このイベントを開く"
+  },
+  "profile": {
+    "saved": "プロフィールを保存しました",
+    "saveFailed": "プロフィールを保存できませんでした"
+  },
+  "relays": {
+    "detailsSummary": "投稿を読むリレーの決め方・投稿を探すリレーの数・既定のリレー",
+    "saved": "リレーの設定を保存しました",
+    "saveFailed": "リレーの設定を保存できませんでした",
+    "description": "リレーは、投稿やリアクションをアップロードして保存しておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。",
+    "loading": "読み込み中…",
+    "noneChosen": "まだリレーを選んでいません。いまは次のリレーを使っています。",
+    "usage": {
+      "both": "両方",
+      "read": "読み込み",
+      "write": "書き込み"
+    },
+    "usageLabel": "{{ relay }} の使い方",
+    "lastUsageHint": "これにすると、読み込みか書き込みに使うリレーが 1 つも無くなります",
+    "removeLabel": "{{ relay }} を一覧から外す",
+    "lastRemoveHint": "これを外すと、読み込みか書き込みに使うリレーが 1 つも無くなります"
+  },
+  "emojiSearch": {
+    "invalidAddress": "絵文字セットの住所（naddr）ではありません",
+    "label": "絵文字セットを探す",
+    "placeholder": "ねこ / @名前 / npub1… / naddr1…",
+    "peopleLabel": "人の候補",
+    "submit": "探す",
+    "searching": "探しています…",
+    "notFound": "見つかりませんでした。言葉での検索に答えるリレーは多くありません。入力を空にして押すと新しく作られたものが並びます。作った人の npub か、セットの naddr を貼っても取り込めます。"
+  },
+  "emoji": {
+    "pageDescription": "いいねボタンで送る絵文字と、リアクションのピッカーに出る絵文字を設定します"
+  },
+  "stats": {
+    "pageDescription": "リレーとやりとりしたデータの量と、いま投稿を読んでいるリレーです。"
+  },
+  "search": {
+    "resultsLabel": "検索結果",
+    "resultsTitle": "設定の検索結果",
+    "noResults": "該当する設定はありません。",
+    "label": "設定を検索",
+    "relays": {
+      "description": "言葉での検索は、検索に対応したリレー（NIP-50）へ問い合わせます。投稿を読むリレーとは別に指定できます。上から順に、すべてへ問い合わせます。",
+      "notChosen": "まだ自分で選んでいません。いまは下のリレーへ問い合わせています。外したり足したりすると、その一覧を自分の設定として保存します。",
+      "empty": "検索するリレーがありません。このままでは言葉で検索できません。下のおすすめから足すか、URL を入力してください。",
+      "removeLabel": "{{ relay }} を一覧から外す",
+      "remove": "一覧から外す",
+      "recommended": "おすすめ",
+      "hint": "検索に対応していないリレーを入れても、そこからは結果が返りません。"
+    },
+    "history": {
+      "description": "探した条件を、検索パネルの入力欄が空のときに並べます。アカウントごとにこの端末だけに残し、リレーには送りません。オフにすると、それまでの履歴も消します。",
+      "switch": "検索履歴を残す"
+    }
+  },
+  "dialog": {
+    "title": "設定",
+    "descriptionSignedIn": "アカウントと、この端末の表示を設定します。",
+    "descriptionSignedOut": "この端末の表示を設定します。アカウントの設定は、ログインすると使えます。"
+  },
+  "relayUse": {
+    "addTitle": "このリレーを自分も使いますか？",
+    "changeTitle": "このリレーの使い方を変えますか？",
+    "usageLabel": "このリレーの使い方",
+    "stopHint": "使うのをやめるときは、設定の「リレー」から外してください。",
+    "cancel": "キャンセル",
+    "add": "追加",
+    "change": "変更",
+    "use": "自分も使う",
+    "inUse": "使用中",
+    "changeLabel": "{{ relay }} の使い方を変える"
+  },
+  "relaySummary": {
+    "description": "説明",
+    "admin": "管理者",
+    "contact": "連絡先",
+    "status": {
+      "inUse": "つながっています",
+      "failing": "つながりにくくなっています",
+      "idle": "今は使っていません"
+    }
+  },
+  "readRouting": {
+    "outbox": "人ごとに選ぶ",
+    "direct": "読み込みリレーだけ",
+    "label": "投稿を読むリレー",
+    "description": "ふつうは、フォローしている人ごとに、その人が書き込みに使っているリレーを探して投稿を読みます。その人のリレーの設定が見つからないと、決まったリレーから読むので、手元で動かしているリレーや、限られた人だけのリレーにある投稿は出ないことがあります。「読み込みリレーだけ」にすると、誰の投稿も、「使うリレー」で「読み込み」にしたリレーから読みます。",
+    "readingFallback": "読み込みにしたリレーが無いので、いまは次のリレーから読んでいます。",
+    "reading": "いまは次のリレーから読んでいます。"
+  },
+  "readRedundancy": {
+    "defaultOption": "{{ value }}（既定）",
+    "label": "投稿を探すリレーの数",
+    "description": "フォローしている人ごとに、その人が書き込みに使っているリレーのうち何本から読むか設定します。増やすと、どれかのリレーに投稿が届いていなくても拾いやすくなりますが、つなぐリレーと通信量が増えます。",
+    "current": {
+      "one": "いまは {{ count }} 本のリレーから読んでいます。",
+      "other": "いまは {{ count }} 本のリレーから読んでいます。"
+    },
+    "increase": "{{ more }} 本にすると {{ preview }} 本ほどになります。",
+    "backToDefault": "既定の {{ default }} 本なら {{ preview }} 本です。",
+    "budgetReached": "同時につなげる {{ budget }} 本に届いています。収まらない分は、多くの人が使っているリレーから順に選びます。"
+  },
+  "recommendations": {
+    "description": "フォローしている人がよく使っているリレーの一覧です。",
+    "collecting": "フォローしている人のリレーを集めています…",
+    "noFollowees": "フォローしている人がいないので、おすすめを出せません。",
+    "empty": "フォローしている人のリレーの設定が見つからなかったので、おすすめを出せません。",
+    "discovering": "応答の速さと対応している機能を調べています…",
+    "discoveryMissing": "応答の速さと対応している機能は分からなかったので、使っている人の数だけで並べています。",
+    "showMore": "残り {{ count }} 件を見る",
+    "separator": "・",
+    "nips": {
+      "basic": "基本の読み書き",
+      "deletion": "削除",
+      "info": "リレーの情報"
+    },
+    "reason": {
+      "users": {
+        "one": "フォロー中の {{ count }} 人が使用",
+        "other": "フォロー中の {{ count }} 人が使用"
+      },
+      "latency": "応答 {{ ms }}ms",
+      "nipsOk": "必要な機能に対応",
+      "nipsMissing": "{{ nips }}に未対応",
+      "payment": "書き込みに支払いが必要",
+      "auth": "ログインが必要"
+    }
+  },
+  "relayPlan": {
+    "groupByRelay": "リレーごと",
+    "groupByPerson": "人ごと",
+    "description": "投稿を読むために、いまつないでいるリレーと、その理由です。フォローしている人ごとにリレーを選んでいるときは、「使うリレー」に無いリレーもここに並びます。",
+    "read": "読み込み",
+    "write": "書き込み",
+    "groupingLabel": "並べ方",
+    "readingNone": "いまはどのリレーからも読んでいません。",
+    "writers": "書き込みに使っている人",
+    "writeFallback": "書き込みにしたリレーが無いので、既定のリレーへ送っています",
+    "writeOwn": "あなたの書き込みリレー",
+    "reason": {
+      "ownRead": "あなたの読み込みリレー",
+      "writers": {
+        "one": "{{ count }} 人が書き込みに使っている",
+        "other": "{{ count }} 人が書き込みに使っている"
+      },
+      "fallback": "リレーの設定が分からない人のための既定のリレー",
+      "ownReadNotifications": "あなたの読み込みリレー（通知など）",
+      "column": "カラムで指定したリレー",
+      "separator": "・"
+    },
+    "showMore": "ほか {{ count }} 人を見る",
+    "notes": {
+      "unroutableWithRelays": {
+        "one": "{{ count }} 人はリレーの設定が見つからないので、既定のリレー（{{ relays }}）から読んでいます。",
+        "other": "{{ count }} 人はリレーの設定が見つからないので、既定のリレー（{{ relays }}）から読んでいます。"
+      },
+      "unroutable": {
+        "one": "{{ count }} 人はリレーの設定が見つからないので、既定のリレーから読んでいます。",
+        "other": "{{ count }} 人はリレーの設定が見つからないので、既定のリレーから読んでいます。"
+      },
+      "unroutableSearching": {
+        "one": "{{ count }} 人のリレーの設定を探しています。見つかるまでは既定のリレーから読みます。",
+        "other": "{{ count }} 人のリレーの設定を探しています。見つかるまでは既定のリレーから読みます。"
+      },
+      "uncovered": {
+        "one": "{{ count }} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないか、その人のリレーをすべて繋がないリレーにしているため、どこからも読めていません。",
+        "other": "{{ count }} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないか、その人のリレーをすべて繋がないリレーにしているため、どこからも読めていません。"
+      }
+    },
+    "searchLabel": "名前で探す",
+    "groups": {
+      "unroutable": "リレーの設定が見つからない",
+      "unroutableNoteWithRelays": "書き込みに使うリレーを公開していないので、既定のリレー（{{ relays }}）から読んでいます。",
+      "unroutableNote": "書き込みに使うリレーを公開していないので、既定のリレーから読んでいます。",
+      "unroutableSearching": "リレーの設定を探しています。見つかるまでは既定のリレーから読みます。",
+      "uncovered": "どこからも読めていない",
+      "uncoveredDetail": {
+        "one": "公開している {{ count }} 本のリレーから読めていません",
+        "other": "公開している {{ count }} 本のリレーから読めていません"
+      },
+      "routed": "リレーを選んで読んでいる",
+      "routedPartial": "公開している {{ declared }} 本のうち {{ used }} 本から読んでいます",
+      "routedAll": {
+        "one": "公開している {{ count }} 本から読んでいます",
+        "other": "公開している {{ count }} 本から読んでいます"
+      },
+      "none": "いまは誰の投稿も、人を決めて読んでいません。",
+      "notFound": "見つかりませんでした。"
+    },
+    "people": {
+      "one": "{{ count }} 人",
+      "other": "{{ count }} 人"
+    }
+  },
+  "traffic": {
+    "duration": {
+      "seconds": "{{ seconds }} 秒",
+      "minutes": "{{ minutes }} 分",
+      "hours": "{{ hours }} 時間 {{ minutes }} 分"
+    },
+    "description": "このタブを開いてから、リレーとやりとりしたデータの量です。回線で圧縮される前のサイズで表示しています。",
+    "since": "{{ time }} から（{{ duration }}）",
+    "reset": "数え直す",
+    "received": "受け取った",
+    "sent": "送った",
+    "events": "イベント",
+    "duplicates": "重複",
+    "duplicatesNote": "別のリレーから先に受け取っていたもの",
+    "none": "まだどのリレーともやりとりしていません。",
+    "noEvents": "受け取ったイベントはありません",
+    "eventSummary": "イベント {{ events }}・重複 {{ percent }}%",
+    "other": "そのほか",
+    "receivedBreakdown": "{{ total }}（イベント {{ events }}・そのほか {{ rest }}）",
+    "connectedTime": "つないでいた時間",
+    "connectedWithReconnects": {
+      "one": "{{ duration }}（つなぎ直し {{ count }} 回）",
+      "other": "{{ duration }}（つなぎ直し {{ count }} 回）"
+    },
+    "subscriptions": "同時の購読",
+    "subscriptionsValue": "いま {{ current }}・いちばん多いとき {{ peak }}",
+    "queued": "待たせた取得",
+    "queuedValue": {
+      "one": "{{ count }} 回（リレーが同時に受ける購読の数に達していた）",
+      "other": "{{ count }} 回（リレーが同時に受ける購読の数に達していた）"
+    },
+    "kinds": "イベントの種類"
+  },
+  "keyboard": {
+    "conflict": "{{ action }} で使っています",
+    "digitsReserved": "1〜9 はカラムを見せるのに使っています",
+    "description": "使用するキーを変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。",
+    "pressKey": "キーを押してください…",
+    "cancel": "やめる",
+    "change": "変更",
+    "resetLabel": "{{ action }} を既定のキーに戻す",
+    "digits": {
+      "description": "オンにすると、1〜9 の数字キーを押したときに、その番号のカラムに移動し、↑↓ でそのカラムを送れるようになります。オフにすると、数字キーは効かなくなります。",
+      "switch": "数字キーでカラムへ移動する"
+    },
+    "unused": "使わない"
+  },
+  "actionLayout": {
+    "toMenu": "「{{ action }}」をメニューへ移す",
+    "barFull": "アクション欄は {{ max }} 個までです",
+    "toBar": "「{{ action }}」をアクション欄へ出す",
+    "moveInBar": "「{{ action }}」を動かす（アクション欄）",
+    "moveInMenu": "「{{ action }}」を動かす（メニュー）",
+    "moveHint": "掴んで上下に動かすか、↑↓ キーで動かす",
+    "barHeading": "アクション欄（{{ count }} / {{ max }}）",
+    "menuHeading": "右上のメニュー（{{ count }}）"
+  },
+  "display": {
+    "contentWarning": {
+      "hide": "隠す",
+      "show": "常に表示",
+      "exclude": "一覧に出さない",
+      "description": "投稿した人が「見る前に確かめてほしい」と印を付けた投稿の扱いを選びます。「隠す」では本文や画像の代わりに閲覧注意の理由を出し、「表示する」を押すと中身を出します。「一覧に出さない」ではタイムラインや通知に並べません（自分の投稿は並べます）。"
+    },
+    "deckLayout": {
+      "auto": "画面幅に合わせる",
+      "single": "1 列",
+      "multi": "複数列",
+      "description": "カラムを横に並べるか、1 列ずつ切り替えて見せるかを選びます。「画面幅に合わせる」では、スマホのような狭い画面で 1 列、それより広い画面で横に並べます。「複数列」で幅が足りないときは、横にスクロールして見ます。"
+    },
+    "swipeMode": {
+      "loop": "一周する",
+      "stop": "端で止まる",
+      "off": "切り替えない",
+      "description": "1 列ずつ見せるときに、画面を左右に払うと隣のカラムへ移ります。「一周する」では両端がつながります。「端で止まる」では、いちばん左のカラムからさらに右へ払うとメニューが出ます。「切り替えない」では、どこで右へ払ってもメニューが出て、カラムは下のアイコンで切り替えます。"
+    },
+    "chatOrder": {
+      "newestLast": "新しい発言を下に",
+      "newestFirst": "新しい発言を上に",
+      "description": "パブリックチャットのカラムで、新しい発言を一番下に表示するか、一番上に表示するかを選びます。「新しい発言を上に」では、メッセージ送信欄も上に表示します。"
+    },
+    "timeFormat": {
+      "absolute": "絶対時間",
+      "relative": "相対時間",
+      "description": "投稿の時刻を「12:34」のような絶対時間で出すか、「5分」「3時間」のような今からの相対時間で出すかを選びます。1 日より前の投稿は、どちらでも日付で出します。"
+    },
+    "theme": {
+      "system": "OS に合わせる",
+      "light": "ライト",
+      "dark": "ダーク",
+      "description": "画面を明るい色で表示するか、暗い色で表示するかを選びます。「OS に合わせる」にすると、端末のダークモードの設定に合わせて切り替わります。"
+    },
+    "contrast": {
+      "description": "文字と背景の明るさの差を選びます。右へ動かすと文字や区切り線がくっきりし、左へ動かすと画面がやわらかくなります。ライトでもダークでも効きます。"
+    },
+    "accent": {
+      "description": "ボタン、リンク、自分が付けたいいねなどに使う色を設定できます。",
+      "custom": "色を自分で選ぶ",
+      "accent": "アクセント",
+      "ui": "文字と背景の色味"
+    },
+    "columnWidth": {
+      "description": "オンにすると、横に並べたカラムを画面の幅いっぱいに広げて表示します。カラムごとの幅の比をS/M/Lから選んで設定できます。カラムが多くて入りきらないときは、横にスクロールできます。",
+      "switch": "カラムを画面の幅いっぱいに広げる"
+    },
+    "detailsSummary": "チャットの並び順、ローディング表示、アクション欄の並べ替え",
+    "writeProgress": {
+      "description": "投稿やいいね、設定を保存するとき、アップロード先のそれぞれのリレーに届いたかを画面の右下に出します。オフにすると、設定を保存 または 保存に失敗したときだけ表示します。",
+      "switch": "ローディングの進行状況を表示する"
+    },
+    "actionLayout": {
+      "description": "投稿の下に並べる操作を選びます。並べられるのは {{ max }} 個までで、残りは投稿の右上の「︙」のメニューに入ります。行を掴んで動かすか、右端のつまみを選んで ↑↓ キーで並べ替えます。"
+    }
+  },
+  "emojiList": {
+    "reactionDescription": "投稿の下のいいねボタンを押したときに送る絵文字です。選ばなければハートを送ります。",
+    "description": "リアクションのピッカーに出る絵文字の一覧です。誰かが作った絵文字セットを入れることも、絵文字を自分で 1 つずつ足すこともできます。",
+    "empty": "まだ何も入っていません。下から絵文字を追加すると、リアクションのピッカーに出るようになります。",
+    "individual": "1 つずつ足した絵文字",
+    "findDescription": "誰かが作った絵文字セットを見つけて、自分の絵文字リストに加えられます。",
+    "manageDescription": "絵文字セットの作成・整理は、専用のクライアントからも可能です。外部クライアントで設定した絵文字はStreetsにも反映されます。",
+    "openEmoemo": "emoemo を開く",
+    "openSet": "{{ name }} の中身を開く",
+    "removeSet": "{{ name }} を自分の絵文字から外す",
+    "remove": "外す",
+    "copied": "コピーしました",
+    "copyFailed": "コピーできませんでした",
+    "copy": "コピー",
+    "removeEmoji": ":{{ shortcode }}: を外す",
+    "addOne": "絵文字を 1 つ足す",
+    "howToMake": "絵文字の作り方",
+    "fromImage": "画像から作る",
+    "fromText": "文字から作る",
+    "make": "カスタム絵文字を作る",
+    "makeHint": "打った言葉から、色やフォントを選んで絵文字の画像を作り、自分の絵文字に足します。",
+    "errors": {
+      "missing": "名前と画像の URL を両方入力してください",
+      "invalidName": "名前は半角の英数字と _ - だけが使えます",
+      "invalidUrl": "画像の URL は http:// か https:// で始めてください",
+      "noUploadServer": "画像のアップロード先が設定されていません。「画像」の設定で追加してください。",
+      "uploadFailed": "画像をアップロードできませんでした"
+    },
+    "nameShort": "名前",
+    "nameLabel": "絵文字の名前",
+    "urlLabel": "絵文字の画像の URL",
+    "uploading": "アップロード中…",
+    "chooseImage": "画像を選ぶ",
+    "add": "追加",
+    "replaceHint": "同じ名前の絵文字が既に存在します。この状態で追加すると画像を更新することができます。",
+    "nameHint": "名前に使えるのは半角の英数字と _ - です（例: neko）。日本語や記号は使えません。"
+  },
+  "account": {
+    "profileDescription": "ほかの人に見える名前やアイコンです。ほかのアプリでも同じプロフィールが表示されます。",
+    "displayNameExample": "例：わたし",
+    "nameExample": "例：me",
+    "nameHint": "表示名の下に @ を付けて出ます。",
+    "nip05": {
+      "hintBefore": "持っているドメインで、このアカウントが自分のものだと示せます。",
+      "hintLink": "NIP-05 とは？",
+      "hintAfter": "",
+      "checking": "ドメインに確認しています…",
+      "verified": "ドメインで本人と確認できました",
+      "found": "このドメインには、別のアカウントが「{{ name }}」として登録されています。{{ domain }} の nostr.json で「{{ name }}」に書く公開鍵を、このアカウントのもの（hex）にしてください",
+      "missing": "{{ domain }} の nostr.json に「{{ name }}」が登録されていません。名前の綴りか、nostr.json の中身を確かめてください",
+      "unreachable": "確認できませんでした。アドレスが合っているか、https://{{ domain }}/.well-known/nostr.json をほかのサイトから読めるようになっているか（CORS の設定）を確かめてください"
+    },
+    "lud16Hint": "Zap（ビットコインでの投げ銭）を受け取るウォレットのアドレスです。ウォレットのアプリに表示されています。空欄なら、あなたの投稿に Zap は送れません。",
+    "unsavedWarning": "保存していない変更があります。保存するか、元に戻してから閉じてください",
+    "unsavedNotice": "保存するまで、ほかの人には反映されません",
+    "revert": "元に戻す",
+    "saving": "保存中…",
+    "save": "保存",
+    "idDescription": "ほかの人にあなたを教えるときや、ほかのアプリで同じアカウントを使うときの目印です。",
+    "logout": "この端末からログアウト",
+    "logoutHint": "プロフィールやデッキは消えません。もう一度ログインすれば、元のとおりに使えます。",
+    "previewLabel": "カラムでの見え方",
+    "copied": "コピーしました",
+    "copyFailed": "コピーできませんでした",
+    "copy": "コピー"
+  },
+  "preview": {
+    "friend": "ともだち",
+    "other": "ほかのひと",
+    "viewer": "あなた",
+    "note": "色を確かめるためのノート。https://example.com/ へのリンク、#streets のハッシュタグ、nostr:{{ npub }} へのメンションが入っています。"
+  },
+  "language": {
+    "description": "画面の文字を表示する言語を選びます。「ブラウザに合わせる」では、ブラウザで選んでいる言語で表示します。日本語と英語のどちらでもないときは英語になります。",
+    "auto": "ブラウザに合わせる"
+  }
+}

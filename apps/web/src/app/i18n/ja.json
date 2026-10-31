@@ -1,0 +1,108 @@
+{
+  "writeLabel": {
+    "post": "投稿",
+    "reply": "返信",
+    "quote": "引用",
+    "channelMessage": "チャンネルでの発言",
+    "status": "ステータス",
+    "repost": "リポスト",
+    "vote": "投票",
+    "reaction": "リアクション",
+    "bookmark": "ブックマーク",
+    "pin": "ピン留め",
+    "channelCreate": "チャンネルを作る",
+    "channelInfo": "チャンネルの情報",
+    "chatMute": "チャット内のミュート",
+    "favorite": "お気に入り",
+    "broadcast": "ブロードキャスト",
+    "follow": "フォロー",
+    "delete": "投稿の削除"
+  },
+  "actions": {
+    "cannotRepost": "この投稿はリポストできません",
+    "cannotVote": "この投稿には投票できません"
+  },
+  "actionFailed": {
+    "generic": "操作に失敗しました",
+    "repost": "リポストできませんでした",
+    "react": "リアクションを送れませんでした",
+    "reactMade": "カスタム絵文字を送れませんでした",
+    "vote": "投票できませんでした",
+    "bookmark": "ブックマークを保存できませんでした",
+    "pin": "ピン留めを保存できませんでした",
+    "follow": "フォローの状態を保存できませんでした",
+    "favorite": "お気に入りを保存できませんでした",
+    "broadcast": "送り直せませんでした",
+    "delete": "削除を依頼できませんでした"
+  },
+  "errors": {
+    "writeFailed": {
+      "one": "どのリレーにも届きませんでした（{{ count }} 本が拒否）",
+      "other": "どのリレーにも届きませんでした（{{ count }} 本が拒否）"
+    },
+    "refetchFailed": "保存する前に今の状態を取得できませんでした。時間をおいて再試行してください",
+    "privateItemsUnavailable": "今のログインの方法では、非公開の項目を扱えません",
+    "invalidPrivateItems": "非公開の項目を読み取れなかったため、保存しませんでした",
+    "nip46PermissionMissing": "署名器がこの操作を許可していません。ログアウトしてリモート署名器で繋ぎ直すと、許可を求め直せます",
+    "signerDisconnected": "署名器と繋がっていません。署名器のアプリが動いているか確かめて、繋ぎ直してください",
+    "signerUnavailable": "署名器を利用できません。ログインし直してください",
+    "noUploadServer": "画像のアップロード先がありません。設定の「画像」で追加してください",
+    "emoji": {
+      "missingChars": "描けない文字があります（{{ chars }}）",
+      "denied": "この絵文字は作れません",
+      "rateLimited": "絵文字を作る回数が多すぎます。少し待ってから送ってください",
+      "server": "絵文字を作れませんでした。時間をおいて送ってください"
+    },
+    "sendFailed": "送信に失敗しました: {{ message }}",
+    "upload": {
+      "chooseServer": "設定で画像のアップロード先を決めてください",
+      "tooLarge": "ファイルが大きすぎます",
+      "failed": "アップロードできませんでした（{{ message }}）"
+    },
+    "loginRequired": "ログインが必要です"
+  },
+  "session": {
+    "nip07NoResponse": "拡張機能から応答がありません。拡張機能がこのサイトで許可されているか確かめてください。使えるようになれば、そのままログインします。",
+    "nip07NotFound": "NIP-07 対応の拡張機能が見つかりません。",
+    "loginFailed": "ログインに失敗しました: {{ message }}",
+    "bunkerFailed": "リモート署名器に接続できませんでした: {{ message }}",
+    "restoreFailed": "ログインの復元に失敗しました: {{ message }}",
+    "signerNotReached": "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
+    "storedLoginUnreadable": "保存していたログインを読めませんでした。もう一度ログインしてください。",
+    "waitingLogin": "ログインを待っています",
+    "waitingRestore": "ログインの復元を待っています"
+  },
+  "signerWait": {
+    "approvalRequired": "署名器での承認が必要です",
+    "pending": {
+      "one": "署名器の承認を {{ count }} 件待っています",
+      "other": "署名器の承認を {{ count }} 件待っています"
+    },
+    "confirmHint": "署名器のアプリやウィンドウで確認してください",
+    "approve": "署名器で承認する",
+    "encrypting": "非公開の情報の暗号化を待っています",
+    "decrypting": "非公開の情報の読み取りを待っています"
+  },
+  "disconnected": {
+    "title": "署名器と繋がっていません",
+    "description": "読むことはできますが、投稿やリアクションはできません。",
+    "descriptionWithReason": "読むことはできますが、投稿やリアクションはできません。{{ message }}",
+    "retry": "繋ぎ直す"
+  },
+  "lazyPart": {
+    "title": "画面の一部を読み込めませんでした",
+    "description": "新しい版が公開された直後や、通信が切れているときに起きます。再読み込みすると直ります。",
+    "reload": "再読み込み"
+  },
+  "toast": {
+    "close": "閉じる"
+  },
+  "writeProgress": {
+    "separator": "：",
+    "reasonWithDetail": "{{ reason }}（{{ detail }}）",
+    "unknownReason": "理由は分かりません"
+  },
+  "kind": {
+    "unknown": "イベント"
+  }
+}

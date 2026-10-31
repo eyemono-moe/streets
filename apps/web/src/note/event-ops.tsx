@@ -14,6 +14,7 @@ import { eventEngagements } from "@streets/core/view/event-engagements";
 import { type JSX, Match, Switch, createMemo, createSignal } from "solid-js";
 import { useAppWindow } from "../app-window";
 import { defaultReaction } from "../default-reaction-setting";
+import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useLoginGate } from "../login-gate";
 import { useAppletIntents } from "../napplet/applet-intents";
@@ -34,52 +35,81 @@ export const EVENT_ACTION_META: Record<
   { label: string; icon: string }
 > = {
   reply: {
-    label: "返信",
+    get label() {
+      return t("note.eventActions.reply");
+    },
     icon: "i-material-symbols:mode-comment-outline-rounded",
   },
   repost: {
-    label: "リポスト・引用",
+    get label() {
+      return t("note.eventActions.repost");
+    },
     icon: "i-material-symbols:repeat-rounded",
   },
   like: {
-    label: "いいね",
+    get label() {
+      return t("note.eventActions.like");
+    },
     icon: "i-material-symbols:favorite-outline-rounded",
   },
   react: {
-    label: "絵文字でリアクション",
+    get label() {
+      return t("note.eventActions.react");
+    },
     icon: "i-material-symbols:add-reaction-outline-rounded",
   },
-  zap: { label: "Zap", icon: "i-material-symbols:bolt-outline-rounded" },
+  zap: {
+    get label() {
+      return t("note.eventActions.zap");
+    },
+    icon: "i-material-symbols:bolt-outline-rounded",
+  },
   bookmark: {
-    label: "ブックマーク",
+    get label() {
+      return t("note.eventActions.bookmark");
+    },
     icon: "i-material-symbols:bookmark-outline-rounded",
   },
   pin: {
-    label: "プロフィールにピン留め",
+    get label() {
+      return t("note.eventActions.pin");
+    },
     icon: "i-material-symbols:keep-outline-rounded",
   },
   activity: {
-    label: "アクティビティを見る",
+    get label() {
+      return t("note.eventActions.activity");
+    },
     icon: "i-material-symbols:monitoring-rounded",
   },
   timeslip: {
-    label: "この時点へタイムスリップ",
+    get label() {
+      return t("note.eventActions.timeslip");
+    },
     icon: "i-material-symbols:history-rounded",
   },
   "copy-link": {
-    label: "リンクをコピー",
+    get label() {
+      return t("note.eventActions.copyLink");
+    },
     icon: "i-material-symbols:link-rounded",
   },
   details: {
-    label: "詳細（JSON・リレー）",
+    get label() {
+      return t("note.eventActions.details");
+    },
     icon: "i-material-symbols:code-rounded",
   },
   "mute-event": {
-    label: "このイベントをミュート",
+    get label() {
+      return t("note.eventActions.muteEvent");
+    },
     icon: "i-material-symbols:volume-off-outline-rounded",
   },
   broadcast: {
-    label: "ほかのリレーにも送る",
+    get label() {
+      return t("note.eventActions.broadcast");
+    },
     icon: "i-material-symbols:cell-tower-rounded",
   },
 };
@@ -101,8 +131,10 @@ export const useEngagements = (event: () => NostrEvent, viewer: string) => {
 
 export const reactionLabel = (input: ReactionInput): string =>
   input.type === "like"
-    ? "いいね"
-    : `${input.type === "text" ? input.content : `:${input.shortcode}:`} でリアクション`;
+    ? t("note.eventActions.like")
+    : t("note.eventActions.reactWith", {
+        emoji: input.type === "text" ? input.content : `:${input.shortcode}:`,
+      });
 
 /**
  * 投稿の中身によらない操作。アクション欄にもメニューにも置けるので、ここにまとめる。
@@ -154,10 +186,10 @@ export const useEventLevelOps = (event: () => NostrEvent) => {
       )}`;
       try {
         await appWindow.navigator.clipboard.writeText(uri);
-        notifySuccess("リンクをコピーしました");
+        notifySuccess(t("note.eventActions.linkCopied"));
       } catch (cause) {
         // 非セキュアな接続や権限拒否で失敗する。黙って何も起きないと壊れて見える。
-        notifyError(cause, "リンクをコピーできませんでした");
+        notifyError(cause, t("note.eventActions.linkCopyFailed"));
       }
     },
   };
@@ -167,7 +199,9 @@ export const useEventLevelOps = (event: () => NostrEvent) => {
 export const muteEventLook = (muted: boolean) =>
   muted
     ? {
-        label: "このイベントのミュートを解除",
+        get label() {
+          return t("note.eventActions.unmuteEvent");
+        },
         icon: "i-material-symbols:volume-up-outline-rounded",
       }
     : EVENT_ACTION_META["mute-event"];
@@ -176,23 +210,34 @@ export const muteEventLook = (muted: boolean) =>
 export const bookmarkLook = (event: NostrEvent, bookmarked: boolean) =>
   bookmarked
     ? {
-        label: "ブックマークを外す",
+        get label() {
+          return t("note.eventActions.unbookmark");
+        },
         icon: "i-material-symbols:bookmark-rounded",
       }
     : canBookmark(event)
-      ? { label: "ブックマーク", icon: EVENT_ACTION_META.bookmark.icon }
+      ? EVENT_ACTION_META.bookmark
       : {
-          label: "この発言はブックマークできません",
+          get label() {
+            return t("note.eventActions.bookmarkUnavailable");
+          },
           icon: EVENT_ACTION_META.bookmark.icon,
         };
 
 export const pinLook = (event: NostrEvent, pinned: boolean) =>
   pinned
-    ? { label: "ピン留めを外す", icon: "i-material-symbols:keep-rounded" }
+    ? {
+        get label() {
+          return t("note.eventActions.unpin");
+        },
+        icon: "i-material-symbols:keep-rounded",
+      }
     : canPin(event)
       ? EVENT_ACTION_META.pin
       : {
-          label: "この投稿はピン留めできません",
+          get label() {
+            return t("note.eventActions.pinUnavailable");
+          },
           icon: EVENT_ACTION_META.pin.icon,
         };
 
@@ -206,16 +251,23 @@ export const createEventDialogs = (event: () => NostrEvent) => {
   const gate = useLoginGate();
   const [open, setOpen] = createSignal<EventDialog>();
   // 書く操作は、書き始める前にログインを確かめる。詳細を見るだけなら要らない。
-  const NEEDS_ACCOUNT: Partial<Record<EventDialog, string>> = {
-    reply: "返信",
-    quote: "引用",
-    broadcast: "ほかのリレーへの送り直し",
+  const needsAccount = (dialog: EventDialog | undefined) => {
+    switch (dialog) {
+      case "reply":
+        return t("note.eventActions.gate.reply");
+      case "quote":
+        return t("note.eventActions.gate.quote");
+      case "broadcast":
+        return t("note.eventActions.gate.broadcast");
+      default:
+        return undefined;
+    }
   };
   const dispatch = useDispatch();
   const intents = useAppletIntents();
   const openDialog = (dialog: EventDialog | undefined) => {
-    const what = dialog && NEEDS_ACCOUNT[dialog];
-    if (what && !gate(what)) return;
+    const reason = needsAccount(dialog);
+    if (reason && !gate(reason)) return;
     // 投稿欄の既定がアップレットなら、返信・引用はそのアップレットで書く。
     if (dialog === "reply" || dialog === "quote") {
       const routed = intents?.routeCompose({ type: dialog, event: event() });

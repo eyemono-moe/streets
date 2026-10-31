@@ -4,8 +4,10 @@ import {
   customFallbackRelays,
   fallbackRelays,
 } from "../fallback-relay-setting";
+import { t } from "../i18n/locale";
 import { readRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode } from "../read-routing-setting";
+import { useRelayFailures } from "../relay-failures";
 import { useBlockedRelays } from "./BlockedRelayMediator";
 import BlockedRelaysView from "./BlockedRelaysView";
 import FallbackRelaysView from "./FallbackRelaysView";
@@ -26,6 +28,7 @@ const STATUS_POLL_MS = 2000;
 const RelaySettings: Component = () => {
   const edit = useRelayEdit();
   const blocked = useBlockedRelays();
+  const failures = useRelayFailures();
   const [tick, setTick] = createSignal(0);
   const interval = setInterval(() => setTick((n) => n + 1), STATUS_POLL_MS);
   onCleanup(() => clearInterval(interval));
@@ -52,13 +55,14 @@ const RelaySettings: Component = () => {
                 privatePart={blocked().privatePart()}
                 saving={blocked().saving()}
                 account={edit().entries()}
+                failures={failures()}
               />
             )}
           </Show>
           <RelayRecommendations edit={edit()} />
           <SettingsDetails
             page="relays"
-            summary="投稿を読むリレーの決め方・投稿を探すリレーの数・既定のリレー"
+            summary={t("settings.relays.detailsSummary")}
           >
             <ReadRoutingView
               mode={readRoutingMode()}

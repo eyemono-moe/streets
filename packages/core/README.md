@@ -90,6 +90,7 @@ flowchart TD
 - `read/routing-table.ts`（`RoutingTable`）：`EventStore` の kind:10002 から、著者ごとの書き込みリレー・読み込みリレーを引く。表は自前で覚えず、毎回ストアから導く。
 - `read/bootstrap.ts`（`warmUpRouting`）：起動時に、インデクサ（`BOOTSTRAP_INDEXERS`）から自分のフォロー一覧と、フォロー先の kind:10002 を先に取る。
 - `read/scheduler.ts`：タイマーと時刻の差し替え口。どの段にも属さず、どの段からも読める。
+- `read/report-isolated.ts`：投げた listener を隔離して続けるときに、その例外をページの `error` イベントへ流す。どの段からも読める。
 
 ## 例：Outbox で 1 人の投稿が読まれるまで
 

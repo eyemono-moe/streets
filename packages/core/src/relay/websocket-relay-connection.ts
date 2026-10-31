@@ -8,6 +8,7 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "./relay-connection";
+import type { RelayFailureRecorder } from "./relay-failures";
 import {
   type RelayTrafficRecorder,
   filterShape,
@@ -57,6 +58,8 @@ export type RelayConnectionOptions = {
   now?: () => number;
   /** やりとりを数える先。Devtools で測るときだけ渡す。 */
   traffic?: RelayTrafficRecorder;
+  /** 繋がらなかった・断られたことを知らせる先。 */
+  failures?: RelayFailureRecorder;
 };
 
 /**
@@ -83,6 +86,8 @@ export class WebSocketRelayConnection implements RelayConnection {
   readonly #noticeListeners = new Set<(message: string) => void>();
   #nextSubId = 0;
   #opened = false;
+  /** 自分で閉じたものを、繋がらなかったと数えない。 */
+  #closedByUs = false;
   #closed = false;
 
   constructor(
@@ -101,6 +106,7 @@ export class WebSocketRelayConnection implements RelayConnection {
       // publish されたメッセージが既に取り出し済みのキューの後ろに紛れないよう、流し終えてから通知する。
       this.#opened = true;
       this.#auth.traffic?.opened(url);
+      this.#auth.failures?.opened(url);
       for (const listener of [...this.#openListeners]) listener();
     };
 
@@ -110,6 +116,8 @@ export class WebSocketRelayConnection implements RelayConnection {
       if (this.#closed) return;
       this.#closed = true;
       this.#auth.traffic?.socketClosed(url);
+      if (!this.#opened && !this.#closedByUs)
+        this.#auth.failures?.unreachable(url);
       for (const { handlers } of this.#subscriptions.values())
         handlers.onClosed("socket closed");
       this.#subscriptions.clear();
@@ -181,6 +189,7 @@ export class WebSocketRelayConnection implements RelayConnection {
   }
 
   close(): void {
+    this.#closedByUs = true;
     this.#socket.close();
   }
 
@@ -329,6 +338,7 @@ export class WebSocketRelayConnection implements RelayConnection {
             } else {
               this.#subscriptions.delete(subId);
               this.#countSubscriptions();
+              this.#auth.failures?.refused(this.url, text);
               subscription.handlers.onClosed(text);
             }
           });
@@ -336,6 +346,7 @@ export class WebSocketRelayConnection implements RelayConnection {
         }
         this.#subscriptions.delete(subId);
         this.#countSubscriptions();
+        this.#auth.failures?.refused(this.url, text);
         subscription.handlers.onClosed(text);
         return;
       }
@@ -360,12 +371,14 @@ export class WebSocketRelayConnection implements RelayConnection {
               this.#send("EVENT", JSON.stringify(["EVENT", pending.event]));
             } else {
               this.#publishes.delete(eventId);
+              this.#auth.failures?.refused(this.url, text);
               for (const { reject } of pending.waiters) reject(new Error(text));
             }
           });
           return;
         }
         this.#publishes.delete(eventId);
+        if (ok !== true) this.#auth.failures?.refused(this.url, text);
         for (const { resolve, reject } of pending.waiters) {
           // ok は仕様上 boolean。真偽値以外 (壊れたリレー応答) は成功として扱わない。
           if (ok === true) {

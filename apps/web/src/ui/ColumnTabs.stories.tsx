@@ -6,6 +6,7 @@ const meta = {
   component: ColumnTabs,
   args: {
     label: "表示する内容",
+    name: "story",
     tabs: [
       {
         value: "notes",

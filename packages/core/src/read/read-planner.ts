@@ -28,9 +28,9 @@ export type ReadEnvironment = {
   openRelays: readonly RelayUrl[];
   degraded: readonly RelayUrl[];
   blocked: readonly RelayUrl[];
-  /** `blocked` の配列では足りない。許していないローカルネットワークのリレーは、配列に入らない。 */
+  /** `blocked` の配列では足りない。このページからは繋がないリレー（`isRefusedHere`）は、配列に入らない。 */
   isBlocked: (url: RelayUrl) => boolean;
-  isLocalRefused: (url: RelayUrl) => boolean;
+  isRefusedHere: (url: RelayUrl) => boolean;
 };
 
 export type RequestRoute = {
@@ -70,7 +70,7 @@ export const planReads = (
         // 他人の localhost は数えない。それしか無い著者は、行き先の分からない著者として扱う。
         const declared = env
           .writeRelaysFor(author)
-          .filter((url) => !env.isLocalRefused(url));
+          .filter((url) => !env.isRefusedHere(url));
         if (declared.length > 0) demand.set(author, declared);
       }
     }
@@ -98,7 +98,7 @@ export const planReads = (
       env.routing.mode === "outbox" ? env.routing.preferred : undefined,
     blocked: [
       ...env.blocked,
-      ...pinned.filter((url) => env.isLocalRefused(url)),
+      ...pinned.filter((url) => env.isRefusedHere(url)),
     ],
   });
 

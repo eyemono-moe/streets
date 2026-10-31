@@ -1,6 +1,7 @@
 import { formatEventAddress } from "@streets/core/nostr/address";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { AddressRequests } from "@streets/core/read/address-requests";
+import type { DeletionRequests } from "@streets/core/read/deletion-requests";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
@@ -13,7 +14,9 @@ import type { ReadAccess } from "../../read-layer";
 const SAMPLE_RELAY = "wss://sample.invalid/" as RelayUrl;
 
 /** 取りにいかない要求器。手元に無いものは、届かないまま待つ。 */
-export const inertRequests = (): ProfileRequests & EngagementRequests => ({
+export const inertRequests = (): ProfileRequests &
+  EngagementRequests &
+  DeletionRequests => ({
   request() {},
   forget() {},
   subscribe: () => () => {},
@@ -92,6 +95,7 @@ export const createSampleReadAccess = (
       addresses: addressRequests,
       profiles: inertRequests(),
       engagements: inertRequests(),
+      deletions: inertRequests(),
       polls: pollRequests,
       followLists: { request() {}, dispose() {} },
     }),

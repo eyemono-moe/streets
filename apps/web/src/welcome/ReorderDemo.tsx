@@ -1,4 +1,5 @@
 import { type Component, For } from "solid-js";
+import { t } from "../i18n/locale";
 
 type MiniColumn = {
   icon: string;
@@ -30,7 +31,7 @@ const COLUMNS: MiniColumn[] = [
 const ReorderDemo: Component = () => (
   <div
     role="img"
-    aria-label="カラムの見出しを掴んで、隣のカラムと入れ替える様子"
+    aria-label={t("welcome.reorderDemo.label")}
     class="flex h-36 gap-1.5 overflow-hidden rounded-3 border border-primary bg-secondary p-3"
   >
     <For each={COLUMNS}>

@@ -56,6 +56,25 @@ const isLocalIpv6 = (host: string): boolean => {
   return /^f[cd][0-9a-f]{0,2}:/.test(host) || /^fe[89ab][0-9a-f]?:/.test(host);
 };
 
+const LOOPBACK_HOSTS = new Set(["localhost", "[::1]"]);
+
+/**
+ * https のページからは繋げない `ws://` のリレーか。ブラウザは混在コンテンツとして止め、
+ * 手元の機械（localhost・127.0.0.0/8・::1）だけを例外にする。
+ */
+export const isInsecureRelay = (url: RelayUrl): boolean => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "ws:") return false;
+  const host = parsed.hostname;
+  if (LOOPBACK_HOSTS.has(host) || host.endsWith(".localhost")) return false;
+  return !/^127\.\d+\.\d+\.\d+$/.test(host);
+};
+
 /**
  * 手元の機械や家の中のネットワークを指すリレーか。公開のページからここへ繋ぐと、
  * ブラウザがローカルネットワークへの接続の許可を求める。名前を引いた先が

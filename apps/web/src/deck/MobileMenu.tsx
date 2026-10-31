@@ -8,6 +8,7 @@ import {
   onCleanup,
   untrack,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import { ProfileName, ProfileText } from "../note/Name";
 import { useProfileDetails } from "../note/use-profile";
@@ -184,7 +185,7 @@ const MobileMenu: Component<{
             <ArkDialog.Content
               ref={content}
               tabIndex={-1}
-              aria-label="メニュー"
+              aria-label={t("deck.mobileMenu.menu")}
               class="c-primary flex h-full w-[min(300px,85vw)] flex-col bg-primary pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-lg outline-none"
               style={{
                 transform: `translate3d(${offset(shown())},0,0)`,
@@ -199,7 +200,7 @@ const MobileMenu: Component<{
                     <div class="py-2">
                       <Row
                         icon="i-material-symbols:login-rounded"
-                        label="ログイン"
+                        label={t("deck.accountMenu.login")}
                         onClick={() => choose({ type: "deck/login" })}
                       />
                     </div>
@@ -240,38 +241,39 @@ const MobileMenu: Component<{
                         />
                         {/* 切れても、何を出しているかは分かる。 */}
                         <span class="min-w-0 truncate">
-                          {current()?.content || "ステータスを設定"}
+                          {current()?.content ||
+                            t("deck.accountMenu.setStatus")}
                         </span>
                       </button>
                     </div>
                   )}
                 </Show>
                 <hr class="my-1 border-primary border-t" />
-                <nav aria-label="メニュー" class="py-1">
+                <nav aria-label={t("deck.mobileMenu.menu")} class="py-1">
                   <Row
                     icon="i-material-symbols:search-rounded"
-                    label="検索"
+                    label={t("deck.mobileMenu.search")}
                     onClick={() =>
                       choose({ type: "deck/open-panel", panel: "search" })
                     }
                   />
                   <Row
                     icon="i-material-symbols:add-rounded"
-                    label="カラムを追加"
+                    label={t("deck.mobileMenu.addColumn")}
                     onClick={() =>
                       choose({ type: "deck/open-panel", panel: "add-column" })
                     }
                   />
                   <Row
                     icon="i-material-symbols:view-column-outline-rounded"
-                    label="デッキを編集"
+                    label={t("deck.mobileMenu.editDeck")}
                     onClick={() =>
                       choose({ type: "deck/open-panel", panel: "arrange" })
                     }
                   />
                   <Row
                     icon="i-material-symbols:manage-search-rounded"
-                    label="コマンドパレット"
+                    label={t("deck.mobileMenu.commandPalette")}
                     onClick={() => choose({ type: "deck/open-palette" })}
                   />
                 </nav>
@@ -279,18 +281,18 @@ const MobileMenu: Component<{
                 <div class="py-1">
                   <Row
                     icon="i-material-symbols:settings-outline-rounded"
-                    label="設定"
+                    label={t("deck.accountMenu.settings")}
                     onClick={() => choose({ type: "deck/open-settings" })}
                   />
                   <Row
                     icon="i-material-symbols:info-outline-rounded"
-                    label="Streets について"
+                    label={t("deck.accountMenu.about")}
                     onClick={() => choose({ type: "deck/open-about" })}
                   />
                   <Show when={feedback()}>
                     <Row
                       icon="i-material-symbols:feedback-outline-rounded"
-                      label="フィードバックを送る"
+                      label={t("deck.accountMenu.feedback")}
                       onClick={() => choose(() => setFeedbackOpen(true))}
                     />
                   </Show>
@@ -300,7 +302,7 @@ const MobileMenu: Component<{
                 <div class="shrink-0 border-primary border-t py-1">
                   <Row
                     icon="i-material-symbols:logout-rounded"
-                    label="ログアウト"
+                    label={t("deck.accountMenu.logout")}
                     muted
                     onClick={() => choose(props.onLogout)}
                   />

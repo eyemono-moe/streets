@@ -2,6 +2,7 @@ import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import type { Style } from "@streets/core/emoji-maker/style";
 import { defaultShortcode, emojiUrl } from "@streets/core/emoji-maker/url";
 import { type Component, onMount } from "solid-js";
+import { t } from "../i18n/locale";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import { useEmojiGroups } from "./custom-emojis";
@@ -40,14 +41,14 @@ const ComposeEmojiPicker: Component<{
   return (
     <>
       <PickerSurface
-        title="絵文字を挿入"
+        title={t("emoji.picker.insert")}
         trigger={(trigger) => (
           <IconButton
             {...trigger()}
             disabled={props.disabled}
             size="md"
             icon="i-material-symbols:add-reaction-outline-rounded"
-            label="絵文字を挿入"
+            label={t("emoji.picker.insert")}
           />
         )}
         finalFocusEl={props.field}

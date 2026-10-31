@@ -71,10 +71,24 @@ type VisualProps = Pick<
   "variant" | "size" | "shape" | "block" | "icon" | "class" | "children"
 >;
 
-const buttonClassName = (props: VisualProps, link = false): string => {
+/** 分割ボタン（`SplitButton`）で、隣の部品と接する側の角を丸めない。 */
+export type ButtonEdge = "start";
+
+export const buttonClassName = (
+  props: Omit<VisualProps, "children">,
+  link = false,
+  edge?: ButtonEdge,
+): string => {
+  const rounded = props.shape === "rounded";
   return [
     `inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap font-600 text-caption transition-colors ${link ? "cursor-pointer" : "enabled:cursor-pointer disabled:cursor-default"}`,
-    props.shape === "rounded" ? "rounded-2" : "rounded-full",
+    edge === "start"
+      ? rounded
+        ? "rounded-l-2"
+        : "rounded-l-full"
+      : rounded
+        ? "rounded-2"
+        : "rounded-full",
     SIZE[props.size ?? "md"],
     link
       ? BUTTON_VARIANT[props.variant ?? "secondary"].replaceAll("enabled:", "")
@@ -96,7 +110,7 @@ const ButtonIcon: Component<Pick<ButtonProps, "size"> & { icon: string }> = (
   />
 );
 
-const ButtonContents: ParentComponent<
+export const ButtonContents: ParentComponent<
   Pick<ButtonProps, "icon" | "trailingIcon" | "size">
 > = (props) => (
   <>

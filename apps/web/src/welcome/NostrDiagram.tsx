@@ -1,9 +1,10 @@
 import { type Component, For } from "solid-js";
+import { t } from "../i18n/locale";
 
 const APPS = [
-  { y: 16, label: "Streets", self: true },
-  { y: 57, label: "ほかのアプリ", self: false },
-  { y: 98, label: "ほかのアプリ", self: false },
+  { y: 16, self: true },
+  { y: 57, self: false },
+  { y: 98, self: false },
 ] as const;
 const RELAYS = [26, 70, 114] as const;
 const ACCOUNT = { x: 40, y: 70 };
@@ -20,7 +21,7 @@ const NostrDiagram: Component = () => (
   <svg
     viewBox="0 0 320 140"
     role="img"
-    aria-label="1 つのアカウントで Streets やほかのアプリを使い、どのアプリの投稿もリレーに保存される図"
+    aria-label={t("welcome.diagram.label")}
     class="c-primary w-full rounded-3 border border-primary bg-secondary"
   >
     <g class="stroke-ui-3 dark:stroke-ui-6" stroke-width="1.5" fill="none">
@@ -62,7 +63,7 @@ const NostrDiagram: Component = () => (
       font-size="11"
       class="fill-current"
     >
-      アカウント
+      {t("welcome.diagram.account")}
     </text>
 
     <For each={APPS}>
@@ -88,7 +89,7 @@ const NostrDiagram: Component = () => (
             font-weight={app.self ? 700 : 400}
             class={app.self ? "fill-white" : "fill-current"}
           >
-            {app.label}
+            {app.self ? "Streets" : t("welcome.diagram.otherApp")}
           </text>
         </>
       )}
@@ -119,7 +120,7 @@ const NostrDiagram: Component = () => (
       font-size="11"
       class="fill-current"
     >
-      リレー
+      {t("welcome.diagram.relay")}
     </text>
   </svg>
 );

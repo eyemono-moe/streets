@@ -21,6 +21,7 @@ import {
 } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
+import { t } from "../../i18n/locale";
 import { lazyPart } from "../../lazy-part";
 import {
   createDisplayImage,
@@ -63,8 +64,10 @@ const WarningTile: Component<{ event: NostrEvent }> = (props) => (
       class="i-material-symbols:warning-outline-rounded size-6"
       aria-hidden="true"
     />
-    <span class="font-600 text-caption">閲覧注意</span>
-    <span class="sr-only">。押すと表示します</span>
+    <span class="font-600 text-caption">
+      {t("columns.blocks.media.warning")}
+    </span>
+    <span class="sr-only">{t("columns.blocks.media.warningHint")}</span>
   </button>
 );
 
@@ -168,7 +171,11 @@ const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
       ref={setElement}
       type="button"
       class={TILE_CLASS}
-      aria-label={media().type === "image" ? "画像を開く" : "動画を開く"}
+      aria-label={
+        media().type === "image"
+          ? t("columns.blocks.media.openImage")
+          : t("columns.blocks.media.openVideo")
+      }
       onClick={() => props.onOpen()}
     >
       <Show when={!loaded() && media().blurhash}>
@@ -315,11 +322,11 @@ export const MediaGridView: Component<{
       }
     >
       <Match when={empty() && !props.settled}>
-        <p class="c-secondary p-4 text-caption">読み込み中…</p>
+        <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
       </Match>
       <Match when={empty() && props.paging === "exhausted"}>
         <p class="c-secondary p-4 text-caption">
-          画像や動画を添えた投稿はまだありません。
+          {t("columns.blocks.empty.media")}
         </p>
       </Match>
     </Switch>

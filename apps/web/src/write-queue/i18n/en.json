@@ -1,0 +1,6 @@
+{
+  "sending": "Sending ({{count}})",
+  "saved": "Saved",
+  "labelCount": "{{label}} ×{{count}}",
+  "labelSeparator": ", "
+}

@@ -15,6 +15,7 @@ const LAYERS = {
   batcher: [
     "read/batched-fetch.ts",
     "read/address-requests.ts",
+    "read/deletion-requests.ts",
     "read/engagement-requests.ts",
     "read/event-requests.ts",
     "read/follow-list-requests.ts",
@@ -53,6 +54,7 @@ const LAYERS = {
     "read/filter-match.ts",
     "read/sorted-events.ts",
     "read/source.ts",
+    "read/report-isolated.ts",
   ],
   // relay/ は全体でひとつの段。接続の型を渡すので、どの段からも読める。
   socket: [],

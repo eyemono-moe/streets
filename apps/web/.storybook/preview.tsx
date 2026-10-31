@@ -5,6 +5,7 @@ import { type Preview, createDecorator } from "storybook-solidjs-vite";
 import { action } from "storybook/actions";
 import { MINIMAL_VIEWPORTS } from "storybook/viewport";
 import { swallowPressesThatDismissPopups } from "../src/dismiss-tap";
+import { setLocalePreference } from "../src/i18n/locale";
 import { createAppQueryClient } from "../src/query-client";
 import {
   type ColorScheme,
@@ -43,6 +44,18 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    locale: {
+      description: "画面の言語",
+      toolbar: {
+        title: "言語",
+        icon: "globe",
+        items: [
+          { value: "ja", title: "日本語" },
+          { value: "en", title: "English" },
+        ],
+        dynamicTitle: true,
+      },
+    },
     colorScheme: {
       description: "ライト / ダーク",
       toolbar: {
@@ -58,6 +71,7 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
+    locale: "ja",
     palette: "purple",
     colorScheme: "light",
     viewport: { value: "column380", isRotated: false },
@@ -119,6 +133,7 @@ const preview: Preview = {
       stopColorScheme = applyColorScheme(
         context.globals.colorScheme as ColorScheme,
       );
+      setLocalePreference(context.globals.locale === "en" ? "en" : "ja");
       // 幅はビューポートに任せ、見本はその幅いっぱいに描く。
       return (
         <QueryClientProvider client={queryClient}>

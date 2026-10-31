@@ -1,0 +1,194 @@
+{
+  "loading": "読み込み中…",
+  "header": {
+    "hideProfile": "ユーザー詳細を隠す",
+    "showProfile": "ユーザー詳細を表示",
+    "keepTemporary": "カラムに残す",
+    "close": "閉じる",
+    "backToDeck": "デッキに戻す",
+    "settings": "カラムの設定",
+    "scrollToTop": "先頭へ戻る",
+    "back": "戻る",
+    "backToBefore": "",
+    "backToAfter": "に戻る",
+    "openInDeck": "デッキのカラムとして開く"
+  },
+  "body": {
+    "alertWithAction": "{{ message }}。{{ action }}",
+    "broken": "このカラムを表示できませんでした。",
+    "retry": "もう一度表示する"
+  },
+  "needsAccount": {
+    "description": "「{{ title }}」は、ログインしている人の投稿を表示するカラムです。ログインすると見られます。",
+    "login": "ログインする"
+  },
+  "newer": {
+    "post": {
+      "one": "新しい {{ count }} 件の投稿",
+      "other": "新しい {{ count }} 件の投稿"
+    },
+    "reaction": {
+      "one": "新しい {{ count }} 件の反応",
+      "other": "新しい {{ count }} 件の反応"
+    },
+    "notification": {
+      "one": "新しい {{ count }} 件の通知",
+      "other": "新しい {{ count }} 件の通知"
+    },
+    "message": {
+      "one": "新しい {{ count }} 件の発言",
+      "other": "新しい {{ count }} 件の発言"
+    }
+  },
+  "thread": {
+    "ancestorsMissing": "このスレッドの上の方は取得できませんでした。",
+    "ancestorsLoading": "このスレッドの上の方を読み込み中…"
+  },
+  "sample": {
+    "label": "見本",
+    "login": "ログインする",
+    "names": {
+      "you": "あなた",
+      "sora": "そら",
+      "nanami": "七海",
+      "haru": "はる"
+    },
+    "notes": {
+      "hello": "StreetsでNostrを始めてみました。よろしくお願いします！",
+      "coffee": "ホームと通知と #coffee をカラムで並べて、朝はこれを眺めるのが習慣になった。",
+      "portable": "Nostrのアカウント、別のアプリでもそのまま使えるのが便利。",
+      "lime": "テーマの色をライムにしてみた。気分が変わっていい。",
+      "bakery": "駅前のパン屋、火曜だけ出るシナモンロールがある。",
+      "books": "雨の日は積んでいた本を崩す日。",
+      "welcome": "ようこそ！ わからないことがあったら気軽に聞いてね。",
+      "nice": "はじめまして！ 私も最近始めたところです。"
+    },
+    "lists": {
+      "music": {
+        "title": "音楽の話",
+        "description": "曲を作っている人たち"
+      },
+      "food": {
+        "title": "ごはん",
+        "description": "料理と食べ歩き"
+      },
+      "photo": {
+        "title": "写真",
+        "description": "撮る人・見る人"
+      }
+    }
+  },
+  "blocks": {
+    "empty": {
+      "posts": "まだ投稿がありません。",
+      "reactions": "まだ反応がありません。",
+      "following": "まだ誰もフォローしていません。",
+      "followers": "フォロワーを取得できませんでした。",
+      "media": "画像や動画を添えた投稿はまだありません。"
+    },
+    "activity": {
+      "partial": "一部のリレーからは取得できませんでした。",
+      "failed": "取得できませんでした。",
+      "label": "アクティビティの種類",
+      "reposts": "リポスト",
+      "repostsEmpty": "リポストはまだありません。",
+      "quotes": "引用",
+      "quotesEmpty": "引用はまだありません。",
+      "reactions": "リアクション",
+      "reactionsEmpty": "リアクションはまだありません。"
+    },
+    "article": {
+      "comment": "コメントする",
+      "failed": "記事を読み込めませんでした。"
+    },
+    "channel": {
+      "muteFailed": "ミュートできませんでした",
+      "messageNotLoaded": "発言を読み込めていません",
+      "writeFailed": "チャンネルに書けませんでした",
+      "loginReason": "ログインすると、チャンネルへの書き込みができます",
+      "loginToWrite": "ログインして書き込む"
+    },
+    "followSet": {
+      "notFound": "このリストが見つかりません。削除されたか、リレーから取得できませんでした。"
+    },
+    "media": {
+      "warning": "閲覧注意",
+      "warningHint": "。押すと表示します",
+      "openImage": "画像を開く",
+      "openVideo": "動画を開く"
+    }
+  },
+  "views": {
+    "groupActions": "同じノートへのリアクション・リポストをまとめる",
+    "channelInfo": "チャンネルの情報",
+    "followSetInfo": "リストの情報",
+    "followSetFallbackName": "リスト",
+    "favorite": {
+      "remove": "お気に入りから外す",
+      "add": "お気に入りに入れる"
+    },
+    "subtitle": {
+      "relay": "指定したリレーの全体",
+      "condition": "指定した条件",
+      "search": "検索",
+      "followees": "フォロー中",
+      "timeslip": "{{ time }} から過去へ",
+      "followeesActivity": "フォロー中の人のリアクション・リポスト",
+      "notifications": "自分宛の返信・リアクション・リポスト",
+      "bookmarks": "保存したノート",
+      "article": "長文記事",
+      "thread": "スレッド",
+      "activity": "リポスト・引用・リアクション",
+      "user": "ノートと返信",
+      "channelInfo": "チャンネルの情報",
+      "channelList": "みんなで会話できるチャットチャンネル",
+      "channel": "チャンネル",
+      "followeesList": "フォロー中の人",
+      "followersList": "フォロワー",
+      "followSets": "人をまとめたリスト",
+      "followSet": "リスト内ユーザーのタイムライン",
+      "followSetInfo": "リストの情報",
+      "welcome": "紹介とログイン"
+    },
+    "sample": {
+      "followees": {
+        "heading": "フォローしている人の投稿がここに流れます",
+        "body": "いま見えているのは見本です。ログインすると、あなたがフォローしている人の投稿に変わります。"
+      },
+      "timeslip": {
+        "heading": "フォローしている人の、過去のタイムラインを読み返せます",
+        "body": "いま見えているのは見本です。ログインすると、選んだ日時のタイムラインに変わります。"
+      },
+      "followeesActivity": {
+        "heading": "フォローしている人のリアクションやリポストがここに届きます",
+        "body": "いま見えているのは見本です。ログインすると、あなたがフォローしている人の反応に変わります。"
+      },
+      "notifications": {
+        "heading": "あなたへの返信やリアクションがここに届きます",
+        "body": "いま見えているのは見本です。ログインすると、あなた宛の通知に変わります。"
+      },
+      "bookmarks": {
+        "heading": "ブックマークした投稿がここに並びます",
+        "body": "いま見えているのは見本です。ログインすると、あなたがブックマークした投稿に変わります。"
+      },
+      "followSets": {
+        "heading": "ユーザーリストを作れます",
+        "body": "いま見えているのは見本です。ログインすると、あなたが作ったリストに変わります。"
+      }
+    },
+    "settings": {
+      "relays": "購読するリレー",
+      "relaysTitle": "リレー（{{ count }}）",
+      "searchQuery": "検索の条件",
+      "timeslip": "この日時から過去へさかのぼる",
+      "timeslipInput": "さかのぼり始める日時"
+    },
+    "userTabs": {
+      "label": "この人の表示",
+      "posts": "投稿",
+      "media": "メディア",
+      "pinned": "ピン留め",
+      "reactions": "リアクション"
+    }
+  }
+}

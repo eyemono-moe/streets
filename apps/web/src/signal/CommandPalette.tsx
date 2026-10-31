@@ -20,6 +20,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { useUserCandidates, useUserSearch } from "../completion/sources";
+import { plural, t } from "../i18n/locale";
 import { useOptionalReadLayer } from "../read-layer";
 import {
   availableSettings,
@@ -104,10 +105,10 @@ const CommandPalette: Component<{
     (props.decks ?? []).map((deck) => ({
       kind: "action",
       id: `deck:${deck.id}`,
-      title: `デッキ「${deck.name}」に切り替える`,
-      section: "デッキ",
-      keywords: [deck.name, "デッキを切り替える"],
-      description: `カラム ${deck.columns} 本`,
+      title: t("signal.deck.switchTo", { name: deck.name }),
+      section: t("signal.sections.deck"),
+      keywords: [deck.name, t("signal.deck.switchKeyword")],
+      description: plural("signal.deck.columnCount", deck.columns),
       event: { type: "deck/switch-deck", id: deck.id },
     })),
   );
@@ -142,16 +143,16 @@ const CommandPalette: Component<{
         {
           kind: "action",
           id: `user-column:${pubkey}`,
-          title: `${userName()}のカラムを追加する`,
-          section: "操作",
+          title: t("signal.user.addColumn", { name: userName() }),
+          section: t("signal.sections.action"),
           keywords: [],
           event: { type: "deck/add-column", column: buildUserColumn(pubkey) },
         },
         {
           kind: "action",
           id: `user-search:${pubkey}`,
-          title: `${userName()}の投稿を検索する`,
-          section: "操作",
+          title: t("signal.user.searchPosts", { name: userName() }),
+          section: t("signal.sections.action"),
           keywords: [],
           event: {
             type: "deck/open-search",
@@ -237,17 +238,17 @@ const CommandPalette: Component<{
     >
       <DialogPortal>
         <DialogContent class="h-[min(560px,calc(100dvh-32px))] w-[min(640px,calc(100vw-32px))] rounded-3 border border-primary shadow-xl">
-          <DialogTitle class="sr-only">コマンドパレット</DialogTitle>
+          <DialogTitle class="sr-only">{t("signal.palette.title")}</DialogTitle>
           <DialogDescription class="sr-only">
-            操作や設定を検索して選べます。
+            {t("signal.palette.description")}
           </DialogDescription>
           <div class="flex shrink-0 items-center gap-2 border-primary border-b p-3">
             <SearchInput
               ref={(element) => (input = element)}
               autofocus
               class="min-w-0 flex-1"
-              label="操作や設定を検索"
-              placeholder="操作や設定を検索"
+              label={t("signal.palette.searchLabel")}
+              placeholder={t("signal.palette.searchLabel")}
               value={query()}
               onValueChange={setQuery}
               clearable
@@ -277,12 +278,12 @@ const CommandPalette: Component<{
                 }
               }}
             />
-            <DialogClose label="コマンドパレットを閉じる" />
+            <DialogClose label={t("signal.palette.close")} />
           </div>
           <div
             id="signal-command-results"
             role="listbox"
-            aria-label="検索結果"
+            aria-label={t("signal.palette.resultsLabel")}
             class="flex min-h-0 flex-1 flex-col"
           >
             <DialogBody
@@ -294,7 +295,7 @@ const CommandPalette: Component<{
                   when={results().length > 0}
                   fallback={
                     <p class="c-secondary px-3 py-6 text-center text-body">
-                      該当する操作や設定はありません。
+                      {t("signal.palette.empty")}
                     </p>
                   }
                 >
@@ -305,10 +306,10 @@ const CommandPalette: Component<{
                         title={command.title}
                         category={
                           command.kind === "action"
-                            ? (command.section ?? "操作")
+                            ? (command.section ?? t("signal.sections.action"))
                             : command.kind === "user"
                               ? `${encodeBech32("npub", command.pubkey).slice(0, 12)}…`
-                              : "設定"
+                              : t("signal.sections.setting")
                         }
                         icon={
                           command.kind === "action"
@@ -331,10 +332,10 @@ const CommandPalette: Component<{
                 id={`signal-command-${results().length}`}
                 title={
                   query().trim()
-                    ? `「${query().trim()}」で検索する`
-                    : "検索パネルを開く"
+                    ? t("signal.palette.searchFor", { query: query().trim() })
+                    : t("signal.palette.openSearch")
                 }
-                category="検索"
+                category={t("signal.sections.search")}
                 icon="i-material-symbols:search-rounded"
                 selected={selected() === results().length}
                 onSelect={search}

@@ -1,0 +1,63 @@
+{
+  "relays": {
+    "usage": {
+      "readWrite": "Read & write",
+      "read": "Read",
+      "write": "Write"
+    },
+    "copied": "URL copied",
+    "copyFailed": "Couldn't copy the URL",
+    "title": {
+      "default": "Relays this user uses",
+      "before": "Relays used by ",
+      "after": ""
+    },
+    "loading": "Loading…",
+    "empty": "This user's relay settings aren't public.",
+    "incomplete": "Some relays couldn't be reached.",
+    "failed": "Couldn't load the relay settings.",
+    "copy": "Copy {{ url }}"
+  },
+  "follow": {
+    "sending": "Sending…",
+    "unfollow": "Unfollow",
+    "following": "Following",
+    "follow": "Follow"
+  },
+  "followsYou": "Follows you",
+  "nip05": {
+    "pending": "Checking with the domain",
+    "verified": "Verified by the domain",
+    "mismatch": "This domain doesn't recognize this person",
+    "unreachable": "Couldn't reach the domain to verify"
+  },
+  "pinned": {
+    "empty": "No pinned posts.",
+    "loading": "Loading…"
+  },
+  "header": {
+    "setStatus": "Set a status",
+    "showFollowees": "View following",
+    "followees": "Following",
+    "showFollowers": "View followers"
+  },
+  "list": {
+    "count": {
+      "one": "{{ count }} person",
+      "other": "{{ count }} people"
+    },
+    "countLoading": {
+      "one": "{{ count }} person (loading…)",
+      "other": "{{ count }} people (loading…)"
+    },
+    "loading": "Loading…"
+  },
+  "menu": {
+    "label": "User actions",
+    "zap": "Send a Zap",
+    "relays": "Relay settings",
+    "addToList": "Add to list",
+    "unmute": "Unmute",
+    "mute": "Mute"
+  }
+}

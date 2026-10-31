@@ -9,7 +9,6 @@ import {
 } from "../nostr/address";
 import type { NostrEvent } from "../nostr/event";
 import { relayOf } from "../nostr/event-refs";
-import { KIND_SUPPORT } from "../nostr/kind-support";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { Nip19Ref } from "../nostr/nip19";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -40,11 +39,12 @@ const ADDRESS_OPENERS: Partial<
     buildNappletInfoColumn(address.pubkey, address.identifier, relays),
   // リストはメンバーの投稿を読むためのもの。名前は届いたら題名に出る。
   [FOLLOW_SET_KIND]: (address) =>
-    buildFollowSetColumn(address.pubkey, address.identifier, "リスト"),
+    buildFollowSetColumn(
+      address.pubkey,
+      address.identifier,
+      address.identifier,
+    ),
 };
-
-const kindLabel = (kind: number): string =>
-  KIND_SUPPORT.find((entry) => entry.kind === kind)?.summary ?? `kind:${kind}`;
 
 /**
  * 住所のイベント 1 件を出すカラム。`relays` は naddr が運ぶリレーの手がかりで、
@@ -55,7 +55,7 @@ const buildAddressColumn = (
   relays: readonly RelayUrl[],
 ): ColumnDef => ({
   id: `address:${formatEventAddress(address)}`,
-  title: kindLabel(address.kind),
+  title: `kind:${address.kind}`,
   source: {
     kind: "literal",
     filters: [

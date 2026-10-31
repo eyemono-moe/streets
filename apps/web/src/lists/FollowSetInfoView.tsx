@@ -2,7 +2,6 @@ import {
   FOLLOW_SET_KIND,
   type FollowSet,
   type FollowSetMember,
-  followSetName,
   mayBeLegacyMuteSet,
 } from "@streets/core/lists/follow-set";
 import { decodeUserInput, encodeNaddr } from "@streets/core/nostr/nip19";
@@ -10,22 +9,20 @@ import type { ItemVisibility } from "@streets/core/nostr/private-tags";
 import { type Component, For, Show, createSignal } from "solid-js";
 import { useAppWindow } from "../app-window";
 import { useUserCandidates, userSource } from "../completion/sources";
+import { t } from "../i18n/locale";
 import ProfileRow from "../profile/ProfileRow";
 import { notifyError, notifySuccess } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
-import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
+import { followSetName } from "./follow-set-name";
 import { privatePartNotice } from "./FollowSetMediator";
 import { LegacyMuteNotice, memberCountLabel } from "./FollowSetSummary";
 import ListPicture from "./ListPicture";
-import {
-  MEMBER_VISIBILITY_HINT,
-  VISIBILITY_LABEL,
-  visibilityOptions,
-} from "./visibility";
+import { VISIBILITY_LABEL, memberVisibilityHint } from "./visibility";
+import VisibilityAddButton from "./VisibilityAddButton";
 
 const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
   props,
@@ -47,13 +44,11 @@ const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
   const submit = () => {
     const pubkey = decodeUserInput(text());
     if (!pubkey) {
-      setError(
-        "npub1… か nprofile1… で始まる、ユーザーの ID を入力してください",
-      );
+      setError(t("lists.info.invalidUser"));
       return;
     }
     if (props.set.members.some((member) => member.pubkey === pubkey)) {
-      setError("もうこのリストに入っています");
+      setError(t("lists.info.alreadyMember"));
       return;
     }
     dispatch({
@@ -73,21 +68,14 @@ const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
         submit();
       }}
     >
-      <SegmentedControl
-        label="公開範囲"
-        variant="secondary"
-        value={visibility()}
-        options={visibilityOptions(props.privateReady)}
-        onChange={setChosen}
-      />
       <div class="flex items-center gap-2">
-        <Completion sources={people} label="人の候補">
+        <Completion sources={people} label={t("lists.info.candidates")}>
           {(attach) => (
             <input
               ref={attach}
               class={`${textInputClass} min-w-0 flex-1`}
-              placeholder="名前・npub1… で探す"
-              aria-label="リストに入れる人"
+              placeholder={t("lists.info.searchPlaceholder")}
+              aria-label={t("lists.info.memberInput")}
               aria-invalid={error() !== undefined}
               value={text()}
               onInput={(event) => {
@@ -97,19 +85,18 @@ const AddMember: Component<{ set: FollowSet; privateReady: boolean }> = (
             />
           )}
         </Completion>
-        <Button
+        <VisibilityAddButton
           type="submit"
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-        >
-          追加
-        </Button>
+          value={visibility()}
+          privateReady={props.privateReady}
+          onChange={setChosen}
+        />
       </div>
       <p
         class="text-caption"
         classList={{ "c-danger": !!error(), "c-secondary": !error() }}
       >
-        {error() ?? MEMBER_VISIBILITY_HINT[visibility()]}
+        {error() ?? memberVisibilityHint(visibility())}
       </p>
     </form>
   );
@@ -134,7 +121,7 @@ const MemberRow: Component<{
               {/* リストから外すだけで、その人やフォローには触れない（⊖）。 */}
               <IconButton
                 icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                label="リストから外す"
+                label={t("lists.info.removeMember")}
                 onClick={() =>
                   dispatch({
                     type: "follow-sets/remove",
@@ -169,21 +156,19 @@ const DeleteFollowSet: Component<{
           icon="i-material-symbols:delete-outline-rounded"
           onClick={() => setConfirming(true)}
         >
-          リストを削除
+          {t("lists.info.delete")}
         </Button>
       }
     >
       <div class="motion-fade flex w-full animate-in flex-col gap-2 rounded-2 border border-primary p-3">
-        <p class="text-caption">
-          リストそのものを削除します。入っている人やフォローには影響しません。元には戻せません。
-        </p>
+        <p class="text-caption">{t("lists.info.deleteNotice")}</p>
         <div class="flex justify-end gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setConfirming(false)}
           >
-            やめる
+            {t("lists.common.cancel")}
           </Button>
           <Button
             variant="danger"
@@ -196,7 +181,7 @@ const DeleteFollowSet: Component<{
               })
             }
           >
-            削除する
+            {t("lists.info.confirmDelete")}
           </Button>
         </div>
       </div>
@@ -227,9 +212,9 @@ const FollowSetInfoView: Component<{
     });
     try {
       await appWindow.navigator.clipboard.writeText(`nostr:${naddr}`);
-      notifySuccess("リンクをコピーしました");
+      notifySuccess(t("lists.info.linkCopied"));
     } catch (cause) {
-      notifyError(cause, "リンクをコピーできませんでした");
+      notifyError(cause, t("lists.info.linkCopyFailed"));
     }
   };
   return (
@@ -237,9 +222,7 @@ const FollowSetInfoView: Component<{
       when={props.set}
       fallback={
         <p class="c-secondary p-4 text-caption">
-          {props.settled
-            ? "このリストが見つかりません。削除されたか、リレーから取得できませんでした。"
-            : "読み込み中…"}
+          {props.settled ? t("lists.info.notFound") : t("lists.common.loading")}
         </p>
       }
     >
@@ -262,7 +245,9 @@ const FollowSetInfoView: Component<{
             </Show>
           </div>
           <section class="flex flex-col gap-1.5">
-            <h4 class="c-secondary font-600 text-caption">作った人</h4>
+            <h4 class="c-secondary font-600 text-caption">
+              {t("lists.info.author")}
+            </h4>
             <div class="overflow-hidden rounded-2 border border-primary">
               <ProfileRow pubkey={set().pubkey} />
             </div>
@@ -275,19 +260,19 @@ const FollowSetInfoView: Component<{
                   dispatch({ type: "follow-set-form/open-edit", set: set() })
                 }
               >
-                情報を直す
+                {t("lists.info.edit")}
               </Button>
             </Show>
             <Button
               icon="i-material-symbols:link-rounded"
               onClick={() => void copyLink(set())}
             >
-              リンクをコピー
+              {t("lists.info.copyLink")}
             </Button>
           </div>
           <section class="flex flex-col gap-1.5">
             <h4 class="c-secondary font-600 text-caption">
-              入っている人（{memberCountLabel(set())}）
+              {t("lists.info.members", { summary: memberCountLabel(set()) })}
             </h4>
             <Show when={privatePartNotice(set().privatePart)}>
               {(notice) => (
@@ -316,8 +301,8 @@ const FollowSetInfoView: Component<{
               fallback={
                 <p class="c-secondary text-caption">
                   {props.editable
-                    ? "まだ誰も入っていません。上の欄や、投稿・人のメニューの「リストに追加」から入れられます。"
-                    : "まだ誰も入っていません。"}
+                    ? t("lists.info.noMembersEditable")
+                    : t("lists.info.noMembers")}
                 </p>
               }
             >

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { MessageError } from "../i18n/message";
 import { verifyOptimisticInsert } from "./verify-optimistic-insert";
 
 describe("verifyOptimisticInsert", () => {
@@ -13,7 +14,7 @@ describe("verifyOptimisticInsert", () => {
     // 捕まえる変異: hidden を rejected と同じ拡張機能エラーにする。ユーザーが
     // 内容か時刻を変えれば投稿し直せることを判断できなくなる。
     expect(() => verifyOptimisticInsert("hidden")).toThrow(
-      "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
+      new MessageError({ key: "write.error.deleted" }),
     );
   });
 

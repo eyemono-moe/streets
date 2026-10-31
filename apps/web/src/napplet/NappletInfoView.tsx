@@ -14,6 +14,7 @@ import {
   Switch,
 } from "solid-js";
 import { useAppWindow } from "../app-window";
+import { locale } from "../i18n/locale";
 import ProfileRow from "../profile/ProfileRow";
 import { notifyError } from "../toast";
 import Button from "../ui/Button";
@@ -166,7 +167,10 @@ const NappletInfoView: Component<{
                 {manifest().description}
               </p>
               <p class="c-secondary text-caption">
-                {formatEventTimeFull(new Date(manifest().createdAt * 1000))}{" "}
+                {formatEventTimeFull(
+                  new Date(manifest().createdAt * 1000),
+                  locale(),
+                )}{" "}
                 に公開
               </p>
               <Show when={props.installed !== undefined}>

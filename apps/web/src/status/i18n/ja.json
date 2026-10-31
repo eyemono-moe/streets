@@ -1,0 +1,44 @@
+{
+  "dialog": {
+    "title": "ステータスを設定",
+    "content": {
+      "label": "いまの状態",
+      "placeholder": "例：作業中"
+    },
+    "presets": {
+      "working": "💻 作業中",
+      "break": "☕ 休憩中",
+      "away": "🚶 外出中",
+      "sleeping": "💤 寝ています"
+    },
+    "link": {
+      "label": "リンク（任意）"
+    },
+    "expiry": {
+      "title": "消える時刻",
+      "never": "消さない",
+      "oneHour": "1 時間",
+      "today": "今日中",
+      "oneWeek": "1 週間",
+      "keep": "今の期限のまま（{{ time }} に消えます）。変えるときは上から選んでください。"
+    },
+    "blocked": "保存するか、やめてから閉じてください",
+    "clear": "ステータスを消す",
+    "discard": "やめる",
+    "sending": "送信中…",
+    "save": "保存"
+  },
+  "errors": {
+    "clearFailed": "ステータスを消せませんでした",
+    "saveFailed": "ステータスを保存できませんでした"
+  },
+  "view": {
+    "kind": {
+      "general": "ステータス",
+      "music": "聴いている曲"
+    },
+    "openLink": "ステータスのリンクを開く",
+    "openTarget": "ステータスの指す先を開く",
+    "edit": "ステータスを直す"
+  }
+}

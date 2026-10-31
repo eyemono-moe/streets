@@ -25,7 +25,7 @@ describe("loadUiContrast", () => {
 
 describe("formatUiContrast", () => {
   it("標準は「標準」、それ以外は標準からの差を割合で書く", () => {
-    expect(formatUiContrast(1)).toBe("標準");
+    expect(formatUiContrast(1)).toEqual({ key: "display.contrast.standard" });
     expect(formatUiContrast(1.1)).toBe("+10%");
     expect(formatUiContrast(0.85)).toBe("-15%");
   });

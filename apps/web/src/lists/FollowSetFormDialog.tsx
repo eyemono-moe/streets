@@ -4,6 +4,7 @@ import {
   isFollowSetFormDirty,
 } from "@streets/core/lists/follow-set-form";
 import { type Component, Show, createEffect, createSignal, on } from "solid-js";
+import { t } from "../i18n/locale";
 import ImageUrlField from "../media/ImageUrlField";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -57,8 +58,8 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                 <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
                   <DialogTitle class="flex-1 font-600 text-body">
                     {form().mode === "create"
-                      ? "リストを作る"
-                      : "リストの情報を直す"}
+                      ? t("lists.form.createTitle")
+                      : t("lists.form.editTitle")}
                   </DialogTitle>
                   <DialogClose disabled={form().phase === "saving"} />
                 </div>
@@ -70,20 +71,20 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                   }}
                 >
                   <TextField
-                    label="名前（必須）"
+                    label={t("lists.form.title")}
                     value={form().draft.title}
                     onInput={(value) => input("title", value)}
-                    placeholder="例：よく話す人"
+                    placeholder={t("lists.form.titlePlaceholder")}
                   />
                   <TextField
-                    label="説明"
+                    label={t("lists.form.description")}
                     multiline
                     value={form().draft.description}
                     onInput={(value) => input("description", value)}
-                    placeholder="どんな人を集めたリストか"
+                    placeholder={t("lists.form.descriptionPlaceholder")}
                   />
                   <ImageUrlField
-                    label="画像"
+                    label={t("lists.form.image")}
                     aspectRatio={1}
                     preview={(url) => (
                       <ListPicture url={url} class="size-9 rounded-2" />
@@ -94,7 +95,7 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                     onChange={(value) => input("image", value)}
                   />
                   <p class="c-secondary text-caption">
-                    リストの名前・説明・画像は、ほかの人も見られます。入れる人ごとに、公開か非公開かを選べます。
+                    {t("lists.form.visibleToOthers")}
                   </p>
                   <div
                     ref={actions}
@@ -104,7 +105,7 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                   >
                     <Show when={form().blocked}>
                       <p class="c-danger font-600 text-caption">
-                        保存するか、やめてから閉じてください
+                        {t("lists.form.blocked")}
                       </p>
                     </Show>
                     <div class="flex justify-end gap-2">
@@ -116,7 +117,7 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                           dispatch({ type: "follow-set-form/discard" })
                         }
                       >
-                        やめる
+                        {t("lists.common.cancel")}
                       </Button>
                       <Button
                         type="submit"
@@ -133,9 +134,11 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                       >
                         <Show
                           when={form().phase !== "saving"}
-                          fallback="送信中…"
+                          fallback={t("lists.form.sending")}
                         >
-                          {form().mode === "create" ? "リストを作る" : "保存"}
+                          {form().mode === "create"
+                            ? t("lists.common.createList")
+                            : t("lists.form.save")}
                         </Show>
                       </Button>
                     </div>
@@ -145,7 +148,7 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                       }
                     >
                       <p class="c-secondary text-right text-caption">
-                        変えたところがありません
+                        {t("lists.form.unchanged")}
                       </p>
                     </Show>
                   </div>

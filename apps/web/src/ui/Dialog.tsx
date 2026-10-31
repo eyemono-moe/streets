@@ -5,6 +5,7 @@ import {
   type ParentComponent,
   splitProps,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import IconButton from "./IconButton";
 import { Portal } from "./Portal";
 
@@ -13,9 +14,12 @@ export const DialogRoot: ParentComponent<{
   onClose: () => void;
   /** 閉じる動きが終わり、Portal が外れた後に呼ぶ。 */
   onExitComplete?: () => void;
+  /** 取り消せない操作の確かめは `alertdialog`。読み上げで、すぐ答えを求めていると伝わる。 */
+  role?: "dialog" | "alertdialog";
 }> = (props) => (
   <ArkDialog.Root
     open={props.open}
+    role={props.role}
     onOpenChange={(details) => !details.open && props.onClose()}
     onExitComplete={props.onExitComplete}
     lazyMount
@@ -89,7 +93,7 @@ export const DialogClose: Component<{
         variant="filled"
         size="md"
         icon="i-material-symbols:close-rounded"
-        label={props.label ?? "閉じる"}
+        label={props.label ?? t("ui.dialog.close")}
         disabled={props.disabled}
         class={props.class}
       />

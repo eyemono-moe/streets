@@ -5,9 +5,10 @@ import {
   UPLOAD_GRANT,
   parseGrantKey,
 } from "@streets/core/napplet/publish";
-import { kindLabel } from "@streets/core/nostr/kind-support";
+import { kindName } from "@streets/core/nostr/kind-support";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import { type Component } from "solid-js";
+import { locale } from "../../i18n/locale";
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { createNappletIcons } from "../../napplet/napplet-icons";
 import NappletInfoView from "../../napplet/NappletInfoView";
@@ -95,8 +96,7 @@ const NappletInfo: Component<{
           }
           const grant = parseGrantKey(key);
           if (!grant) return [];
-          const label = kindLabel(grant.kind);
-          const name = label === "イベント" ? `kind:${grant.kind}` : label;
+          const name = kindName(grant.kind, locale()) ?? `kind:${grant.kind}`;
           return [
             {
               key,

@@ -28,20 +28,20 @@ export const buildUserColumn = (pubkey: string): ColumnDef => ({
 
 export const buildFolloweesColumn = (pubkey: string): ColumnDef => ({
   id: `followees:${pubkey}`,
-  title: `${userTitle(pubkey)} のフォロー`,
+  title: userTitle(pubkey),
   source: { kind: "followees-list", pubkey },
 });
 
 export const buildFollowersColumn = (pubkey: string): ColumnDef => ({
   id: `followers:${pubkey}`,
-  title: `${userTitle(pubkey)} のフォロワー`,
+  title: userTitle(pubkey),
   source: { kind: "followers-list", pubkey },
 });
 
 /** リストの一覧（作ったものと、入っているもの）。 */
 export const buildFollowSetsColumn = (): ColumnDef => ({
   id: crypto.randomUUID(),
-  title: "リスト",
+  title: "follow-sets",
   source: { kind: "follow-sets" },
 });
 
@@ -66,7 +66,7 @@ export const buildFollowSetInfoColumn = (
   name: string,
 ): ColumnDef => ({
   id: `follow-set-info:${pubkey}:${identifier}`,
-  title: `${name}の情報`,
+  title: name,
   source: { kind: "follow-set-info", pubkey, identifier },
 });
 
@@ -76,7 +76,7 @@ export const buildFollowSetInfoColumn = (
  */
 export const buildThreadColumn = (focus: string): ColumnDef => ({
   id: `thread:${focus}`,
-  title: "スレッド",
+  title: "thread",
   source: { kind: "thread", focus },
 });
 
@@ -120,7 +120,7 @@ export const buildArticleColumn = (
   relays: readonly RelayUrl[] = [],
 ): ColumnDef => ({
   id: `article:${pubkey}:${identifier}`,
-  title: "長文記事",
+  title: "article",
   source: {
     kind: "article",
     pubkey,
@@ -132,7 +132,7 @@ export const buildArticleColumn = (
 /** ホームを `until`（秒）の時点からさかのぼって読むカラム。 */
 export const buildTimeslipColumn = (until: number): ColumnDef => ({
   id: crypto.randomUUID(),
-  title: "タイムスリップ",
+  title: "timeslip",
   source: {
     kind: "timeslip",
     kinds: [...TIMELINE_KINDS],
@@ -143,9 +143,12 @@ export const buildTimeslipColumn = (until: number): ColumnDef => ({
 
 export const buildActivityColumn = (target: string): ColumnDef => ({
   id: `activity:${target}`,
-  title: "アクティビティ",
+  title: "activity",
   source: { kind: "activity", target },
 });
+
+/** 名前が届くまでの、チャンネルの呼び名。どの言語でも読める形にする。 */
+const shortChannelId = (channelId: string): string => channelId.slice(0, 8);
 
 /**
  * チャンネルのカラム。id をチャンネルから決めるので、同じチャンネルを 2 回開いても
@@ -157,7 +160,7 @@ export const buildChannelColumn = (
   relays: readonly RelayUrl[] = [],
 ): ColumnDef => ({
   id: `channel:${channelId}`,
-  title: name ?? "チャンネル",
+  title: name ?? shortChannelId(channelId),
   source: {
     kind: "channel",
     id: channelId,
@@ -171,7 +174,7 @@ export const buildChannelInfoColumn = (
   relays: readonly RelayUrl[] = [],
 ): ColumnDef => ({
   id: `channel-info:${channelId}`,
-  title: "チャンネルの情報",
+  title: shortChannelId(channelId),
   source: {
     kind: "channel-info",
     id: channelId,
@@ -187,10 +190,7 @@ export const buildRelayColumn = (
   if (unique.length === 0) return undefined;
   return {
     id: crypto.randomUUID(),
-    title:
-      unique.length === 1
-        ? unique[0].replace(/\/$/, "")
-        : `リレー（${unique.length}）`,
+    title: unique[0].replace(/\/$/, ""),
     source: {
       kind: "literal",
       filters: [{ kinds: [1] }],
@@ -215,14 +215,14 @@ export const buildColumn = (
     case "home":
       return {
         id,
-        title: "ホーム",
+        title: "followees",
         source: { kind: "followees", kinds: [...TIMELINE_KINDS] },
       };
 
     case "followees-activity":
       return {
         id,
-        title: "みんなのアクティビティ",
+        title: "followees-activity",
         source: { kind: "followees-activity" },
       };
 
@@ -241,10 +241,10 @@ export const buildColumn = (
 
     case "bookmarks":
       // どのノートを入れるかは kind:10003 が決めるので、デッキには何も焼き込まない。
-      return { id, title: "ブックマーク", source: { kind: "bookmarks" } };
+      return { id, title: "bookmarks", source: { kind: "bookmarks" } };
 
     case "channels":
-      return { id, title: "チャンネル", source: { kind: "channel-list" } };
+      return { id, title: "channel-list", source: { kind: "channel-list" } };
 
     case "napplets":
       return { id, title: "アップレット", source: { kind: "napplet-list" } };
@@ -252,7 +252,7 @@ export const buildColumn = (
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、
       // `resolveSource` が解決のたびに最新の値で組み立てる。
-      return { id, title: "通知", source: { kind: "notifications" } };
+      return { id, title: "notifications", source: { kind: "notifications" } };
   }
 };
 

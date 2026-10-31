@@ -1,4 +1,4 @@
-import { KIND_SUPPORT } from "@streets/core/nostr/kind-support";
+import { KIND_SUPPORT, kindSummary } from "@streets/core/nostr/kind-support";
 import { NIP_SUPPORT } from "@streets/core/nostr/nip-support";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import {
@@ -11,6 +11,7 @@ import {
   on,
 } from "solid-js";
 import type { ReleaseNote } from "../../release-notes-plugin";
+import { locale, t } from "../i18n/locale";
 import SettingsSection from "../settings/SettingsSection";
 import { Mediates, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -36,9 +37,10 @@ const Link: Component<{ href: string; children: string }> = (props) => (
  * プレビューなら PR へのリンクとコミット、それ以外はコミット。
  */
 const version = (): JSX.Element => {
-  if (import.meta.env.DEV) return "開発中";
+  if (import.meta.env.DEV) return t("about.overview.dev");
   const name: string | undefined = import.meta.env.VITE_APP_VERSION;
-  const commit: string = import.meta.env.VITE_COMMIT_SHA ?? "不明";
+  const commit: string =
+    import.meta.env.VITE_COMMIT_SHA ?? t("about.overview.unknownCommit");
   if (name?.startsWith("v")) {
     return <Link href={`${REPOSITORY}/releases/tag/${name}`}>{name}</Link>;
   }
@@ -46,10 +48,10 @@ const version = (): JSX.Element => {
   if (pr) {
     return (
       <>
-        <Link
-          href={`${REPOSITORY}/pull/${pr}`}
-        >{`PR #${pr} のプレビュー`}</Link>
-        {`（${commit}）`}
+        <Link href={`${REPOSITORY}/pull/${pr}`}>
+          {t("about.overview.prPreview", { number: pr })}
+        </Link>
+        {t("about.overview.commit", { commit })}
       </>
     );
   }
@@ -58,29 +60,25 @@ const version = (): JSX.Element => {
 
 const Overview: Component<{ tour?: boolean }> = (props) => (
   <div class="flex flex-col gap-7">
-    <p class="c-primary text-body">
-      Streets はブラウザで使える Nostr
-      のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
-    </p>
+    <p class="c-primary text-body">{t("about.overview.intro")}</p>
     <dl class="c-secondary grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-caption">
-      <dt>バージョン</dt>
+      <dt>{t("about.overview.version")}</dt>
       <dd>{version()}</dd>
-      <dt>ソースコード</dt>
+      <dt>{t("about.overview.source")}</dt>
       <dd>
         <Link href={REPOSITORY}>{REPOSITORY}</Link>
       </dd>
-      <dt>ライセンス</dt>
+      <dt>{t("about.overview.license")}</dt>
       <dd>
         <Link href={`${REPOSITORY}/blob/main/LICENCE`}>MIT</Link>
       </dd>
-      <dt>フォント</dt>
+      <dt>{t("about.overview.font")}</dt>
       <dd>
-        カスタム絵文字の文字は Noto Sans JP・M PLUS Rounded 1c・Noto Serif JP
-        から作っています（
+        {t("about.overview.fontBefore")}
         <Link href="/emoji-glyphs/v1/NOTICE.txt">
-          SIL Open Font License 1.1
+          {t("about.overview.fontLink")}
         </Link>
-        ）
+        {t("about.overview.fontAfter")}
       </dd>
     </dl>
     <Show when={props.tour}>
@@ -93,9 +91,7 @@ const Overview: Component<{ tour?: boolean }> = (props) => (
 const ReleaseNotes: Component<{ notes: readonly ReleaseNote[] }> = (props) => (
   <Show
     when={props.notes.length > 0}
-    fallback={
-      <p class="c-secondary text-body">まだリリースノートはありません。</p>
-    }
+    fallback={<p class="c-secondary text-body">{t("about.releases.empty")}</p>}
   >
     <div class="flex flex-col gap-8">
       <For each={props.notes}>
@@ -122,7 +118,7 @@ const ReleaseNotes: Component<{ notes: readonly ReleaseNote[] }> = (props) => (
               rel="noopener noreferrer"
               class="inline-flex w-fit items-center gap-0.5 text-caption text-link"
             >
-              GitHub で見る
+              {t("about.releases.viewOnGithub")}
               <span
                 class="i-material-symbols:open-in-new-rounded size-3.5"
                 aria-hidden="true"
@@ -137,10 +133,7 @@ const ReleaseNotes: Component<{ notes: readonly ReleaseNote[] }> = (props) => (
 
 const NipSupport: Component = () => (
   <div class="flex flex-col gap-5">
-    <p class="c-secondary text-body">
-      Streets が扱う Nostr
-      の仕様です。「一部」は、その仕様の一部の機能だけを使えることを示します。
-    </p>
+    <p class="c-secondary text-body">{t("about.nips.intro")}</p>
     <div class="flex flex-col divide-y divide-primary">
       <For each={NIP_SUPPORT}>
         {(entry) => (
@@ -169,9 +162,7 @@ const NipSupport: Component = () => (
 
 const KindSupport: Component = () => (
   <div class="flex flex-col gap-5">
-    <p class="c-secondary text-body">
-      「表示対応」はイベントとして表示できます。「内部利用」は設定や通信などに使いますが、イベントとして開くと未対応表示になります。
-    </p>
+    <p class="c-secondary text-body">{t("about.kinds.intro")}</p>
     <div class="flex flex-col divide-y divide-primary">
       <For each={KIND_SUPPORT}>
         {(entry) => (
@@ -179,7 +170,9 @@ const KindSupport: Component = () => (
             <span class="c-primary min-w-16 font-600 text-body">
               {entry.kind}
             </span>
-            <span class="c-primary flex-1 text-body">{entry.summary}</span>
+            <span class="c-primary flex-1 text-body">
+              {kindSummary(entry, locale())}
+            </span>
             <span class="c-secondary text-caption">{entry.status}</span>
           </div>
         )}
@@ -198,79 +191,73 @@ const TourButton: Component = () => {
         icon="i-material-symbols:tour-outline-rounded"
         onClick={() => dispatch({ type: "deck/start-tour" })}
       >
-        使い方を確認する
+        {t("about.overview.tour")}
       </Button>
     </div>
   );
 };
 
 type Tool = {
+  id: "sentry";
   provider: string;
   tool: string;
   terms: string;
   privacy: string;
-  optOut: string;
-  sends: string;
-  purpose: string;
 };
 
 const TOOLS: Tool[] = [
   {
+    id: "sentry",
     provider: "Functional Software, Inc.",
     tool: "Sentry",
     terms: "https://sentry.io/terms/",
     privacy: "https://sentry.io/privacy/",
-    optOut:
-      "設定 →「プライバシー」→「不具合と動作の速さの報告」から停止できます",
-    sends:
-      "エラーの内容と発生箇所、画面の読み込みや操作にかかった時間、端末とブラウザの情報、アプリのバージョン",
-    purpose: "不具合と動作の重さの把握と改善のため",
   },
 ];
 
 const Privacy: Component = () => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="不具合と動作の速さを調べるツールの利用について"
-      description="本アプリでは、不具合と動作の重さの把握と改善を目的として、エラーの記録と、画面の読み込みや操作にかかった時間を、第三者が提供するツールへ送信しています。操作にかかった時間は、一部の回だけを送信します。"
+      title={t("about.privacy.monitoring.title")}
+      description={t("about.privacy.monitoring.description")}
     >
       <dl class="c-primary flex flex-col gap-2 text-body">
         <div class="flex flex-col gap-0.5">
-          <dt class="font-600">送信する情報</dt>
-          <dd>
-            エラーの内容と発生箇所、画面の読み込みや操作にかかった時間、開いていた画面の
-            URL（人や投稿を指す部分は取り除きます）、端末とブラウザの情報、アプリのバージョン。
-          </dd>
+          <dt class="font-600">{t("about.privacy.monitoring.sent")}</dt>
+          <dd>{t("about.privacy.monitoring.sentBody")}</dd>
         </div>
         <div class="flex flex-col gap-0.5">
-          <dt class="font-600">送信しない情報</dt>
-          <dd>
-            秘密鍵、公開鍵、イベント ID、投稿の本文、入力中の文字列、IP
-            アドレス、Cookie。公開鍵とイベント ID は、送信前に取り除いています。
-          </dd>
+          <dt class="font-600">{t("about.privacy.monitoring.notSent")}</dt>
+          <dd>{t("about.privacy.monitoring.notSentBody")}</dd>
         </div>
       </dl>
       <p class="c-secondary text-caption">
-        アクセス解析ツール（ページの閲覧数などを計測するもの）は利用していません。
+        {t("about.privacy.monitoring.noAnalytics")}
       </p>
       <div class="overflow-x-auto">
         <table class="w-full min-w-140 border-collapse text-caption">
           <thead>
             <tr class="c-secondary text-left">
               <th class="border border-primary px-2 py-1 font-600">
-                提供事業者
-              </th>
-              <th class="border border-primary px-2 py-1 font-600">ツール</th>
-              <th class="border border-primary px-2 py-1 font-600">
-                取得する情報
-              </th>
-              <th class="border border-primary px-2 py-1 font-600">利用目的</th>
-              <th class="border border-primary px-2 py-1 font-600">利用規約</th>
-              <th class="border border-primary px-2 py-1 font-600">
-                プライバシーポリシー
+                {t("about.privacy.monitoring.columns.provider")}
               </th>
               <th class="border border-primary px-2 py-1 font-600">
-                オプトアウト
+                {t("about.privacy.monitoring.columns.tool")}
+              </th>
+              <th class="border border-primary px-2 py-1 font-600">
+                {t("about.privacy.monitoring.columns.sends")}
+              </th>
+              <th class="border border-primary px-2 py-1 font-600">
+                {t("about.privacy.monitoring.columns.purpose")}
+              </th>
+              <th class="border border-primary px-2 py-1 font-600">
+                {t("about.privacy.monitoring.columns.terms")}
+              </th>
+              <th class="border border-primary px-2 py-1 font-600">
+                {t("about.privacy.monitoring.columns.privacy")}
+              </th>
+              <th class="border border-primary px-2 py-1 font-600">
+                {t("about.privacy.monitoring.columns.optOut")}
               </th>
             </tr>
           </thead>
@@ -282,9 +269,11 @@ const Privacy: Component = () => (
                     {tool.provider}
                   </td>
                   <td class="border border-primary px-2 py-1">{tool.tool}</td>
-                  <td class="border border-primary px-2 py-1">{tool.sends}</td>
                   <td class="border border-primary px-2 py-1">
-                    {tool.purpose}
+                    {t(`about.privacy.monitoring.tools.${tool.id}.sends`)}
+                  </td>
+                  <td class="border border-primary px-2 py-1">
+                    {t(`about.privacy.monitoring.tools.${tool.id}.purpose`)}
                   </td>
                   <td class="border border-primary px-2 py-1">
                     <Link href={tool.terms}>{tool.terms}</Link>
@@ -292,7 +281,9 @@ const Privacy: Component = () => (
                   <td class="border border-primary px-2 py-1">
                     <Link href={tool.privacy}>{tool.privacy}</Link>
                   </td>
-                  <td class="border border-primary px-2 py-1">{tool.optOut}</td>
+                  <td class="border border-primary px-2 py-1">
+                    {t(`about.privacy.monitoring.tools.${tool.id}.optOut`)}
+                  </td>
                 </tr>
               )}
             </For>
@@ -302,53 +293,34 @@ const Privacy: Component = () => (
     </SettingsSection>
 
     <SettingsSection
-      title="画像とリンクの取得"
-      description="一部の画像とリンク先のページは、Streets のサーバー（Cloudflare Workers）が代わりに取得しています。"
+      title={t("about.privacy.fetching.title")}
+      description={t("about.privacy.fetching.description")}
     >
       <dl class="c-primary flex flex-col gap-2 text-body">
         <div class="flex flex-col gap-0.5">
-          <dt class="font-600">アイコン</dt>
-          <dd>
-            表示に合う大きさへ縮めてから届けるため、Streets
-            のサーバーを通して読み込みます（Cloudflare
-            の画像変換を利用しています）。縮められなかったアイコンは、画像の置き場所から直接読み込みます。
-          </dd>
+          <dt class="font-600">{t("about.privacy.fetching.icon")}</dt>
+          <dd>{t("about.privacy.fetching.iconBody")}</dd>
         </div>
         <div class="flex flex-col gap-0.5">
-          <dt class="font-600">リンクのプレビュー</dt>
-          <dd>
-            投稿の中のリンクの題名や説明は、Streets
-            のサーバーがリンク先のページを取得して作ります。
-          </dd>
+          <dt class="font-600">{t("about.privacy.fetching.linkPreview")}</dt>
+          <dd>{t("about.privacy.fetching.linkPreviewBody")}</dd>
         </div>
       </dl>
-      <p class="c-secondary text-caption">
-        サーバーを通したものは、取得先に Streets
-        のサーバーからのアクセスとして届き、利用者の IP
-        アドレスは伝わりません。Streets
-        のサーバーは、どの画像やリンクを取得したかを記録していません。
-      </p>
+      <p class="c-secondary text-caption">{t("about.privacy.fetching.note")}</p>
     </SettingsSection>
 
     <SettingsSection
-      title="カスタム絵文字の作成"
-      description="絵文字ピッカーの「カスタム絵文字を作る」で作った絵文字は、送信したときに、入力した文字と見た目の指定を Streets のサーバー（Cloudflare Workers）へ送り、画像にして保存します。"
+      title={t("about.privacy.customEmoji.title")}
+      description={t("about.privacy.customEmoji.description")}
     >
-      <p class="c-primary text-body">
-        保存した画像は、URL を知っていれば誰でも見られます。URL
-        には入力した文字が含まれます。誰が作ったかは記録しません。見本は端末の中で描くので、送信しなかった文字はサーバーに届きません。
-      </p>
+      <p class="c-primary text-body">{t("about.privacy.customEmoji.body")}</p>
     </SettingsSection>
 
     <SettingsSection
-      title="情報の保存と公開範囲"
-      description="設定とログイン状態は、この端末のブラウザ内にのみ保存します。"
+      title={t("about.privacy.storage.title")}
+      description={t("about.privacy.storage.description")}
     >
-      <p class="c-primary text-body">
-        秘密鍵はアプリでは保持せず、ブラウザの拡張機能（NIP-07）または接続した
-        署名器（NIP-46）に委ねています。投稿・プロフィール・フォローリストなどは
-        Nostr のリレーへ送信され、リレーを通じて誰でも閲覧できます。
-      </p>
+      <p class="c-primary text-body">{t("about.privacy.storage.body")}</p>
     </SettingsSection>
   </div>
 );
@@ -381,42 +353,42 @@ const AboutDialog: Component<{
       },
     ),
   );
-  const pages: DialogPage[] = [
+  const pages = (): DialogPage[] => [
     {
       value: "overview",
-      label: "このアプリについて",
+      label: t("about.pages.overview"),
       icon: "i-material-symbols:info-outline-rounded",
-      title: "このアプリについて",
+      title: t("about.pages.overview"),
       content: () => <Overview tour={props.tour} />,
     },
     {
       value: "releases",
-      label: "リリースノート",
+      label: t("about.pages.releases"),
       icon: "i-material-symbols:campaign-outline-rounded",
-      title: "リリースノート",
+      title: t("about.pages.releases"),
       content: () => (
         <ReleaseNotes notes={props.releaseNotes ?? bundledReleaseNotes} />
       ),
     },
     {
       value: "nips",
-      label: "対応している NIP",
+      label: t("about.pages.nips"),
       icon: "i-material-symbols:fact-check-outline-rounded",
-      title: "対応している NIP",
+      title: t("about.pages.nips"),
       content: () => <NipSupport />,
     },
     {
       value: "kinds",
-      label: "対応しているイベント",
+      label: t("about.pages.kinds"),
       icon: "i-material-symbols:deployed-code-outline-rounded",
-      title: "対応しているイベント",
+      title: t("about.pages.kinds"),
       content: () => <KindSupport />,
     },
     {
       value: "privacy",
-      label: "プライバシーポリシー",
+      label: t("about.pages.privacy"),
       icon: "i-material-symbols:shield-outline",
-      title: "プライバシーポリシー",
+      title: t("about.pages.privacy"),
       content: () => <Privacy />,
     },
   ];
@@ -449,9 +421,9 @@ const AboutDialog: Component<{
       <PagedDialog
         open={props.open}
         wide={props.wide}
-        title="Streets について"
-        description="アプリの情報と、プライバシーポリシーを表示します。"
-        pages={pages}
+        title={t("about.dialog.title")}
+        description={t("about.dialog.description")}
+        pages={pages()}
         page={page()}
         onPageChange={setPage}
         onClose={() => dispatch({ type: "deck/close-about" })}

@@ -10,6 +10,7 @@ import { visibleColumnItems } from "@streets/core/view/column-items";
 import { type Component, Match, Switch } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
+import { t } from "../../i18n/locale";
 import Event from "../../note/Event";
 import MutedGate from "../../note/MutedGate";
 import VirtualList from "../../ui/VirtualList";
@@ -67,7 +68,7 @@ const EventList: Component<{
             itemKey={(event) => event.id}
             followsStart={windowed.followsStart}
             newer={{
-              noun: "投稿",
+              noun: "post",
               authorOf: (event) => event.pubkey,
               pending: windowed.pending,
               latest: windowed.latest,
@@ -94,10 +95,12 @@ const EventList: Component<{
         <OlderLoader paging={section.paging()} onReach={section.loadMore} />
       </Match>
       <Match when={section.status().phase === "settled"}>
-        <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
+        <p class="c-secondary p-4 text-caption">
+          {t("columns.blocks.empty.posts")}
+        </p>
       </Match>
       <Match when={true}>
-        <p class="c-secondary p-4 text-caption">読み込み中…</p>
+        <p class="c-secondary p-4 text-caption">{t("columns.loading")}</p>
       </Match>
     </Switch>
   );

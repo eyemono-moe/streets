@@ -657,6 +657,33 @@ describe("引用した相手に知らせるか（notifyQuoted）", () => {
   });
 });
 
+describe("いいねボタンで送るリアクション（defaultReaction）", () => {
+  it("カスタム絵文字を保存して読み戻せる", () => {
+    const emoji: DeckSet = {
+      ...deck,
+      defaultReaction: {
+        type: "emoji",
+        shortcode: "wave",
+        url: "https://example.com/wave.png",
+      },
+    };
+    expect(loadDeckSet(saveDeckSet(emoji))?.defaultReaction).toEqual(
+      emoji.defaultReaction,
+    );
+  });
+
+  it("壊れた値は既定（未設定）に落とし、デッキは読む", () => {
+    const loaded = loadDeckSet(
+      JSON.stringify({
+        ...deck,
+        defaultReaction: { type: "text", content: "" },
+      }),
+    );
+    expect(loaded?.decks).toEqual(deck.decks);
+    expect(loaded?.defaultReaction).toBeUndefined();
+  });
+});
+
 describe("知らない種類のカラムが混ざったとき", () => {
   const home = {
     id: "home",

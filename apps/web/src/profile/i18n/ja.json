@@ -1,0 +1,63 @@
+{
+  "relays": {
+    "usage": {
+      "readWrite": "読み込み・書き込み",
+      "read": "読み込み",
+      "write": "書き込み"
+    },
+    "copied": "URL をコピーしました",
+    "copyFailed": "URL をコピーできませんでした",
+    "title": {
+      "default": "このユーザーが使っているリレー",
+      "before": "",
+      "after": "さんが使っているリレー"
+    },
+    "loading": "読み込み中…",
+    "empty": "リレー設定は公開されていません。",
+    "incomplete": "一部のリレーからは取得できませんでした。",
+    "failed": "リレー設定を取得できませんでした。",
+    "copy": "{{ url }} をコピー"
+  },
+  "follow": {
+    "sending": "送信中…",
+    "unfollow": "フォロー解除",
+    "following": "フォロー中",
+    "follow": "フォロー"
+  },
+  "followsYou": "フォローされています",
+  "nip05": {
+    "pending": "ドメインに確認しています",
+    "verified": "ドメインで本人と確認できました",
+    "mismatch": "このドメインは、この人を本人と認めていません",
+    "unreachable": "ドメインに接続できず、確認できませんでした"
+  },
+  "pinned": {
+    "empty": "ピン留めした投稿はありません。",
+    "loading": "読み込み中…"
+  },
+  "header": {
+    "setStatus": "ステータスを設定",
+    "showFollowees": "フォローを見る",
+    "followees": "フォロー",
+    "showFollowers": "フォロワーを見る"
+  },
+  "list": {
+    "count": {
+      "one": "{{ count }} 人",
+      "other": "{{ count }} 人"
+    },
+    "countLoading": {
+      "one": "{{ count }} 人（読み込み中）",
+      "other": "{{ count }} 人（読み込み中）"
+    },
+    "loading": "読み込み中…"
+  },
+  "menu": {
+    "label": "このユーザーの操作",
+    "zap": "Zap する",
+    "relays": "リレー設定",
+    "addToList": "リストに追加",
+    "unmute": "ミュートを解除",
+    "mute": "ミュート"
+  }
+}

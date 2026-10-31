@@ -7,6 +7,7 @@ import {
 import type { ZapTarget } from "@streets/core/zap/zap-request";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { useAppWindow } from "../app-window";
+import { locale, t } from "../i18n/locale";
 import Avatar from "../note/Avatar";
 import Event from "../note/Event";
 import { ProfileName, ProfileText } from "../note/Name";
@@ -25,7 +26,8 @@ import {
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 
-const formatSats = (sats: number) => `${sats.toLocaleString("ja-JP")} sats`;
+const formatSats = (sats: number) =>
+  t("zap.dialog.sats", { amount: sats.toLocaleString(locale()) });
 
 type OpenZap = Exclude<ZapFlowState, { phase: "closed" }>;
 type PayingZap = Extract<ZapFlowState, { phase: "paying" }>;
@@ -89,16 +91,18 @@ const AmountForm: Component<{ state: OpenZap }> = (props) => {
       }}
     >
       <div class="flex flex-col gap-2">
-        <span class="font-600 text-caption">金額</span>
+        <span class="font-600 text-caption">
+          {t("zap.dialog.amount.title")}
+        </span>
         <SegmentedControl
-          label="金額"
+          label={t("zap.dialog.amount.title")}
           block
           options={[
             ...ZAP_AMOUNTS.map((amount) => ({
               value: String(amount),
-              label: amount.toLocaleString("ja-JP"),
+              label: amount.toLocaleString(locale()),
             })),
-            { value: "custom", label: "ほか" },
+            { value: "custom", label: t("zap.dialog.amount.custom") },
           ]}
           value={String(props.state.draft.amount)}
           onChange={(value) =>
@@ -114,8 +118,8 @@ const AmountForm: Component<{ state: OpenZap }> = (props) => {
               class={`${textInputClass} min-w-0 flex-1`}
               inputmode="numeric"
               autofocus
-              aria-label="金額（sats）"
-              placeholder="金額"
+              aria-label={t("zap.dialog.amount.customLabel")}
+              placeholder={t("zap.dialog.amount.placeholder")}
               disabled={busy()}
               value={props.state.draft.customAmount}
               onInput={(event) =>
@@ -131,11 +135,14 @@ const AmountForm: Component<{ state: OpenZap }> = (props) => {
       </div>
       <label class="flex flex-col gap-1">
         <span class="font-600 text-caption">
-          一言<span class="c-secondary font-400">（任意）</span>
+          {t("zap.dialog.message.label")}
+          <span class="c-secondary font-400">
+            {t("zap.dialog.message.optional")}
+          </span>
         </span>
         <input
           class={`${textInputClass} w-full`}
-          placeholder="ありがとう！"
+          placeholder={t("zap.dialog.message.placeholder")}
           maxLength={200}
           disabled={busy()}
           value={props.state.draft.message}
@@ -153,10 +160,10 @@ const AmountForm: Component<{ state: OpenZap }> = (props) => {
         disabled={busy() || sats() === undefined}
       >
         {busy()
-          ? "請求書をもらっています…"
+          ? t("zap.dialog.submit.fetching")
           : sats() !== undefined
-            ? `${formatSats(sats() ?? 0)} を Zap する`
-            : "金額を入れてください"}
+            ? t("zap.dialog.submit.send", { amount: formatSats(sats() ?? 0) })
+            : t("zap.dialog.submit.needAmount")}
       </Button>
     </form>
   );
@@ -167,9 +174,9 @@ const Payment: Component<{ state: PayingZap }> = (props) => {
   const copy = async () => {
     try {
       await appWindow.navigator.clipboard.writeText(props.state.invoice);
-      notifySuccess("請求書をコピーしました");
+      notifySuccess(t("zap.dialog.payment.copied"));
     } catch (error) {
-      notifyError(error, "コピーできませんでした");
+      notifyError(error, t("zap.dialog.payment.copyFailed"));
     }
   };
   return (
@@ -179,7 +186,7 @@ const Payment: Component<{ state: PayingZap }> = (props) => {
           class="c-secondary px-4 pb-6 text-center text-caption"
           aria-live="polite"
         >
-          ブラウザのウォレットで支払いを確かめてください…
+          {t("zap.dialog.payment.webln")}
         </p>
       </Match>
       <Match when={props.state.wallet === "manual"}>
@@ -194,7 +201,7 @@ const Payment: Component<{ state: PayingZap }> = (props) => {
             </QrCode.Frame>
           </QrCode.Root>
           <p class="c-secondary text-center text-caption" aria-live="polite">
-            ライトニングのウォレットで読み取って支払ってください。支払いが届いたら閉じます。
+            {t("zap.dialog.payment.manual")}
           </p>
           <div class="flex flex-wrap justify-center gap-2">
             <Button
@@ -202,14 +209,14 @@ const Payment: Component<{ state: PayingZap }> = (props) => {
               icon="i-material-symbols:content-copy-outline-rounded"
               onClick={() => void copy()}
             >
-              コピー
+              {t("zap.dialog.payment.copy")}
             </Button>
             <ButtonLink
               size="sm"
               icon="i-material-symbols:open-in-new-rounded"
               href={`lightning:${props.state.invoice}`}
             >
-              ウォレットで開く
+              {t("zap.dialog.payment.openWallet")}
             </ButtonLink>
           </div>
         </div>
@@ -233,7 +240,7 @@ const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
               <>
                 <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
                   <DialogTitle class="flex-1 font-600 text-body">
-                    Zap する
+                    {t("zap.dialog.title")}
                   </DialogTitle>
                   <DialogClose />
                 </div>

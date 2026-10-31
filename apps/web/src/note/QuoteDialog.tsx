@@ -7,6 +7,7 @@ import {
 import { type Component, Show } from "solid-js";
 import { useEventActions } from "../actions";
 import { useNoteSources } from "../completion/sources";
+import { t } from "../i18n/locale";
 import { Mediates, useDispatch } from "../ui-events";
 import Completion from "../ui/Completion";
 import {
@@ -44,7 +45,7 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
         <DialogContent class="w-full max-w-130 rounded-3 border border-control">
           <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="flex-1 font-600 text-body">
-              引用する
+              {t("note.quote.title")}
             </DialogTitle>
             <DialogClose disabled={props.state.sending} />
           </div>
@@ -67,7 +68,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                     <Avatar pubkey={actions().viewer} size="normal" />
                   )}
                 </Show>
-                <Completion sources={sources} label="入れる候補">
+                <Completion
+                  sources={sources}
+                  label={t("note.compose.completion")}
+                >
                   {(attach) => (
                     <textarea
                       ref={(element) => {
@@ -75,10 +79,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                         emojiInsertion.ref(element);
                       }}
                       autofocus
-                      aria-label="引用の本文"
+                      aria-label={t("note.quote.body")}
                       class="c-primary placeholder:c-secondary min-h-20 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
                       disabled={props.state.sending}
-                      placeholder="コメントを追加"
+                      placeholder={t("note.quote.placeholder")}
                       value={props.state.content}
                       onInput={(event) =>
                         dispatch({
@@ -116,7 +120,7 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
 
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}
-              label="引用"
+              label={t("note.quote.submit")}
               sending={props.state.sending}
               contentWarning={props.state.contentWarning}
               disabled={!canSend(props.state)}

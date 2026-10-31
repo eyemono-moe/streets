@@ -1,4 +1,4 @@
-import { findKinds } from "@streets/core/nostr/kind-support";
+import { findKinds, kindSummary } from "@streets/core/nostr/kind-support";
 import { encodeBech32, encodeNprofile } from "@streets/core/nostr/nip19";
 import { type Profile, parseProfile } from "@streets/core/nostr/profile";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -14,6 +14,7 @@ import {
   rankUsers,
 } from "@streets/core/view/completion";
 import { searchEmojis } from "@streets/core/view/emoji-search";
+import { normalizeForMatch } from "@streets/core/view/text-match";
 import {
   type Accessor,
   Show,
@@ -24,6 +25,8 @@ import {
 } from "solid-js";
 import { useEventActions } from "../actions";
 import { useEmojiGroups } from "../emoji/custom-emojis";
+import { type PickerEmoji, loadUnicodeEmojis } from "../emoji/emoji-data";
+import { locale } from "../i18n/locale";
 import { ProfileName } from "../note/Name";
 import { useOptionalReadLayer } from "../read-layer";
 import Avatar from "../ui/Avatar";
@@ -295,12 +298,90 @@ export const EmojiRow = (props: {
   </>
 );
 
-/** スタンプの候補（`:` で出す）。自分の絵文字から、名前で絞る。 */
+/** Unicode の絵文字の候補の 1 行。打った言葉に当たったショートコードと、名前を並べる。 */
+export const UnicodeEmojiRow = (props: {
+  char: string;
+  shortcode: string | undefined;
+  label: string;
+}) => (
+  <>
+    <span class="w-6 shrink-0 text-center text-[1.25rem] leading-6">
+      {props.char}
+    </span>
+    <span class="min-w-0 flex-1 truncate text-body">
+      {props.shortcode === undefined ? props.label : `:${props.shortcode}:`}
+    </span>
+    <Show when={props.shortcode !== undefined}>
+      <span class="c-secondary min-w-0 max-w-[40%] truncate text-caption">
+        {props.label}
+      </span>
+    </Show>
+  </>
+);
+
+export type CustomEmojiEntry = { shortcode: string; url: string; set: string };
+type UnicodeEmoji = Extract<PickerEmoji, { kind: "unicode" }>;
+
+/**
+ * 自分の絵文字と Unicode の絵文字を、ピッカーで探すときと同じ手がかりで絞る。
+ * 同じ近さなら自分の絵文字を先に出す（わざわざ入れたものなので）。
+ */
+export const emojiItems = (
+  custom: readonly CustomEmojiEntry[],
+  unicode: readonly UnicodeEmoji[],
+  query: string,
+): CompletionItem[] => {
+  const needle = normalizeForMatch(query.trim());
+  const all = [
+    ...custom.map((emoji) => ({
+      emoji: { kind: "custom", ...emoji } as const,
+      shortcodes: [emoji.shortcode],
+    })),
+    ...unicode.map((emoji) => ({
+      emoji,
+      label: emoji.label,
+      tags: emoji.tags,
+      shortcodes: emoji.shortcodes,
+    })),
+  ];
+  return searchEmojis(all, query)
+    .slice(0, LIMIT)
+    .map(({ emoji }): CompletionItem => {
+      if (emoji.kind === "custom") {
+        return {
+          key: `custom:${emoji.shortcode}`,
+          insert: `:${emoji.shortcode}:`,
+          view: () => <EmojiRow {...emoji} />,
+        };
+      }
+      const shortcode =
+        emoji.shortcodes.find((code) =>
+          normalizeForMatch(code).includes(needle),
+        ) ?? emoji.shortcodes[0];
+      return {
+        key: emoji.char,
+        insert: emoji.char,
+        view: () => (
+          <UnicodeEmojiRow
+            char={emoji.char}
+            shortcode={shortcode}
+            label={emoji.label}
+          />
+        ),
+      };
+    });
+};
+
+/**
+ * 絵文字の候補（`:` で出す）。自分の絵文字と Unicode の絵文字から、名前で絞る。
+ * Unicode の一覧は大きいので、初めて候補を出すときに読む。プロフィールの欄のように
+ * `:` を打たずに終わることが多い場所で、開いただけで読ませない。
+ */
 export const useEmojiSource = (): CompletionSource => {
   const groups = useEmojiGroups();
-  const emojis = createMemo(() => {
+  const custom = createMemo(() => {
     const seen = new Set<string>();
-    const all: { shortcode: string; url: string; set: string }[] = [];
+    const all: CustomEmojiEntry[] = [];
     for (const group of groups()) {
       for (const emoji of group.emojis) {
         if (emoji.kind !== "custom" || seen.has(emoji.shortcode)) continue;
@@ -315,19 +396,33 @@ export const useEmojiSource = (): CompletionSource => {
     return all;
   });
 
+  const [unicode, setUnicode] = createSignal<readonly UnicodeEmoji[]>([]);
+  let requested = false;
+  const requestUnicode = () => {
+    if (requested) return;
+    requested = true;
+    loadUnicodeEmojis()
+      .then((loaded) =>
+        setUnicode(
+          loaded.flatMap((group) =>
+            group.emojis.filter(
+              (emoji): emoji is UnicodeEmoji => emoji.kind === "unicode",
+            ),
+          ),
+        ),
+      )
+      // 読めなかったら、次に候補を出すときにもう一度試す。
+      .catch(() => {
+        requested = false;
+      });
+  };
+
   return {
     trigger: EMOJI_TRIGGER,
-    items: (query) =>
-      searchEmojis(
-        emojis().map((emoji) => ({ ...emoji, shortcodes: [emoji.shortcode] })),
-        query,
-      )
-        .slice(0, LIMIT)
-        .map((emoji): CompletionItem => ({
-          key: emoji.shortcode,
-          insert: `:${emoji.shortcode}:`,
-          view: () => <EmojiRow {...emoji} />,
-        })),
+    items: (query) => {
+      requestUnicode();
+      return emojiItems(custom(), unicode(), query);
+    },
   };
 };
 
@@ -365,6 +460,8 @@ export const kindSource = (trigger: CompletionTrigger): CompletionSource => ({
         key: String(entry.kind),
         insert: String(entry.kind),
         space: true,
-        view: () => <KindRow kind={entry.kind} summary={entry.summary} />,
+        view: () => (
+          <KindRow kind={entry.kind} summary={kindSummary(entry, locale())} />
+        ),
       })),
 });

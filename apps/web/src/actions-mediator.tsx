@@ -9,6 +9,7 @@ import { createStore } from "solid-js/store";
 import type { EventActions } from "./actions";
 import { requestEmoji } from "./emoji/maker/api";
 import { rememberEmoji } from "./emoji/recent-emoji";
+import { t } from "./i18n/locale";
 import { notifyError } from "./toast";
 import { type ActionEvent, Mediates, type UiEvent } from "./ui-events";
 
@@ -36,6 +37,8 @@ const pendingKey = (event: ActionEvent): string => {
       return `favorite-channel:${event.id}`;
     case "note/broadcast":
       return `broadcast:${event.target.id}`;
+    case "note/delete":
+      return `delete:${event.target.id}`;
   }
 };
 
@@ -65,17 +68,17 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
     const actions = props.actions;
     switch (event.type) {
       case "note/repost":
-        run(event, "リポストできませんでした", () =>
+        run(event, t("app.actionFailed.repost"), () =>
           actions.repost(event.target),
         );
         return true;
       case "note/react":
-        run(event, "リアクションを送れませんでした", () =>
+        run(event, t("app.actionFailed.react"), () =>
           actions.react(event.target, event.input),
         );
         return true;
       case "note/react-made":
-        run(event, "カスタム絵文字を送れませんでした", async () => {
+        run(event, t("app.actionFailed.reactMade"), async () => {
           const url = await requestEmoji(event.spec);
           const shortcode = event.shortcode ?? defaultShortcode(event.spec);
           await actions.react(event.target, { type: "emoji", shortcode, url });
@@ -83,33 +86,38 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
         });
         return true;
       case "note/vote":
-        run(event, "投票できませんでした", () =>
+        run(event, t("app.actionFailed.vote"), () =>
           actions.vote(event.target, event.choices),
         );
         return true;
       case "note/bookmark":
-        run(event, "ブックマークを保存できませんでした", () =>
+        run(event, t("app.actionFailed.bookmark"), () =>
           actions.setBookmark(event.target, event.on),
         );
         return true;
       case "note/pin":
-        run(event, "ピン留めを保存できませんでした", () =>
+        run(event, t("app.actionFailed.pin"), () =>
           actions.setPinned(event.target, event.on),
         );
         return true;
       case "user/follow":
-        run(event, "フォローの状態を保存できませんでした", () =>
+        run(event, t("app.actionFailed.follow"), () =>
           actions.setFollow(event.pubkey, event.on),
         );
         return true;
       case "channel/favorite":
-        run(event, "お気に入りを保存できませんでした", () =>
+        run(event, t("app.actionFailed.favorite"), () =>
           actions.setFavoriteChannel(event.id, event.on),
         );
         return true;
       case "note/broadcast":
-        run(event, "送り直せませんでした", () =>
+        run(event, t("app.actionFailed.broadcast"), () =>
           actions.broadcast(event.target, event.relays),
+        );
+        return true;
+      case "note/delete":
+        run(event, t("app.actionFailed.delete"), () =>
+          actions.deleteEvent(event.target),
         );
         return true;
       default:

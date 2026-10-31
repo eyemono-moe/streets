@@ -2,6 +2,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { parseArticle } from "@streets/core/nostr/long-form";
 import { formatEventTimeFull } from "@streets/core/view/format-time";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { t, locale } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
@@ -11,7 +12,7 @@ import ReactionList from "../note/ReactionList";
 const Markdown = lazyPart(() => import("./Markdown"));
 
 const dateOf = (seconds: number) =>
-  formatEventTimeFull(new Date(seconds * 1000));
+  formatEventTimeFull(new Date(seconds * 1000), locale());
 
 /** 長文記事を 1 本、カラムの幅で読む。 */
 const ArticleView: Component<{ event: NostrEvent }> = (props) => {
@@ -33,7 +34,7 @@ const ArticleView: Component<{ event: NostrEvent }> = (props) => {
             )}
           </Show>
           <h1 class="c-primary m-0 break-words font-700 text-[24px] leading-snug">
-            {article().title ?? "題名の無い記事"}
+            {article().title ?? t("article.untitled")}
           </h1>
           <div class="flex items-center gap-2">
             <Avatar pubkey={props.event.pubkey} size="compact" />
@@ -42,7 +43,10 @@ const ArticleView: Component<{ event: NostrEvent }> = (props) => {
               <span class="c-secondary text-caption">
                 {article().publishedAt !== undefined &&
                 article().publishedAt !== article().updatedAt
-                  ? `${dateOf(article().publishedAt as number)} 公開 · ${dateOf(article().updatedAt)} 更新`
+                  ? t("article.dates.publishedAndUpdated", {
+                      published: dateOf(article().publishedAt as number),
+                      updated: dateOf(article().updatedAt),
+                    })
                   : dateOf(article().updatedAt)}
               </span>
             </div>

@@ -1,0 +1,754 @@
+{
+  "pages": {
+    "account": "Account",
+    "relays": "Relays",
+    "media": "Images",
+    "search": "Search",
+    "emoji": "Emoji",
+    "mute": "Mute",
+    "keyboard": "Keyboard",
+    "display": "Display",
+    "privacy": "Privacy",
+    "applets": "Applets",
+    "stats": "Statistics"
+  },
+  "items": {
+    "profile": {
+      "title": "Profile",
+      "keywords": []
+    },
+    "profileDisplayName": {
+      "title": "Display name",
+      "keywords": ["profile name", "name"]
+    },
+    "profileName": {
+      "title": "Username",
+      "keywords": ["handle"]
+    },
+    "profileAbout": {
+      "title": "About",
+      "description": "The profile text other people see",
+      "keywords": ["bio", "description"]
+    },
+    "profilePicture": {
+      "title": "Profile picture",
+      "description": "The image shown on your profile",
+      "keywords": ["avatar", "icon"]
+    },
+    "profileBanner": {
+      "title": "Banner image",
+      "keywords": ["header", "cover"]
+    },
+    "profileNip05": {
+      "title": "Domain verification (NIP-05)",
+      "keywords": ["verification", "domain"]
+    },
+    "profileWebsite": {
+      "title": "Website",
+      "keywords": ["URL", "homepage"]
+    },
+    "profileLud16": {
+      "title": "Zap address (Lightning address)",
+      "keywords": ["tip", "wallet", "lightning"]
+    },
+    "accountId": {
+      "title": "Your ID",
+      "keywords": ["public key", "npub"]
+    },
+    "relays": {
+      "title": "Your relays",
+      "keywords": ["connections", "write relays", "read relays"]
+    },
+    "blockedRelays": {
+      "title": "Blocked relays",
+      "keywords": ["block", "deny"]
+    },
+    "relayRecommendations": {
+      "title": "Recommended relays",
+      "keywords": []
+    },
+    "readRouting": {
+      "title": "Relays to read posts from",
+      "keywords": ["reading", "routing"]
+    },
+    "readRedundancy": {
+      "title": "Relays to search per person",
+      "keywords": ["per person", "missing posts", "redundancy"]
+    },
+    "fallbackRelays": {
+      "title": "Default relays",
+      "keywords": ["fallback"]
+    },
+    "relayPlan": {
+      "title": "Relays in use",
+      "keywords": []
+    },
+    "relayTraffic": {
+      "title": "Relay traffic",
+      "keywords": []
+    },
+    "imageDisplay": {
+      "title": "Image display",
+      "description": "Shrink images to fit the screen and use less memory",
+      "keywords": ["downscale", "memory"]
+    },
+    "imageUpload": {
+      "title": "Image upload server",
+      "description": "The server that stores images you attach to posts",
+      "keywords": ["Blossom", "server"]
+    },
+    "searchHistory": {
+      "title": "Search history",
+      "description": "Keep past searches so you can run them again from the search panel",
+      "keywords": ["history", "recent searches"]
+    },
+    "searchRelays": {
+      "title": "Search relays",
+      "keywords": ["search"]
+    },
+    "reactionEmoji": {
+      "title": "Like button emoji",
+      "keywords": ["reaction"]
+    },
+    "emojiList": {
+      "title": "Your emoji list",
+      "keywords": []
+    },
+    "emojiFind": {
+      "title": "Find emoji sets",
+      "keywords": []
+    },
+    "emojiManage": {
+      "title": "Manage more emoji",
+      "keywords": []
+    },
+    "muteAdd": {
+      "title": "Add a mute",
+      "keywords": ["hide"]
+    },
+    "muteList": {
+      "title": "Muted",
+      "keywords": ["hidden", "unmute"]
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "keywords": ["key bindings"]
+    },
+    "columnDigits": {
+      "title": "Number keys to switch columns",
+      "keywords": ["switch columns"]
+    },
+    "language": {
+      "title": "Language",
+      "keywords": ["言語", "English", "日本語", "browser"]
+    },
+    "theme": {
+      "title": "Color theme",
+      "description": "Choose a light or dark screen",
+      "keywords": ["dark mode", "light mode"]
+    },
+    "contrast": {
+      "title": "Contrast",
+      "description": "Choose how much text stands out from the background",
+      "keywords": ["text", "background", "readability"]
+    },
+    "accent": {
+      "title": "Accent color",
+      "keywords": ["color", "theme"]
+    },
+    "preview": {
+      "title": "Preview",
+      "keywords": []
+    },
+    "deckLayout": {
+      "title": "Column layout",
+      "description": "Show columns side by side, or one at a time",
+      "keywords": ["layout", "single column", "multiple columns"]
+    },
+    "swipeMode": {
+      "title": "Swipe to switch columns",
+      "description": "Choose what swiping left or right does when showing one column at a time",
+      "keywords": ["swipe", "left and right", "wrap around", "loop", "menu"]
+    },
+    "columnWidth": {
+      "title": "Column width",
+      "description": "Stretch side-by-side columns to fill the screen",
+      "keywords": ["width", "stretch"]
+    },
+    "contentWarning": {
+      "title": "Sensitive posts",
+      "keywords": ["sensitive", "content warning"]
+    },
+    "chatOrder": {
+      "title": "Chat order",
+      "description": "Choose whether new chat messages appear at the bottom or the top",
+      "keywords": ["public chat", "channel", "new messages", "top", "bottom"]
+    },
+    "timeFormat": {
+      "title": "Post time",
+      "description": "Show post times as dates or as time ago",
+      "keywords": [
+        "relative time",
+        "absolute time",
+        "time ago",
+        "minutes ago",
+        "date"
+      ]
+    },
+    "writeProgress": {
+      "title": "Saving progress",
+      "keywords": ["progress", "upload"]
+    },
+    "actionLayout": {
+      "title": "Action bar",
+      "keywords": ["post actions", "reorder"]
+    },
+    "clientTag": {
+      "title": "Show which app you use",
+      "keywords": ["client tag", "client"]
+    },
+    "notifyQuoted": {
+      "title": "Notify people you quote",
+      "keywords": ["quote", "mention", "p tag"]
+    },
+    "errorReport": {
+      "title": "Error and performance reports",
+      "keywords": ["error reports", "telemetry"]
+    },
+    "intentDefaults": {
+      "title": "Default apps to open with",
+      "description": "Which applet opens people and posts",
+      "keywords": ["default app", "open with", "napplet", "NAP-INTENT"]
+    }
+  },
+  "section": {
+    "reset": "Reset to default",
+    "resetLabel": "Reset {{title}} to default"
+  },
+  "privacy": {
+    "clientTag": {
+      "description": "Marks your posts as sent from Streets. Other apps show something like “via Streets”, so anyone can see which app you use. The mark can't be removed from posts you have already sent.",
+      "switch": "Show that posts were sent from Streets"
+    },
+    "notifyQuoted": {
+      "description": "When you quote a post, its author gets a notification. If you turn this off, they aren't told you quoted them. This applies both to the quote button and to links to posts in your text. People you mention by name in the text are still notified.",
+      "switch": "Notify the author of the post you quote"
+    },
+    "errorReport": {
+      "description": "Sends error details, along with how long screens and actions took to load, to the developers together with information about your device and browser. When signing or logging in fails, it also sends how you log in (the type of extension, and the relays used to talk to your signer). It never sends your private key, public key, event IDs or the text of your posts.",
+      "switch": "Send error and performance reports"
+    }
+  },
+  "details": {
+    "title": "More options"
+  },
+  "fallbackRelays": {
+    "description": "Relays used to read posts from people whose relay settings can't be found, and as a place to send your posts when you have no write relays. You can choose up to {{ max }}. If you choose none, Streets uses the relays it picks.",
+    "usingDefault": "Currently using the relays Streets picked ({{ relays }}).",
+    "listLabel": "Default relays"
+  },
+  "defaultReaction": {
+    "heart": "Heart",
+    "pickerTitle": "Choose the emoji for the like button",
+    "pick": "Choose emoji",
+    "reset": "Back to heart"
+  },
+  "palettes": {
+    "label": "Color combination",
+    "purple": "Purple",
+    "cyan": "Cyan",
+    "lime": "Lime",
+    "orange": "Orange",
+    "pink": "Pink"
+  },
+  "blockedRelays": {
+    "saved": "Saved the relays to avoid",
+    "saveFailed": "Couldn't save the relays to avoid",
+    "hintPrivate": "Private: saved encrypted, so other people can't tell which relays you avoid.",
+    "hintPublic": "Public: other people can see which relays you avoid.",
+    "noticeUnavailable": "Your current login method can't handle private items, so only public items are shown.",
+    "noticeInvalid": "Couldn't read the private items. Only public items are shown. Relays you added as private earlier are still avoided.",
+    "description": "When reading posts from people you follow, or delivering a reply, Streets connects automatically to the relays those people use. It never connects to the relays you add here, no matter the situation.",
+    "ownBlocked": "{{ relays }}, which you use for your account, is also in your blocked relays, so Streets won't read from or write to it.",
+    "separator": ", ",
+    "empty": "None yet. Enter the URL of a relay you don't want to connect to.",
+    "count": {
+      "one": "{{ count }} blocked relay",
+      "other": "{{ count }} blocked relays"
+    },
+    "removeLabel": "Remove {{ relay }} from the list",
+    "remove": "Remove from list",
+    "recent": {
+      "title": "Relays that recently failed",
+      "description": "Relays that could not be reached or would not let you in since this tab was opened. \"Block\" adds the relay with the visibility chosen above.",
+      "unreachable": "Could not connect",
+      "authRequired": "Asked to sign in",
+      "restricted": "Only for allowed users",
+      "count": {
+        "one": "{{ count }} time",
+        "other": "{{ count }} times"
+      },
+      "detail": "From the relay: {{ detail }}",
+      "block": "Block",
+      "blockLabel": "Block {{ relay }}"
+    }
+  },
+  "searchRelays": {
+    "saved": "Saved the search relays",
+    "saveFailed": "Couldn't save the search relays"
+  },
+  "media": {
+    "notAdded": "Didn't add the upload server",
+    "added": "Added the upload server",
+    "nip96Warning": "{{ host }} uses an older upload method (NIP-96). It may stop working as an upload server in the future.",
+    "unknownWarning": "Couldn't read a response from {{ host }}. Image uploads may fail.",
+    "saved": "Saved the image upload servers",
+    "saveFailed": "Couldn't save the image upload servers",
+    "downscaling": {
+      "description": "When on, images are shrunk to fit your screen before they're shown. This uses less memory and may make things run lighter, but the first display is slower. When off, the original image is loaded as is, so it appears sooner but may use more memory.",
+      "switch": "Shrink images when showing them"
+    },
+    "upload": {
+      "description": "Servers that hold the images you attach to posts. Nostr relays don't store images themselves, so images are uploaded elsewhere and the post contains that address. Streets tries the servers from the top and uploads to the first one that accepts.",
+      "notChosen": "You haven't chosen yet. The upload servers below are being tried from the top. If you remove or add one, the list is saved as your own setting.",
+      "empty": "There are no upload servers, so you can't attach images right now. Add one from the recommendations below, or enter a URL.",
+      "nip96": "This server uses an older upload method (NIP-96). It may stop working as an upload server in the future.",
+      "primary": "Tried first",
+      "removeLabel": "Remove {{ server }} from the list",
+      "remove": "Remove from list",
+      "recommended": "Recommended",
+      "urlLabel": "URL of the upload server to add",
+      "add": "Add",
+      "hint": "You can choose your own upload servers. Operators and how long files are kept differ by server, so only put images there that you can live without if they disappear."
+    }
+  },
+  "mute": {
+    "saved": "Saved your mute list",
+    "saveFailed": "Couldn't save your mute list",
+    "types": {
+      "pubkey": {
+        "label": "User",
+        "placeholder": "npub1… or nprofile1…",
+        "invalid": "Enter a user ID that starts with npub1… or nprofile1…",
+        "inputLabel": "User to mute"
+      },
+      "thread": {
+        "label": "Post",
+        "placeholder": "note1… or nevent1…",
+        "invalid": "Enter a post ID that starts with note1… or nevent1…",
+        "inputLabel": "Post to mute"
+      },
+      "hashtag": {
+        "label": "Hashtag",
+        "placeholder": "The # is optional",
+        "invalid": "Enter a hashtag",
+        "inputLabel": "Hashtag to mute"
+      },
+      "word": {
+        "label": "Word",
+        "placeholder": "A word to hide",
+        "invalid": "Enter a word",
+        "inputLabel": "Word to mute"
+      }
+    },
+    "hintPrivate": "Private: saved encrypted, so other people can't tell what you've muted.",
+    "hintPublic": "Public: other people can see what you've muted.",
+    "description": "Hide people, posts, hashtags, and words you don't want to see from Home, notifications, and search. Things you open yourself, like a person's page or a thread, aren't hidden.",
+    "noticeUnavailable": "Your current login method can't handle private mutes, so only public mutes are shown.",
+    "noticeInvalid": "Couldn't read the private mutes. Only public mutes are shown.",
+    "listTitle": "Muted ({{ count }})",
+    "empty": "You haven't muted anything yet.",
+    "menuHint": "You can also mute posts and users from the menu at the top right of a post.",
+    "already": "Already muted",
+    "typeLabel": "What to mute",
+    "private": "Private",
+    "public": "Public",
+    "peopleLabel": "People suggestions",
+    "unmute": "Unmute",
+    "openEvent": "Open this post"
+  },
+  "profile": {
+    "saved": "Saved your profile",
+    "saveFailed": "Couldn't save your profile"
+  },
+  "relays": {
+    "detailsSummary": "How post-reading relays are chosen, how many relays to search per person, and default relays",
+    "saved": "Saved your relay settings",
+    "saveFailed": "Couldn't save your relay settings",
+    "description": "Relays are servers that store the posts and reactions you upload. Posts you write are saved on your Write relays, and other people read your posts from there. Your Read relays are where Streets fetches posts and notifications from the people you follow. Choose Both to use a relay for both.",
+    "loading": "Loading…",
+    "noneChosen": "You haven't chosen any relays yet. These relays are being used for now.",
+    "usage": {
+      "both": "Both",
+      "read": "Read",
+      "write": "Write"
+    },
+    "usageLabel": "How to use {{ relay }}",
+    "lastUsageHint": "This would leave you with no relay to read from or write to",
+    "removeLabel": "Remove {{ relay }} from the list",
+    "lastRemoveHint": "Removing this would leave you with no relay to read from or write to"
+  },
+  "emojiSearch": {
+    "invalidAddress": "This isn't an emoji set address (naddr)",
+    "label": "Find emoji sets",
+    "placeholder": "cat / @name / npub1… / naddr1…",
+    "peopleLabel": "People suggestions",
+    "submit": "Search",
+    "searching": "Searching…",
+    "notFound": "Nothing found. Few relays can answer searches by word. Search with the box empty to list newly made sets, or paste the creator's npub or the set's naddr to import it."
+  },
+  "emoji": {
+    "pageDescription": "Set the emoji the like button sends and the emoji shown in the reaction picker"
+  },
+  "stats": {
+    "pageDescription": "How much data has been exchanged with relays, and which relays are being read from right now."
+  },
+  "search": {
+    "resultsLabel": "Results",
+    "resultsTitle": "Settings search results",
+    "noResults": "No matching settings.",
+    "label": "Search settings",
+    "relays": {
+      "description": "Searching by words asks relays that support search (NIP-50). You can choose them separately from the relays you read posts from. Every relay in the list is asked.",
+      "notChosen": "You haven't chosen yet. The relays below are being searched. If you remove or add one, the list is saved as your own setting.",
+      "empty": "There are no search relays, so you can't search by words right now. Add one from the recommendations below, or enter a URL.",
+      "removeLabel": "Remove {{ relay }} from the list",
+      "remove": "Remove from list",
+      "recommended": "Recommended",
+      "hint": "A relay that doesn't support search won't return any results."
+    },
+    "history": {
+      "description": "Shows the searches you made when the search panel's box is empty. They are kept only on this device for each account and never sent to relays. Turning this off also clears the existing history.",
+      "switch": "Keep search history"
+    }
+  },
+  "dialog": {
+    "title": "Settings",
+    "descriptionSignedIn": "Set up your account and how this device looks.",
+    "descriptionSignedOut": "Set how this device looks. Account settings are available after you log in."
+  },
+  "relayUse": {
+    "addTitle": "Use this relay too?",
+    "changeTitle": "Change how you use this relay?",
+    "usageLabel": "How to use this relay",
+    "stopHint": "To stop using it, remove it from Relays in settings.",
+    "cancel": "Cancel",
+    "add": "Add",
+    "change": "Change",
+    "use": "Use this relay",
+    "inUse": "In use",
+    "changeLabel": "Change how you use {{ relay }}"
+  },
+  "relaySummary": {
+    "description": "Description",
+    "admin": "Admin",
+    "contact": "Contact",
+    "status": {
+      "inUse": "Connected",
+      "failing": "Connection is unreliable",
+      "idle": "Not in use right now"
+    }
+  },
+  "readRouting": {
+    "outbox": "Choose per person",
+    "direct": "Read relays only",
+    "label": "Relays to read posts from",
+    "description": "Normally, Streets finds the relays each person you follow writes to and reads their posts from there. If it can't find someone's relay settings, it reads from a fixed set of relays instead, so posts that only exist on a relay running on your own machine or on a private relay may not show up. With \"Read relays only\", posts from everyone are read from the relays you set to Read under \"Relays to use\".",
+    "readingFallback": "You have no relays set to Read, so these relays are being read from for now.",
+    "reading": "Reading from these relays now."
+  },
+  "readRedundancy": {
+    "defaultOption": "{{ value }} (default)",
+    "label": "Number of relays to search per person",
+    "description": "Choose how many of each followed person's write relays to read from. A higher number makes it easier to catch posts that didn't reach some relays, but connects to more relays and uses more data.",
+    "current": {
+      "one": "Currently reading from {{ count }} relay.",
+      "other": "Currently reading from {{ count }} relays."
+    },
+    "increase": "With {{ more }}, that becomes about {{ preview }} relays.",
+    "backToDefault": "With the default of {{ default }}, it would be {{ preview }} relays.",
+    "budgetReached": "This has reached the limit of {{ budget }} simultaneous connections. Relays that don't fit are chosen starting with the ones most people use."
+  },
+  "recommendations": {
+    "description": "Relays that the people you follow use often.",
+    "collecting": "Collecting the relays of the people you follow…",
+    "noFollowees": "You don't follow anyone yet, so there are no recommendations.",
+    "empty": "Couldn't find relay settings for the people you follow, so there are no recommendations.",
+    "discovering": "Checking response speed and supported features…",
+    "discoveryMissing": "Couldn't find out response speed and supported features, so relays are sorted only by how many people use them.",
+    "showMore": "Show {{ count }} more",
+    "separator": ", ",
+    "nips": {
+      "basic": "basic reading and writing",
+      "deletion": "deletion",
+      "info": "relay information"
+    },
+    "reason": {
+      "users": {
+        "one": "Used by {{ count }} person you follow",
+        "other": "Used by {{ count }} people you follow"
+      },
+      "latency": "{{ ms }}ms response",
+      "nipsOk": "Supports the required features",
+      "nipsMissing": "Doesn't support {{ nips }}",
+      "payment": "Writing requires payment",
+      "auth": "Requires login"
+    }
+  },
+  "relayPlan": {
+    "groupByRelay": "By relay",
+    "groupByPerson": "By person",
+    "description": "The relays connected right now to read posts, and why. When relays are chosen per person you follow, relays that aren't in \"Your relays\" are listed here too.",
+    "read": "Read",
+    "write": "Write",
+    "groupingLabel": "Group by",
+    "readingNone": "Not reading from any relay right now.",
+    "writers": "People who write to this relay",
+    "writeFallback": "You have no Write relays, so posts are sent to the default relays",
+    "writeOwn": "Your Write relay",
+    "reason": {
+      "ownRead": "Your Read relay",
+      "writers": {
+        "one": "{{ count }} person writes to it",
+        "other": "{{ count }} people write to it"
+      },
+      "fallback": "Default relay for people whose relay settings aren't known",
+      "ownReadNotifications": "Your Read relay (for notifications, etc.)",
+      "column": "Relay set in a column",
+      "separator": ", "
+    },
+    "showMore": "Show {{ count }} more",
+    "notes": {
+      "unroutableWithRelays": {
+        "one": "Couldn't find relay settings for {{ count }} person, so reading from the default relays ({{ relays }}).",
+        "other": "Couldn't find relay settings for {{ count }} people, so reading from the default relays ({{ relays }})."
+      },
+      "unroutable": {
+        "one": "Couldn't find relay settings for {{ count }} person, so reading from the default relays.",
+        "other": "Couldn't find relay settings for {{ count }} people, so reading from the default relays."
+      },
+      "unroutableSearching": {
+        "one": "Looking for the relay settings of {{ count }} person. Until they're found, reading from the default relays.",
+        "other": "Looking for the relay settings of {{ count }} people. Until they're found, reading from the default relays."
+      },
+      "uncovered": {
+        "one": "Can't read from anywhere for {{ count }} person: their relays don't fit in the number of simultaneous connections, can't be reached, or are all in your blocked relays.",
+        "other": "Can't read from anywhere for {{ count }} people: their relays don't fit in the number of simultaneous connections, can't be reached, or are all in your blocked relays."
+      }
+    },
+    "searchLabel": "Search by name",
+    "groups": {
+      "unroutable": "Relay settings not found",
+      "unroutableNoteWithRelays": "They haven't published which relays they write to, so reading from the default relays ({{ relays }}).",
+      "unroutableNote": "They haven't published which relays they write to, so reading from the default relays.",
+      "unroutableSearching": "Looking for their relay settings. Until they're found, reading from the default relays.",
+      "uncovered": "Not readable from anywhere",
+      "uncoveredDetail": {
+        "one": "Can't read from the {{ count }} relay they list",
+        "other": "Can't read from any of the {{ count }} relays they list"
+      },
+      "routed": "Reading from chosen relays",
+      "routedPartial": "Reading from {{ used }} of the {{ declared }} relays they list",
+      "routedAll": {
+        "one": "Reading from the {{ count }} relay they list",
+        "other": "Reading from all {{ count }} relays they list"
+      },
+      "none": "Not reading anyone's posts from per-person relays right now.",
+      "notFound": "Nothing found."
+    },
+    "people": {
+      "one": "{{ count }} person",
+      "other": "{{ count }} people"
+    }
+  },
+  "traffic": {
+    "duration": {
+      "seconds": "{{ seconds }} sec",
+      "minutes": "{{ minutes }} min",
+      "hours": "{{ hours }} hr {{ minutes }} min"
+    },
+    "description": "How much data has been exchanged with relays since you opened this tab, shown as the size before the connection compresses it.",
+    "since": "Since {{ time }} ({{ duration }})",
+    "reset": "Reset",
+    "received": "Received",
+    "sent": "Sent",
+    "events": "Events",
+    "duplicates": "Duplicates",
+    "duplicatesNote": "Already received earlier from another relay",
+    "none": "Haven't exchanged anything with any relay yet.",
+    "noEvents": "No events received",
+    "eventSummary": "{{ events }} events · {{ percent }}% duplicates",
+    "other": "Other",
+    "receivedBreakdown": "{{ total }} (events {{ events }} · other {{ rest }})",
+    "connectedTime": "Time connected",
+    "connectedWithReconnects": {
+      "one": "{{ duration }} ({{ count }} reconnect)",
+      "other": "{{ duration }} ({{ count }} reconnects)"
+    },
+    "subscriptions": "Simultaneous subscriptions",
+    "subscriptionsValue": "Now {{ current }} · peak {{ peak }}",
+    "queued": "Delayed requests",
+    "queuedValue": {
+      "one": "{{ count }} time (the relay's limit on simultaneous subscriptions was reached)",
+      "other": "{{ count }} times (the relay's limit on simultaneous subscriptions was reached)"
+    },
+    "kinds": "Event types"
+  },
+  "keyboard": {
+    "conflict": "Already used for {{ action }}",
+    "digitsReserved": "1–9 are used to jump to columns",
+    "description": "You can change the keys used. Press \"Change\", then press the key you want to assign. Press Esc to cancel, or Backspace to turn that shortcut off.",
+    "pressKey": "Press a key…",
+    "cancel": "Cancel",
+    "change": "Change",
+    "resetLabel": "Reset {{ action }} to its default key",
+    "digits": {
+      "description": "When on, pressing a number key from 1 to 9 jumps to that column, and ↑↓ then move between columns. When off, the number keys do nothing.",
+      "switch": "Jump to columns with number keys"
+    },
+    "unused": "Not used"
+  },
+  "actionLayout": {
+    "toMenu": "Move \"{{ action }}\" to the menu",
+    "barFull": "The action bar holds up to {{ max }}",
+    "toBar": "Show \"{{ action }}\" in the action bar",
+    "moveInBar": "Move \"{{ action }}\" (action bar)",
+    "moveInMenu": "Move \"{{ action }}\" (menu)",
+    "moveHint": "Drag up or down, or move with the ↑↓ keys",
+    "barHeading": "Action bar ({{ count }} / {{ max }})",
+    "menuHeading": "Menu at top right ({{ count }})"
+  },
+  "display": {
+    "contentWarning": {
+      "hide": "Hide",
+      "show": "Always show",
+      "exclude": "Leave out of lists",
+      "description": "Choose how to handle posts the author marked as \"check before viewing\". \"Hide\" shows the reason for the warning instead of the text and images, and you can press \"Show\" to reveal them. \"Leave out of lists\" keeps them out of timelines and notifications (your own posts are still shown)."
+    },
+    "deckLayout": {
+      "auto": "Match screen width",
+      "single": "One column",
+      "multi": "Multiple columns",
+      "description": "Choose whether columns sit side by side or are shown one at a time. \"Match screen width\" shows one column on narrow screens like a phone and side-by-side columns on wider ones. If \"Multiple columns\" doesn't fit, scroll sideways."
+    },
+    "swipeMode": {
+      "loop": "Loop around",
+      "stop": "Stop at the ends",
+      "off": "Don't switch",
+      "description": "When columns are shown one at a time, swiping left or right moves to the next column. \"Loop around\" joins the two ends. \"Stop at the ends\" opens the menu when you swipe right from the leftmost column. \"Don't switch\" opens the menu wherever you swipe right, and you switch columns with the icons below."
+    },
+    "chatOrder": {
+      "newestLast": "Newest at the bottom",
+      "newestFirst": "Newest at the top",
+      "description": "In public chat columns, choose whether new messages appear at the very bottom or the very top. With \"Newest at the top\", the message box moves to the top too."
+    },
+    "timeFormat": {
+      "absolute": "Clock time",
+      "relative": "Time ago",
+      "description": "Choose whether a post's time shows as clock time like \"12:34\" or as time ago like \"5m\" or \"3h\". Posts older than a day show the date either way."
+    },
+    "theme": {
+      "system": "Match system",
+      "light": "Light",
+      "dark": "Dark",
+      "description": "Choose whether the screen is light or dark. \"Match system\" follows your device's dark mode setting."
+    },
+    "contrast": {
+      "description": "Choose the difference in brightness between text and background. Moving right makes text and dividers crisper, and moving left makes the screen softer. It works in both light and dark."
+    },
+    "accent": {
+      "description": "Set the color used for buttons, links, the likes you've given, and more.",
+      "custom": "Pick your own colors",
+      "accent": "Accent",
+      "ui": "Tint of text and background"
+    },
+    "columnWidth": {
+      "description": "When on, columns placed side by side stretch to fill the width of the screen. You can set each column's width ratio to S, M, or L. If there are too many columns to fit, you can scroll sideways.",
+      "switch": "Stretch columns to fill the screen width"
+    },
+    "detailsSummary": "Chat order, loading display, and arranging the action bar",
+    "writeProgress": {
+      "description": "When you save a post, like, or setting, shows at the bottom right whether it reached each relay it was sent to. When off, only shows when saving settings succeeds or fails.",
+      "switch": "Show saving progress"
+    },
+    "actionLayout": {
+      "description": "Choose the actions shown under a post. Up to {{ max }} fit there, and the rest go in the \"︙\" menu at the top right of the post. Grab a row and move it, or select the handle at the right end and use the ↑↓ keys to reorder."
+    }
+  },
+  "emojiList": {
+    "reactionDescription": "The emoji sent when you press the like button under a post. If you don't choose one, a heart is sent.",
+    "description": "The emoji that appear in the reaction picker. You can add emoji sets that other people made, or add emoji one by one yourself.",
+    "empty": "Nothing here yet. Add emoji below and they'll show up in the reaction picker.",
+    "individual": "Emoji added one by one",
+    "findDescription": "Find emoji sets that other people made and add them to your emoji list.",
+    "manageDescription": "You can also create and organize emoji sets in a dedicated app. Emoji you set up in other apps also show up in Streets.",
+    "openEmoemo": "Open emoemo",
+    "openSet": "Open the contents of {{ name }}",
+    "removeSet": "Remove {{ name }} from your emoji",
+    "remove": "Remove",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy",
+    "copy": "Copy",
+    "removeEmoji": "Remove :{{ shortcode }}:",
+    "addOne": "Add one emoji",
+    "howToMake": "How to make the emoji",
+    "fromImage": "From an image",
+    "fromText": "From text",
+    "make": "Make a custom emoji",
+    "makeHint": "Type a word, pick colors and a font, and an emoji image is made and added to your emoji.",
+    "errors": {
+      "missing": "Enter both a name and an image URL",
+      "invalidName": "The name can only use letters, numbers, _ and -",
+      "invalidUrl": "The image URL must start with http:// or https://",
+      "noUploadServer": "No image upload server is set. Add one in the Images settings.",
+      "uploadFailed": "Couldn't upload the image"
+    },
+    "nameShort": "Name",
+    "nameLabel": "Emoji name",
+    "urlLabel": "URL of the emoji image",
+    "uploading": "Uploading…",
+    "chooseImage": "Choose image",
+    "add": "Add",
+    "replaceHint": "An emoji with this name already exists. Adding it now will update its image.",
+    "nameHint": "The name can only use letters, numbers, _ and - (example: neko). Japanese characters and symbols can't be used."
+  },
+  "account": {
+    "profileDescription": "The name and icon other people see. The same profile shows up in other apps too.",
+    "displayNameExample": "e.g. Alex",
+    "nameExample": "e.g. alex",
+    "nameHint": "Shown with an @ under your display name.",
+    "nip05": {
+      "hintBefore": "Lets you show this account is yours using a domain you own. ",
+      "hintLink": "What is NIP-05?",
+      "hintAfter": "",
+      "checking": "Checking with the domain…",
+      "verified": "Verified by the domain",
+      "found": "This domain has a different account registered as \"{{ name }}\". In nostr.json on {{ domain }}, set the public key for \"{{ name }}\" to this account's key (hex).",
+      "missing": "\"{{ name }}\" isn't registered in nostr.json on {{ domain }}. Check the spelling of the name and the contents of nostr.json.",
+      "unreachable": "Couldn't verify. Check that the address is correct and that https://{{ domain }}/.well-known/nostr.json can be read from other sites (CORS settings)."
+    },
+    "lud16Hint": "The address of the wallet that receives Zaps (tips paid in Bitcoin). You can find it in your wallet app. If it's empty, people can't send Zaps to your posts.",
+    "unsavedWarning": "You have unsaved changes. Save or undo them before closing.",
+    "unsavedNotice": "Other people won't see changes until you save.",
+    "revert": "Undo changes",
+    "saving": "Saving…",
+    "save": "Save",
+    "idDescription": "A marker for telling other people who you are, or for using the same account in other apps.",
+    "logout": "Log out of this device",
+    "logoutHint": "Your profile and deck aren't deleted. Log in again to use them as before.",
+    "previewLabel": "How it looks in a column",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy",
+    "copy": "Copy"
+  },
+  "preview": {
+    "friend": "Friend",
+    "other": "Someone else",
+    "viewer": "You",
+    "note": "A note for checking colors. It includes a link to https://example.com/, a #streets hashtag, and a mention of nostr:{{ npub }}."
+  },
+  "language": {
+    "description": "Choose the language used on the screen. \"Match browser\" uses the language set in your browser, or English if it is neither Japanese nor English.",
+    "auto": "Match browser"
+  }
+}

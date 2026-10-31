@@ -1,4 +1,5 @@
 import { type Component, type JSX, Show, createUniqueId } from "solid-js";
+import { t } from "../i18n/locale";
 import Completion, { type CompletionSource } from "./Completion";
 
 /**
@@ -56,7 +57,10 @@ const TextField: Component<{
       </label>
       <div class="flex items-center gap-1">
         <div class="min-w-0 flex-1">
-          <Completion sources={props.completion ?? []} label="入れる候補">
+          <Completion
+            sources={props.completion ?? []}
+            label={t("ui.completion.label")}
+          >
             {(attach) => (
               <Show
                 when={props.multiline}

@@ -5,6 +5,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import Button from "../ui/Button";
 import type { EventSize } from "./Event";
 import type { LinkCard } from "./link-card";
@@ -37,7 +38,9 @@ export const YouTubeEmbed: Component<{
             type="button"
             class="group absolute inset-0 size-full cursor-pointer bg-transparent p-0"
             aria-label={
-              props.title ? `YouTube で再生: ${props.title}` : "YouTube で再生"
+              props.title
+                ? t("note.embed.playYoutubeTitled", { title: props.title })
+                : t("note.embed.playYoutube")
             }
             onClick={() => setPlaying(true)}
           >
@@ -70,7 +73,7 @@ export const YouTubeEmbed: Component<{
       >
         <iframe
           src={src()}
-          title={props.title ?? "YouTube の動画"}
+          title={props.title ?? t("note.embed.youtubeVideo")}
           class="absolute inset-0 size-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowfullscreen
@@ -128,7 +131,7 @@ const XFrame: Component<{ id: string }> = (props) => {
     <iframe
       ref={frame}
       src={`https://platform.twitter.com/embed/Tweet.html?${params}`}
-      title="X の投稿"
+      title={t("note.embed.xPost")}
       class="w-full rounded-3 border-0"
       style={{ height: `${height()}px` }}
       // 高さは中から知らせてくるまで分からない。広がるまでの間の見た目を落ち着かせる。
@@ -165,7 +168,7 @@ export const XEmbed: Component<{
         icon="i-material-symbols:open-in-full-rounded"
         onClick={() => setLoaded(true)}
       >
-        X の埋め込みで表示
+        {t("note.embed.showX")}
       </Button>
     </div>
   );

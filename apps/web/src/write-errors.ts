@@ -1,5 +1,5 @@
+import { MessageError } from "@streets/core/i18n/message";
 import { UploadFailedError } from "@streets/core/media/blossom";
-import { NotUploadServerError } from "@streets/core/media/upload-servers";
 import {
   InvalidPrivateItemsError,
   PrivateItemsUnavailableError,
@@ -12,49 +12,52 @@ import {
 import { RefetchFailedError } from "@streets/core/write/fetch-latest";
 import { WriteFailedError } from "@streets/core/write/writer";
 import { EmojiCreateFailedError } from "./emoji/maker/api";
+import { message, plural, t } from "./i18n/locale";
 import { NoUploadServerError } from "./media/uploader";
 
 export const actionErrorMessage = (error: unknown): string => {
+  if (error instanceof MessageError) return message(error.text);
   if (error instanceof WriteFailedError) {
-    return `どのリレーにも届きませんでした（${error.rejected.length} 本が拒否）`;
+    return plural("app.errors.writeFailed", error.rejected.length);
   }
   if (error instanceof RefetchFailedError) {
-    return "保存する前に今の状態を取得できませんでした。時間をおいて再試行してください";
+    return t("app.errors.refetchFailed");
   }
   if (error instanceof PrivateItemsUnavailableError) {
-    return "今のログインの方法では、非公開の項目を扱えません";
+    return t("app.errors.privateItemsUnavailable");
   }
   if (error instanceof InvalidPrivateItemsError) {
-    return "非公開の項目を読み取れなかったため、保存しませんでした";
+    return t("app.errors.invalidPrivateItems");
   }
   if (error instanceof Nip46PermissionMissingError) {
-    return "署名器がこの操作を許可していません。ログアウトしてリモート署名器で繋ぎ直すと、許可を求め直せます";
+    return t("app.errors.nip46PermissionMissing");
   }
   if (error instanceof SignerDisconnectedError) {
-    return "署名器と繋がっていません。署名器のアプリが動いているか確かめて、繋ぎ直してください";
+    return t("app.errors.signerDisconnected");
   }
   if (error instanceof SignerUnavailableError) {
-    return "署名器を利用できません。ログインし直してください";
+    return t("app.errors.signerUnavailable");
   }
   if (error instanceof NoUploadServerError) {
-    return "画像のアップロード先がありません。設定の「画像」で追加してください";
-  }
-  if (error instanceof NotUploadServerError) {
-    return `${error.server.replace(/^https:\/\//, "")} は画像のアップロード先として応答しませんでした。URL を確かめてください`;
+    return t("app.errors.noUploadServer");
   }
   if (error instanceof EmojiCreateFailedError) {
     switch (error.reason) {
       case "missing-chars":
-        return `描けない文字があります（${error.chars.join(" ")}）`;
+        return t("app.errors.emoji.missingChars", {
+          chars: error.chars.join(" "),
+        });
       case "denied":
-        return "この絵文字は作れません";
+        return t("app.errors.emoji.denied");
       case "rate-limited":
-        return "絵文字を作る回数が多すぎます。少し待ってから送ってください";
+        return t("app.errors.emoji.rateLimited");
       case "server":
-        return "絵文字を作れませんでした。時間をおいて送ってください";
+        return t("app.errors.emoji.server");
     }
   }
-  return `送信に失敗しました: ${error instanceof Error ? error.message : String(error)}`;
+  return t("app.errors.sendFailed", {
+    message: error instanceof Error ? error.message : String(error),
+  });
 };
 
 /** 進み具合のトーストがもう知らせた失敗。同じ失敗を 2 枚出さない。 */
@@ -70,12 +73,15 @@ export const wasReported = (cause: unknown): boolean =>
 /** アップロードできなかった理由。添えたファイルの行に短く出す。 */
 export const uploadErrorMessage = (error: unknown): string => {
   if (error instanceof NoUploadServerError) {
-    return "設定で画像のアップロード先を決めてください";
+    return t("app.errors.upload.chooseServer");
   }
   if (error instanceof UploadFailedError) {
     return error.status === 413
-      ? "ファイルが大きすぎます"
-      : `アップロードできませんでした（${error.message}）`;
+      ? t("app.errors.upload.tooLarge")
+      : t("app.errors.upload.failed", {
+          message: error.text ? message(error.text) : error.message,
+        });
   }
+  if (error instanceof MessageError) return message(error.text);
   return error instanceof Error ? error.message : String(error);
 };

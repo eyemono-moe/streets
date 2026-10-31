@@ -28,6 +28,7 @@ import {
   createSignal,
   useContext,
 } from "solid-js";
+import { t } from "../i18n/locale";
 import { notifyError, notifySaved, notifyWarning } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
@@ -80,10 +81,10 @@ export const MediaMediator: ParentComponent<{
     props.writer
       .replace(kind, undefined, mutation(next))
       .then(
-        () => notifySaved("画像のアップロード先を保存しました"),
+        () => notifySaved(t("settings.media.saved")),
         (cause) => {
           setPending(undefined);
-          notifyError(cause, "画像のアップロード先を保存できませんでした");
+          notifyError(cause, t("settings.media.saveFailed"));
         },
       )
       .finally(() => setSaving(false));
@@ -105,20 +106,20 @@ export const MediaMediator: ParentComponent<{
       case "not-blossom":
         notifyError(
           new NotUploadServerError(url),
-          "アップロード先に足しませんでした",
+          t("settings.media.notAdded"),
         );
         return;
       case "nip96":
         notifyWarning(
-          "アップロード先に追加しました",
-          `${hostOf(url)} は古い方式（NIP-96）のアップロード先です。将来的にこのアップロード先は使用できなくなる可能性があります`,
+          t("settings.media.added"),
+          t("settings.media.nip96Warning", { host: hostOf(url) }),
         );
         saveNip96([...nip96(), url]);
         return;
       case "unknown":
         notifyWarning(
-          "アップロード先に追加しました",
-          `${hostOf(url)} から応答を読み取れませんでした。画像のアップロードに失敗する可能性があります`,
+          t("settings.media.added"),
+          t("settings.media.unknownWarning", { host: hostOf(url) }),
         );
         saveBlossom([...blossom(), url]);
         return;

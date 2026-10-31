@@ -5,16 +5,22 @@ import type {
 } from "@streets/core/nostr/private-tags";
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type {
+  RelayFailure,
+  RelayFailureReason,
+} from "@streets/core/relay/relay-failures";
 import {
   type BlockedRelayEntry,
   blockedRelayUrls,
 } from "@streets/core/settings/blocked-relay-list";
 import { type Component, For, Show, createSignal } from "solid-js";
 import RelayInput from "../deck/RelayInput";
+import { t, plural } from "../i18n/locale";
 import { VISIBILITY_LABEL } from "../lists/visibility";
+import VisibilityAddButton from "../lists/VisibilityAddButton";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
-import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
 
 /**
@@ -23,17 +29,31 @@ import SettingsSection from "./SettingsSection";
  */
 const OPEN_UP_TO = 5;
 
-const VISIBILITY_HINT: Record<ItemVisibility, string> = {
-  private:
-    "非公開：暗号化して保存するので、どのリレーに繋がないかはほかの人には分かりません。",
-  public: "公開：どのリレーに繋がないかを、ほかの人も見られます。",
+const visibilityHint = (visibility: ItemVisibility): string =>
+  visibility === "private"
+    ? t("settings.blockedRelays.hintPrivate")
+    : t("settings.blockedRelays.hintPublic");
+
+const failureReason = (reason: RelayFailureReason): string => {
+  switch (reason) {
+    case "unreachable":
+      return t("settings.blockedRelays.recent.unreachable");
+    case "auth-required":
+      return t("settings.blockedRelays.recent.authRequired");
+    case "restricted":
+      return t("settings.blockedRelays.recent.restricted");
+  }
 };
 
-const PRIVATE_PART_NOTICE: Partial<Record<PrivatePartStatus, string>> = {
-  unavailable:
-    "今のログインの方法では非公開の項目を扱えないため、公開の項目だけを表示しています。",
-  invalid:
-    "非公開の項目を読み取れませんでした。公開の項目だけを表示しています。前に非公開で入れたリレーにも、引き続きつなぎません。",
+const privatePartNotice = (status: PrivatePartStatus): string | undefined => {
+  switch (status) {
+    case "unavailable":
+      return t("settings.blockedRelays.noticeUnavailable");
+    case "invalid":
+      return t("settings.blockedRelays.noticeInvalid");
+    default:
+      return undefined;
+  }
 };
 
 export type BlockedRelaysViewProps = {
@@ -45,6 +65,8 @@ export type BlockedRelaysViewProps = {
   account: readonly RelayListEntry[];
   /** 足す欄の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
+  /** このタブで繋がらなかった・断られたリレー。新しいものから。 */
+  failures?: readonly RelayFailure[];
 };
 
 /** 繋がないリレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -56,6 +78,8 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
   const [chosen, setChosen] = createSignal<ItemVisibility>("private");
   const visibility = (): ItemVisibility =>
     privateReady() ? chosen() : "public";
+  const recentFailures = () =>
+    (props.failures ?? []).filter((failure) => !urls().includes(failure.url));
   const ownBlocked = () =>
     props.account
       .map((entry) => entry.url)
@@ -64,9 +88,9 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
     <SettingsSection
       id="blockedRelays"
       scope="account"
-      description="フォローしている人の投稿を読むときや、返信を相手に届けるときは、その人が使っているリレーへ自動でつなぎます。ここに入れたリレーには、どの場面でもつなぎません。"
+      description={t("settings.blockedRelays.description")}
     >
-      <Show when={props.privatePart && PRIVATE_PART_NOTICE[props.privatePart]}>
+      <Show when={props.privatePart && privatePartNotice(props.privatePart)}>
         {(notice) => (
           <p
             class="rounded-2 p-3 text-caption"
@@ -86,7 +110,9 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
             aria-hidden="true"
           />
           <span>
-            {`自分のアカウントで使っているリレーのうち ${ownBlocked().join("、")} も繋がないリレーに入っているため、そこへは読み書きしません。`}
+            {t("settings.blockedRelays.ownBlocked", {
+              relays: ownBlocked().join(t("settings.blockedRelays.separator")),
+            })}
           </span>
         </p>
       </Show>
@@ -94,7 +120,7 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
         when={props.entries.length > 0}
         fallback={
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            まだありません。つないでほしくないリレーの URL を入力してください。
+            {t("settings.blockedRelays.empty")}
           </p>
         }
       >
@@ -105,7 +131,7 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
           class="flex flex-col gap-2"
         >
           <Collapsible.Trigger class="group c-secondary flex w-fit items-center gap-1 bg-transparent p-0 font-600 text-caption enabled:cursor-pointer">
-            {`繋がないリレー ${props.entries.length} 件`}
+            {plural("settings.blockedRelays.count", props.entries.length)}
             <span
               class="i-material-symbols:expand-more-rounded size-4.5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
               aria-hidden="true"
@@ -125,8 +151,10 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
                       </span>
                       <IconButton
                         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                        label={`${entry.url} を一覧から外す`}
-                        title="一覧から外す"
+                        label={t("settings.blockedRelays.removeLabel", {
+                          relay: entry.url,
+                        })}
+                        title={t("settings.blockedRelays.remove")}
                         disabled={props.saving}
                         onClick={() =>
                           dispatch({ type: "blocked-relays/remove", entry })
@@ -153,26 +181,76 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
               visibility: visibility(),
             })
           }
-          options={
-            <SegmentedControl
-              label="公開範囲"
-              variant="secondary"
+          addButton={(add) => (
+            <VisibilityAddButton
               value={visibility()}
-              options={[
-                {
-                  value: "private",
-                  label: VISIBILITY_LABEL.private,
-                  disabled: !privateReady(),
-                  hint: "今のログインの方法では、非公開の項目を扱えません",
-                },
-                { value: "public", label: VISIBILITY_LABEL.public },
-              ]}
+              privateReady={privateReady()}
               onChange={setChosen}
+              disabled={props.saving}
+              onClick={add}
             />
-          }
+          )}
         />
-        <p class="c-secondary text-caption">{VISIBILITY_HINT[visibility()]}</p>
+        <p class="c-secondary text-caption">{visibilityHint(visibility())}</p>
       </div>
+      <Show when={recentFailures().length > 0}>
+        <div class="flex flex-col gap-2">
+          <h4 class="c-primary font-600 text-caption">
+            {t("settings.blockedRelays.recent.title")}
+          </h4>
+          <p class="c-secondary text-caption">
+            {t("settings.blockedRelays.recent.description")}
+          </p>
+          <ul class="flex max-h-80 flex-col gap-px overflow-y-auto rounded-2 border border-primary bg-tertiary">
+            <For each={recentFailures()}>
+              {(failure) => (
+                <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
+                  <div class="flex min-w-48 flex-1 flex-col gap-0.5">
+                    <span class="c-primary break-all text-body">
+                      {failure.url}
+                    </span>
+                    <span class="c-secondary text-caption">
+                      {failureReason(failure.reason)}
+                      {" · "}
+                      {plural(
+                        "settings.blockedRelays.recent.count",
+                        failure.count,
+                      )}
+                    </span>
+                    <Show when={failure.detail}>
+                      {(detail) => (
+                        <span class="c-secondary break-words text-caption">
+                          {t("settings.blockedRelays.recent.detail", {
+                            detail: detail(),
+                          })}
+                        </span>
+                      )}
+                    </Show>
+                  </div>
+                  <Button
+                    size="sm"
+                    icon="i-material-symbols:block"
+                    class="ml-auto"
+                    aria-label={t("settings.blockedRelays.recent.blockLabel", {
+                      relay: failure.url,
+                    })}
+                    disabled={props.saving}
+                    onClick={() =>
+                      dispatch({
+                        type: "blocked-relays/add",
+                        url: failure.url,
+                        visibility: visibility(),
+                      })
+                    }
+                  >
+                    {t("settings.blockedRelays.recent.block")}
+                  </Button>
+                </li>
+              )}
+            </For>
+          </ul>
+        </div>
+      </Show>
     </SettingsSection>
   );
 };
