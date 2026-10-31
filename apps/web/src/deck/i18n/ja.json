@@ -43,8 +43,10 @@
   },
   "syncNotice": {
     "saveFailed": "デッキを保存できませんでした：{{ message }}",
+    "appletsSaveFailed": "アップレットを保存できませんでした：{{ message }}",
     "retry": "再試行",
     "conflict": "別の端末でデッキが変わりました。どちらを残しますか？",
+    "appletsConflict": "別の端末でアップレットが変わりました。どちらを残しますか？",
     "keepLocal": "この端末を残す",
     "useRemote": "別の端末に合わせる"
   },
@@ -86,6 +88,11 @@
         "label": "チャンネル",
         "description": "みんなで会話できるチャットチャンネル",
         "keywords": ["チャット"]
+      },
+      "napplets": {
+        "label": "アップレット",
+        "description": "Nostr で配られている小さなアプリを探して開く",
+        "keywords": ["アプリ", "ミニアプリ", "NIP-5D", "napp"]
       },
       "bookmarks": {
         "label": "ブックマーク",

@@ -108,6 +108,18 @@
     "summaryEn": "Comment"
   },
   {
+    "kind": 1984,
+    "status": "内部利用",
+    "summary": "通報",
+    "summaryEn": "Report"
+  },
+  {
+    "kind": 5129,
+    "status": "内部利用",
+    "summary": "アップレット（版を固定したもの）",
+    "summaryEn": "Applet (pinned version)"
+  },
+  {
     "kind": 9734,
     "status": "内部利用",
     "summary": "Zap の依頼",
@@ -178,6 +190,12 @@
     "status": "内部利用",
     "summary": "NIP-96 のアップロード先のリスト",
     "summaryEn": "NIP-96 upload server list"
+  },
+  {
+    "kind": 15129,
+    "status": "内部利用",
+    "summary": "アップレット（作者ごとに 1 つ）",
+    "summaryEn": "Applet (one per author)"
   },
   {
     "kind": 22242,
@@ -280,6 +298,12 @@
     "status": "内部利用",
     "summary": "アプリの説明",
     "summaryEn": "App description"
+  },
+  {
+    "kind": 35129,
+    "status": "内部利用",
+    "summary": "アップレット（名前付き）",
+    "summaryEn": "Applet (named)"
   },
   {
     "kind": 39089,

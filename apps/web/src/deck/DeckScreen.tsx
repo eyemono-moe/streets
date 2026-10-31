@@ -1,7 +1,10 @@
 import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
 import { chosenRelays } from "@streets/core/deck/chosen-relays";
-import { buildRelayColumn } from "@streets/core/deck/column-presets";
+import {
+  buildNappletColumn,
+  buildRelayColumn,
+} from "@streets/core/deck/column-presets";
 import {
   type ColumnDef,
   type Deck,
@@ -37,6 +40,12 @@ import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { parseNip96Servers } from "@streets/core/media/nip96";
 import { uploadServers } from "@streets/core/media/upload-servers";
+import {
+  installApplet,
+  setGrant,
+  setIntentDefault,
+  uninstallApplet,
+} from "@streets/core/napplet/library";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import { BOOTSTRAP_INDEXERS } from "@streets/core/read/default-relays";
@@ -107,6 +116,19 @@ import {
   createGuestActions,
 } from "../login-gate";
 import { UploaderProvider, createUploader } from "../media/uploader";
+import {
+  AppletIntentsProvider,
+  createAppletIntents,
+} from "../napplet/applet-intents";
+import {
+  AppletLibraryProvider,
+  createAppletLibraryStore,
+  createGuestAppletLibraryStore,
+} from "../napplet/applet-library";
+import {
+  type AppletWriter,
+  AppletWriterProvider,
+} from "../napplet/applet-writer";
 import { composeDrafts } from "../note/compose-drafts";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -156,7 +178,7 @@ import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
 import { WELCOME_RELAYS } from "../welcome/welcome-relays";
 import { type WelcomeLogin, WelcomeProvider } from "../welcome/WelcomeColumn";
-import { trackReplaces } from "../write-progress";
+import { trackReplaces, trackWrites } from "../write-progress";
 import {
   setShowWriteProgress,
   showWriteProgress,
@@ -313,6 +335,33 @@ const DeckScreen: Component<{
         storage: localStorage,
       })
     : createGuestDeckStore(localStorage);
+  const appletStore = write
+    ? createAppletLibraryStore({
+        pubkey: props.session.pubkey,
+        routingSettled: settled,
+        signer: props.session.signer,
+        canSign: () => props.session.signerStatus() === "ready",
+        writer: trackReplaces(write.writer, "インストールしたアップレット"),
+        fetchLatest: write.fetchLatest,
+        storage: localStorage,
+      })
+    : createGuestAppletLibraryStore(localStorage);
+  // アップレットに頼まれた書き込み。何を書いたかはアップレットの名前で知らせる。
+  const appletWriter: AppletWriter | undefined = write && {
+    publish: (draft, relays, label) =>
+      trackWrites(write.writer, label).publish(draft, undefined, { relays }),
+    replace: (kind, identifier, mutate, label) =>
+      trackWrites(write.writer, label).replace(kind, identifier, mutate),
+    encrypt: (recipient, plaintext) => {
+      const nip44 = props.session.signer.nip44;
+      if (!nip44) throw new Error("このログインの方法では暗号化できません");
+      return nip44.encrypt(recipient, plaintext);
+    },
+  };
+  const appletIntents = createAppletIntents({
+    library: appletStore.value,
+    readLayer: props.readLayer,
+  });
   // 自分で選んだリレーは、手元のもの（localhost など）でも繋ぐ。新しい組を許してから
   // 前の組を下ろす —— 先に下ろすと、変わらないリレーまで一度閉じてしまう。
   let releaseChosenRelays: (() => void) | undefined;
@@ -811,6 +860,25 @@ const DeckScreen: Component<{
       case "column-part/set-open":
         setColumnPartOpen(event.column, event.part, event.open);
         return true;
+      case "compose/open-with": {
+        if (!gate("投稿")) return true;
+        if (event.target) {
+          setDraftDialog({
+            id: crypto.randomUUID(),
+            content: event.content,
+            savedAt: Date.now(),
+            kept: false,
+            target: event.target,
+          });
+          return true;
+        }
+        // 投稿欄がもう開いていれば、書きかけを上書きしない。
+        if (ui.panel !== "compose") {
+          sharedForPanel = { content: event.content, files: [] };
+          applyUi({ type: "deck/open-panel", panel: "compose" });
+        }
+        return true;
+      }
       case "compose/draft-open": {
         const draft = composeDrafts().find((other) => other.id === event.id);
         if (draft?.target) setDraftDialog(draft);
@@ -863,6 +931,37 @@ const DeckScreen: Component<{
         return true;
       case "deck/add-column":
         addColumn(event.column);
+        return true;
+      case "applets/install":
+        appletStore.update((library) =>
+          installApplet(
+            library,
+            { ...event.applet, relays: event.relays },
+            Math.floor(Date.now() / 1000),
+          ),
+        );
+        if (event.addToDeck) {
+          addColumn(
+            buildNappletColumn(
+              event.applet.pubkey,
+              event.applet.identifier,
+              event.relays,
+            ),
+          );
+        }
+        return true;
+      case "applets/uninstall":
+        appletStore.update((library) => uninstallApplet(library, event.applet));
+        return true;
+      case "applets/set-grant":
+        appletStore.update((library) =>
+          setGrant(library, event.applet, event.key, event.on),
+        );
+        return true;
+      case "applets/set-default":
+        appletStore.update((library) =>
+          setIntentDefault(library, event.archetype, event.target),
+        );
         return true;
       case "deck/patch-column":
         updateDeck((deck) => updateColumnIn(deck, event.id, event.patch));
@@ -1244,6 +1343,7 @@ const DeckScreen: Component<{
             </SidePanelMotion>
             <div class="flex min-w-0 flex-1 flex-col">
               <DeckSyncNotice store={deckStore} />
+              <DeckSyncNotice store={appletStore} subject="applets" />
               <DeckStrip
                 ref={columnsEl}
                 class="min-h-0 flex-1"
@@ -1385,6 +1485,7 @@ const DeckScreen: Component<{
               }
             />
             <DeckSyncNotice store={deckStore} />
+            <DeckSyncNotice store={appletStore} subject="applets" />
             <div class="relative min-h-0 flex-1">
               {/*
                                     カラムを横に並べ、1 枚ずつ止まるように送る（左右に払って切り替える）。
@@ -1538,146 +1639,154 @@ const DeckScreen: Component<{
 
   return (
     <EventActionsProvider value={actions}>
-      <LoginGateProvider value={gate}>
-        <WelcomeProvider
-          value={{
-            login: account === undefined ? welcomeLogin : undefined,
-            scheme,
-            appearance,
-            loginNudgedAt,
-          }}
-        >
-          <Show
-            when={write}
-            fallback={
-              <Mediates handle={handle}>
-                <GuestMediator>{body()}</GuestMediator>
-              </Mediates>
-            }
-          >
-            {(write) => (
-              // デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。
-              <ActionsMediator actions={write().actions}>
-                <Mediates handle={handle}>
-                  <MediaMediator
-                    writer={trackReplaces(
-                      write().writer,
-                      t("deck.writeLabel.uploadServers"),
-                    )}
-                    blossomList={write().blossomServers}
-                    nip96List={write().nip96Servers}
-                  >
-                    <SearchRelayMediator
-                      writer={trackReplaces(
-                        write().writer,
-                        t("deck.writeLabel.searchRelays"),
-                      )}
-                      relayList={write().searchRelays}
-                    >
-                      <BlockedRelayMediator
-                        writer={trackReplaces(
-                          write().writer,
-                          t("deck.writeLabel.blockedRelays"),
-                        )}
-                        signer={props.session.signer}
-                        viewer={viewer}
-                        list={write().blockedRelays}
-                      >
-                        <CustomEmojisMediator
+      <AppletLibraryProvider value={appletStore.value}>
+        <AppletIntentsProvider value={appletIntents}>
+          <AppletWriterProvider value={appletWriter}>
+            <LoginGateProvider value={gate}>
+              <WelcomeProvider
+                value={{
+                  login: account === undefined ? welcomeLogin : undefined,
+                  scheme,
+                  appearance,
+                  loginNudgedAt,
+                }}
+              >
+                <Show
+                  when={write}
+                  fallback={
+                    <Mediates handle={handle}>
+                      <GuestMediator>{body()}</GuestMediator>
+                    </Mediates>
+                  }
+                >
+                  {(write) => (
+                    // デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。
+                    <ActionsMediator actions={write().actions}>
+                      <Mediates handle={handle}>
+                        <MediaMediator
                           writer={trackReplaces(
                             write().writer,
-                            t("deck.writeLabel.emoji"),
+                            t("deck.writeLabel.uploadServers"),
                           )}
-                          list={write().emojiList}
-                          fetchLatest={write().fetchLatest}
+                          blossomList={write().blossomServers}
+                          nip96List={write().nip96Servers}
                         >
-                          <UploaderProvider value={uploader}>
-                            <ProfileMediator
+                          <SearchRelayMediator
+                            writer={trackReplaces(
+                              write().writer,
+                              t("deck.writeLabel.searchRelays"),
+                            )}
+                            relayList={write().searchRelays}
+                          >
+                            <BlockedRelayMediator
                               writer={trackReplaces(
                                 write().writer,
-                                t("deck.writeLabel.profile"),
+                                t("deck.writeLabel.blockedRelays"),
                               )}
-                              pubkey={viewer}
-                              profile={write().profile}
+                              signer={props.session.signer}
+                              viewer={viewer}
+                              list={write().blockedRelays}
                             >
-                              <RelayMediator
+                              <CustomEmojisMediator
                                 writer={trackReplaces(
                                   write().writer,
-                                  t("deck.writeLabel.relays"),
+                                  t("deck.writeLabel.emoji"),
                                 )}
-                                relayList={write().relayList}
-                                settled={write().relayListSettled}
-                                statusOf={(url) =>
-                                  props.readLayer.manager.pool.statusOf(url)
-                                }
-                                readPlan={readPlan}
-                                previewRelayCount={(redundancy) =>
-                                  props.readLayer.manager.previewRelayCount(
-                                    redundancy,
-                                  )
-                                }
-                                routingSettled={settled}
-                                followees={followees}
+                                list={write().emojiList}
+                                fetchLatest={write().fetchLatest}
                               >
-                                <MuteMediator
-                                  writer={trackReplaces(
-                                    write().writer,
-                                    t("deck.writeLabel.mutes"),
-                                  )}
-                                  signer={props.session.signer}
-                                  viewer={viewer}
-                                  muteList={write().muteList}
-                                  settled={write().muteListSettled}
-                                >
-                                  <FollowSetMediator
-                                    writer={write().writer}
-                                    signer={props.session.signer}
-                                    viewer={viewer}
-                                    manager={props.readLayer.manager}
+                                <UploaderProvider value={uploader}>
+                                  <ProfileMediator
+                                    writer={trackReplaces(
+                                      write().writer,
+                                      t("deck.writeLabel.profile"),
+                                    )}
+                                    pubkey={viewer}
+                                    profile={write().profile}
                                   >
-                                    <ZapMediator
-                                      signer={props.session.signer}
-                                      viewer={viewer}
-                                      store={props.readLayer.store}
-                                      pool={props.readLayer.manager.pool}
-                                      manager={props.readLayer.manager}
-                                      routing={props.readLayer.routing}
-                                      indexers={
-                                        props.bootstrapIndexers ??
-                                        BOOTSTRAP_INDEXERS
+                                    <RelayMediator
+                                      writer={trackReplaces(
+                                        write().writer,
+                                        t("deck.writeLabel.relays"),
+                                      )}
+                                      relayList={write().relayList}
+                                      settled={write().relayListSettled}
+                                      statusOf={(url) =>
+                                        props.readLayer.manager.pool.statusOf(
+                                          url,
+                                        )
                                       }
+                                      readPlan={readPlan}
+                                      previewRelayCount={(redundancy) =>
+                                        props.readLayer.manager.previewRelayCount(
+                                          redundancy,
+                                        )
+                                      }
+                                      routingSettled={settled}
+                                      followees={followees}
                                     >
-                                      <ChannelFormMediator
-                                        actions={write().actions}
-                                        account={() => {
-                                          const state = relayList();
-                                          return state.phase === "ready"
-                                            ? state.entries
-                                            : [];
-                                        }}
+                                      <MuteMediator
+                                        writer={trackReplaces(
+                                          write().writer,
+                                          t("deck.writeLabel.mutes"),
+                                        )}
+                                        signer={props.session.signer}
+                                        viewer={viewer}
+                                        muteList={write().muteList}
+                                        settled={write().muteListSettled}
                                       >
-                                        <StatusFormMediator
-                                          actions={write().actions}
+                                        <FollowSetMediator
+                                          writer={write().writer}
+                                          signer={props.session.signer}
+                                          viewer={viewer}
+                                          manager={props.readLayer.manager}
                                         >
-                                          {body()}
-                                        </StatusFormMediator>
-                                      </ChannelFormMediator>
-                                    </ZapMediator>
-                                  </FollowSetMediator>
-                                </MuteMediator>
-                              </RelayMediator>
-                            </ProfileMediator>
-                          </UploaderProvider>
-                        </CustomEmojisMediator>
-                      </BlockedRelayMediator>
-                    </SearchRelayMediator>
-                  </MediaMediator>
-                </Mediates>
-              </ActionsMediator>
-            )}
-          </Show>
-        </WelcomeProvider>
-      </LoginGateProvider>
+                                          <ZapMediator
+                                            signer={props.session.signer}
+                                            viewer={viewer}
+                                            store={props.readLayer.store}
+                                            pool={props.readLayer.manager.pool}
+                                            manager={props.readLayer.manager}
+                                            routing={props.readLayer.routing}
+                                            indexers={
+                                              props.bootstrapIndexers ??
+                                              BOOTSTRAP_INDEXERS
+                                            }
+                                          >
+                                            <ChannelFormMediator
+                                              actions={write().actions}
+                                              account={() => {
+                                                const state = relayList();
+                                                return state.phase === "ready"
+                                                  ? state.entries
+                                                  : [];
+                                              }}
+                                            >
+                                              <StatusFormMediator
+                                                actions={write().actions}
+                                              >
+                                                {body()}
+                                              </StatusFormMediator>
+                                            </ChannelFormMediator>
+                                          </ZapMediator>
+                                        </FollowSetMediator>
+                                      </MuteMediator>
+                                    </RelayMediator>
+                                  </ProfileMediator>
+                                </UploaderProvider>
+                              </CustomEmojisMediator>
+                            </BlockedRelayMediator>
+                          </SearchRelayMediator>
+                        </MediaMediator>
+                      </Mediates>
+                    </ActionsMediator>
+                  )}
+                </Show>
+              </WelcomeProvider>
+            </LoginGateProvider>
+          </AppletWriterProvider>
+        </AppletIntentsProvider>
+      </AppletLibraryProvider>
     </EventActionsProvider>
   );
 };

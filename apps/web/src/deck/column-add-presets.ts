@@ -38,6 +38,7 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
   preset("relay", "i-material-symbols:globe"),
   preset("user", "i-material-symbols:person-outline-rounded"),
   preset("channels", "i-material-symbols:forum-outline-rounded"),
+  preset("napplets", "i-material-symbols:widgets-outline-rounded"),
   preset("bookmarks", "i-material-symbols:bookmark-outline-rounded"),
   preset("follow-sets", "i-material-symbols:format-list-bulleted-rounded"),
   preset("followees-activity", "i-material-symbols:vital-signs-rounded"),

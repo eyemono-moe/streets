@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import type { Message, MessageKey } from "../i18n/message";
+import { NAPPLET_NAMED_KIND } from "../napplet/manifest";
 import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { SectionStatus } from "../read/source";
@@ -134,6 +135,25 @@ export const columnSourceSchema = v.variant("kind", [
     identifier: v.string(),
     relays: v.optional(v.array(v.string())),
   }),
+  /**
+   * NIP-5D の名前付き napplet（kind:35129）。住所で指すので、作者が版を上げたら
+   * 新しい版が開く。`relays` は開いたときに分かっていたリレー（naddr のヒントなど）。
+   */
+  v.object({
+    kind: v.literal("napplet"),
+    pubkey: hexId,
+    identifier: v.string(),
+    relays: v.optional(v.array(v.string())),
+  }),
+  /** 公開されている napplet を探す一覧。押すとカラムの中に重ねて開く。 */
+  v.object({ kind: v.literal("napplet-list") }),
+  /** napplet の情報。napplet のカラムの見出しの ⓘ から重ねて開く。 */
+  v.object({
+    kind: v.literal("napplet-info"),
+    pubkey: hexId,
+    identifier: v.string(),
+    relays: v.optional(v.array(v.string())),
+  }),
   /** チャンネルの一覧（お気に入り・最近アクティブ・すべてから探す）。 */
   v.object({ kind: v.literal("channel-list") }),
   v.object({
@@ -172,6 +192,8 @@ export type ColumnTitle =
   | { person: string; message?: Message }
   /** チャンネルは、情報が届くまでは `fallback` を名前の代わりにする。 */
   | { channel: string; message?: Message; fallback: string }
+  /** napplet は、マニフェストが届くまでは `fallback` を名前の代わりにする。 */
+  | { napplet: string; message?: Message; fallback: string }
   /** リストも、届くまでは `fallback`（開いたときの名前）を名前の代わりにする。 */
   | {
       followSet: { pubkey: string; identifier: string };
@@ -515,6 +537,25 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => [CHANNEL_MESSAGE_KIND],
     muted: "hide",
     foldsMuted: false,
+  },
+  "napplet-list": {
+    title: () => ({ message: { key: "column.title.napplets" } }),
+    kinds: () => [],
+  },
+  "napplet-info": {
+    title: (source, column) => ({
+      napplet: `${NAPPLET_NAMED_KIND}:${source.pubkey}:${source.identifier}`,
+      message: { key: "column.title.info" },
+      fallback: column.title,
+    }),
+    kinds: () => [],
+  },
+  napplet: {
+    title: (source, column) => ({
+      napplet: `${NAPPLET_NAMED_KIND}:${source.pubkey}:${source.identifier}`,
+      fallback: column.title,
+    }),
+    kinds: () => [],
   },
   welcome: {
     title: () => ({ message: { key: "column.title.welcome" } }),

@@ -70,6 +70,7 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
         column: () => props.column,
         readLayer: props.readLayer,
         report,
+        inDeck: props.remembersParts !== false,
         partOpen: (part) =>
           props.remembersParts !== false
             ? columnPartOpen(props.column.id, part)

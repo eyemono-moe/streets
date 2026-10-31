@@ -6,7 +6,7 @@ import {
 } from "../../nostr/event";
 import type { Signer } from "../signer";
 import { type Nip46Client, Nip46SignerRefusedError } from "./client";
-import { assertNip46SignPermission, grantsSignEvent } from "./session-storage";
+import { grantsSignEvent } from "./session-storage";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -43,8 +43,10 @@ export const createNip46Signer = (
     async getPublicKey() {
       return userPubkey;
     },
+    // 接続のときに求めなかった kind も、署名器へ送る。NIP-46 の権限は接続のときの
+    // 申し出で、多くの署名器はその場でユーザーに聞く。手元で止めると、アップレットの
+    // ように kind が決まっていない書き込みが、聞かれもせずに失敗する。
     async signEvent(template: UnsignedEvent): Promise<NostrEvent> {
-      assertNip46SignPermission(template.kind);
       const { pubkey: _pubkey, ...withoutPubkey } = template;
       let result: string;
       try {

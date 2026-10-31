@@ -17,6 +17,7 @@ import { defaultReaction } from "../default-reaction-setting";
 import { t } from "../i18n/locale";
 import { lazyPart } from "../lazy-part";
 import { useLoginGate } from "../login-gate";
+import { useAppletIntents } from "../napplet/applet-intents";
 import { useReadLayer } from "../read-layer";
 import { useMutes } from "../settings/MuteMediator";
 import { notifyError, notifySuccess } from "../toast";
@@ -262,9 +263,24 @@ export const createEventDialogs = (event: () => NostrEvent) => {
         return undefined;
     }
   };
+  const dispatch = useDispatch();
+  const intents = useAppletIntents();
   const openDialog = (dialog: EventDialog | undefined) => {
     const reason = needsAccount(dialog);
     if (reason && !gate(reason)) return;
+    // 投稿欄の既定がアップレットなら、返信・引用はそのアップレットで書く。
+    if (dialog === "reply" || dialog === "quote") {
+      const routed = intents?.routeCompose({ type: dialog, event: event() });
+      if (routed) {
+        dispatch({
+          type: "stack/open",
+          ...routed,
+          from: event().id,
+          direct: true,
+        });
+        return;
+      }
+    }
     setOpen(dialog);
   };
   const close = () => setOpen(undefined);
