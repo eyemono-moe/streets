@@ -54,6 +54,7 @@ const App: Component = () => {
     // 手元で開いたページからなら、ブラウザは手元のリレーへの接続に許可を求めない。
     allowLocalNetwork:
       import.meta.env.DEV || LOOPBACK_HOSTS.has(window.location.hostname),
+    refuseInsecure: window.location.protocol === "https:",
   });
   onCleanup(() => readLayer.dispose());
   createEffect(() => readLayer.manager.setRedundancy(readRedundancy()));

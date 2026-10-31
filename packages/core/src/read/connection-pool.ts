@@ -5,7 +5,7 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
-import { isLocalNetworkRelay } from "../relay/relay-url";
+import { isInsecureRelay, isLocalNetworkRelay } from "../relay/relay-url";
 import { MAX_CONNECTIONS } from "./default-relays";
 import {
   type ReconnectReason,
@@ -58,6 +58,11 @@ export type ConnectionPoolOptions = {
   random?: () => number;
   /** ページ自体が手元で開かれていればブラウザは許可を求めないので、そのときだけ真にする。 */
   allowLocalNetwork?: boolean;
+  /**
+   * ページが https なら真にする。`ws://` のリレーはブラウザが必ず止めるので、試みずに
+   * 繋がないリレーとして扱う。試みると、そのたびにコンソールへ混在コンテンツの警告が出る。
+   */
+  refuseInsecure?: boolean;
   /**
    * そのリレーが同時に受け付ける購読の数（NIP-11 の `max_subscriptions`）。数は書いて
    * ある上限、`null` は NIP-11 を取って上限が書いていないと分かった（枠なし）、
@@ -152,10 +157,12 @@ export class ConnectionPool {
   }
 
   isBlocked(url: RelayUrl): boolean {
-    return this.#blocked.has(url) || this.isLocalRefused(url);
+    return this.#blocked.has(url) || this.isRefusedHere(url);
   }
 
-  isLocalRefused(url: RelayUrl): boolean {
+  /** このページからは繋がないリレーか。許していないローカルネットワークと、https のページからの `ws://`。 */
+  isRefusedHere(url: RelayUrl): boolean {
+    if (this.#options.refuseInsecure && isInsecureRelay(url)) return true;
     return (
       !this.#options.allowLocalNetwork &&
       !this.#localAllowed.has(url) &&
