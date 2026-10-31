@@ -46,6 +46,17 @@ const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
 
 /**
+ * 開いてからこれだけ生き延びたら、失敗の記録を消す。開いた直後に切ってくるリレー
+ * （relay.damus.io が数十 ms で切ってきた）を開いた時点で許すと、バックオフが毎回
+ * 振り出しに戻り、数秒おきに繋ぎ直し続ける。
+ */
+export const STABLE_AFTER_MS = 10_000;
+
+/** `failures` 回続けて失敗した後、次に繋ぎにいくまで空ける時間（ジッタを除く）。 */
+export const reconnectDelayMs = (failures: number): number =>
+  Math.min(RECONNECT_BASE_MS * 2 ** failures, RECONNECT_MAX_MS);
+
+/**
  * NIP-01 は OK 送信を義務づけるが、レート制限時に黙って捨てる relay が実在し、
  * `publish()` は OK かソケット死亡でしか settle しないため必要。
  */
@@ -109,6 +120,8 @@ export class RelaySession {
   #offClose: (() => void) | null = null;
   /** `connect()` が返っただけでは開いた証拠にならないので、失敗の記録を消すのはこの発火時だけ。 */
   #offOpen: (() => void) | null = null;
+  #opened = false;
+  #stableTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
   /** 接続済み、または待つエントリが無い間は必ず `null`。残すと誰も待っていないリレーへ再接続し続ける。 */
   #timer: ReturnType<Scheduler["setTimeout"]> | null = null;
   /** `selectRelays` の `pinned` とは別物 —— こちらは予算チェックそのものを迂回する側。 */
@@ -148,9 +161,31 @@ export class RelaySession {
     return this.#connection && this.#linger ? this.#linger.since : null;
   }
 
-  /** 予算チェックとソケット生成を一本化しないと、片方だけ直されて迂回する経路が残る。 */
-  ensureConnected(reserved: boolean): boolean {
+  /** 再接続を待っている。待つ間に足された購読は、繋がったときにまとめて送る。 */
+  get waitingToReconnect(): boolean {
+    return this.#connection === null && this.#timer !== null;
+  }
+
+  /**
+   * 予算チェックとソケット生成を一本化しないと、片方だけ直されて迂回する経路が残る。
+   * `waitMs` は、窓口の外で数えたバックオフの残り。`"now"` は待たずに開く（書き込み）。
+   */
+  ensureConnected(reserved: boolean, waitMs: number | "now" = "now"): boolean {
     this.#cancelLinger();
+    if (!this.#connection && waitMs !== "now") {
+      // 購読が足されるたびに開くと、待っていたバックオフが飛ばされる。開いてすぐ
+      // 切ってくるリレーへ、カラムの組み直しのたびに繋ぎ直していた。
+      if (this.#timer === null && waitMs > 0) {
+        this.#timer = this.#options.scheduler.setTimeout(() => {
+          this.#timer = null;
+          this.#reconnect();
+        }, waitMs);
+      }
+      if (this.#timer !== null) {
+        if (reserved) this.#reserved = true;
+        return true;
+      }
+    }
     if (!this.#connection) {
       if (!reserved && !this.#options.makeRoom()) return false;
       try {
@@ -364,16 +399,25 @@ export class RelaySession {
     this.#offClose = null;
     this.#offOpen?.();
     this.#offOpen = null;
+    if (this.#stableTimer !== null) {
+      this.#options.scheduler.clearTimeout(this.#stableTimer);
+      this.#stableTimer = null;
+    }
     this.#connection = null;
   }
 
   /** 購読への `onClosed` は接続側が配り済みなので、ここで呼ぶと二重計上になる。 */
   #onConnectionDied(): void {
     if (this.#closed) return;
+    const opened = this.#opened;
     this.#detachConnection();
     this.#requeueAll();
     // 猶予中に死んだ接続は再接続しない。残すと接続の無い記録が枠を食い続ける。
     if (this.#linger) {
+      // 一度きりの取得は、ソケットの死より先に届く onClosed で購読を閉じるので、繋がらな
+      // かったときも猶予中として片付く。ここで数えないと、失敗が記録されずに取得のたびに
+      // 繋ぎにいく。
+      if (!opened) this.#options.noteFailure("relay");
       this.close();
       return;
     }
@@ -409,7 +453,7 @@ export class RelaySession {
 
     // 順序を逆にすると、1 回目の遅延から既に 2 倍されてしまう。
     const count = this.#options.failureCount();
-    const base = Math.min(RECONNECT_BASE_MS * 2 ** count, RECONNECT_MAX_MS);
+    const base = reconnectDelayMs(count);
     const delay = base * (0.5 + this.#options.random());
     this.#options.noteFailure(reason);
     this.#timer = this.#options.scheduler.setTimeout(() => {
@@ -427,6 +471,7 @@ export class RelaySession {
     // 通常は #onConnectionDied で解除済みだが、念のため先に外す。
     this.#offOpen?.();
     this.#connection = connection;
+    this.#opened = false;
     const offClose = connection.onClose(() => this.#onConnectionDied());
     const offNotice = connection.onNotice?.((message) =>
       this.#onNotice(message),
@@ -435,7 +480,13 @@ export class RelaySession {
       offClose();
       offNotice?.();
     };
-    this.#offOpen = connection.onOpen(() => this.#options.clearFailures());
+    this.#offOpen = connection.onOpen(() => {
+      this.#opened = true;
+      this.#stableTimer = this.#options.scheduler.setTimeout(() => {
+        this.#stableTimer = null;
+        this.#options.clearFailures();
+      }, STABLE_AFTER_MS);
+    });
     this.#options.onConnected();
 
     this.#pump();

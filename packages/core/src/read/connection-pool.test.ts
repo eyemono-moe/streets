@@ -9,8 +9,9 @@ import {
   ConnectionPool,
   type ConnectionPoolOptions,
   DEGRADED_COOLDOWN_MS,
+  type PooledSubscription,
 } from "./connection-pool";
-import { IDLE_LINGER_MS } from "./relay-session";
+import { IDLE_LINGER_MS, STABLE_AFTER_MS } from "./relay-session";
 
 /**
  * `publish()` は署名検証をしない (`EventStore.put` の責務) ので、
@@ -391,8 +392,13 @@ describe("ConnectionPool", () => {
     expect(pool.reservedSize).toBe(0);
   });
 
-  it("does not hand a dead connection to the next subscriber", () => {
-    const { pool, connections, connectCalls } = createPool();
+  // Mutation: 足された購読のたびに死んだ接続を開き直す（バックオフが飛ばされ、
+  // 開いてすぐ切ってくるリレーへカラムの組み直しのたびに繋ぎ直す）、または
+  // 死んだ接続をそのまま渡す（その購読は二度と REQ を送らない）。
+  it("makes the next subscriber wait for the backoff instead of handing it the dead connection", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
     connections.get("wss://one/")?.die();
 
@@ -402,11 +408,14 @@ describe("ConnectionPool", () => {
       onEose: () => {},
       onClosed: (reason) => reasons.push(reason),
     });
+    expect(reasons).toEqual(["relay unavailable"]);
+    expect(connectCalls).toEqual(["wss://one/"]);
 
-    // Handing over a corpse fires onClosed immediately and that column
-    // stays unreachable forever.
-    expect(reasons).toEqual([]);
+    clock.advance(1000);
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+    expect(
+      connections.get("wss://one/")?.subscriptions.map((sub) => sub.filters),
+    ).toEqual([[{ kinds: [1] }], [{ kinds: [7] }]]);
   });
 
   // 接続自身が既に配り終えている。二重に呼ぶと incomplete.unreachableRelays
@@ -455,7 +464,9 @@ describe("ConnectionPool", () => {
   // record の生存は `size` だけでは見えない (どちらも 0) ので、再
   // subscribe() が古いエントリを道連れにせず生き残ることで初めて観測できる。
   it("does not drop the pooled record until every entry, including ones added after death, has closed", () => {
-    const { pool, connections, connectCalls, clock } = createPool();
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
     const stale = pool.subscribe(
       "wss://one/",
       [{ kinds: [1] }],
@@ -468,6 +479,7 @@ describe("ConnectionPool", () => {
       [{ kinds: [7] }],
       noopHandlers(),
     );
+    clock.advance(1000); // the backoff after the death
     const reconnected = connections.get("wss://one/");
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
 
@@ -1110,11 +1122,10 @@ describe("ConnectionPool: reviving a dead connection", () => {
     // 漏れたタイマーを無害化するため、`connectCalls` の観測だけでは
     // 検出できない —— clearTimeout の直接カウントだけが証拠になる。
     //
-    // +3 の内訳: (1) `pooled.timer` (再接続バックオフ) の解除、
-    // (2) `#failures` のクールダウンタイマー (`onOpen` が
-    // `#attachConnection` 内で同期発火するため即座に `#clearFailures`)、
-    // (3) `publish()` 自身の `PUBLISH_TIMEOUT_MS`。
-    expect(clock.clearTimeoutCallCount).toBe(clearsBeforeRevival + 3);
+    // +2 の内訳: (1) `pooled.timer` (再接続バックオフ) の解除、
+    // (2) `publish()` 自身の `PUBLISH_TIMEOUT_MS`。失敗の記録は開いて
+    // `STABLE_AFTER_MS` 経つまで消さないので、クールダウンタイマーはまだ残る。
+    expect(clock.clearTimeoutCallCount).toBe(clearsBeforeRevival + 2);
 
     // And the original assertion: no stale timer ever fires a reconnect.
     clock.advance(60_000);
@@ -1181,7 +1192,9 @@ describe("backoff growth and degraded relays", () => {
     // (see the "postpones the cooldown" test below) -- filter those out so
     // this only looks at the reconnect backoff itself.
     const reconnectDelays = () =>
-      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+      clock.scheduledDelays.filter(
+        (d) => d !== DEGRADED_COOLDOWN_MS && d !== STABLE_AFTER_MS,
+      );
 
     // The initial socket never opens; kill it to trigger the first
     // reconnect scheduling.
@@ -1209,7 +1222,9 @@ describe("backoff growth and degraded relays", () => {
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
 
     const reconnectDelays = () =>
-      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+      clock.scheduledDelays.filter(
+        (d) => d !== DEGRADED_COOLDOWN_MS && d !== STABLE_AFTER_MS,
+      );
 
     connections.get("wss://one/")?.die();
     clock.advance(1000);
@@ -1220,11 +1235,38 @@ describe("backoff growth and degraded relays", () => {
     // really open before killing it.
     clock.advance(2000);
     connections.get("wss://one/")?.open();
+    clock.advance(STABLE_AFTER_MS);
     connections.get("wss://one/")?.die();
 
     // A real open cleared the failure history, so this delay is base again
     // -- not 4000 (2^2), which is what continuing the sequence would give.
     expect(reconnectDelays()).toEqual([1000, 2000, 1000]);
+  });
+
+  // Mutation: 開いた時点で失敗の記録を消す。開いてすぐ切ってくるリレーへ、
+  // バックオフが毎回振り出しに戻って数秒おきに繋ぎ直し続ける。
+  it("keeps growing the delay when the socket opens and is dropped right away", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    const reconnectDelays = () =>
+      clock.scheduledDelays.filter(
+        (d) => d !== DEGRADED_COOLDOWN_MS && d !== STABLE_AFTER_MS,
+      );
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.open();
+    clock.advance(STABLE_AFTER_MS - 1);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.open();
+    connections.get("wss://one/")?.die();
+
+    expect(reconnectDelays()).toEqual([1000, 2000, 4000]);
   });
 
   // Mutation: `#failures` を `Pooled` へ戻すと、degraded な relay が選択から
@@ -1238,7 +1280,9 @@ describe("backoff growth and degraded relays", () => {
     const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
 
     const reconnectDelays = () =>
-      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+      clock.scheduledDelays.filter(
+        (d) => d !== DEGRADED_COOLDOWN_MS && d !== STABLE_AFTER_MS,
+      );
 
     connections.get("wss://one/")?.die();
     clock.advance(1000);
@@ -1252,15 +1296,16 @@ describe("backoff growth and degraded relays", () => {
     // timer, everything except the failure history).
     sub?.close();
 
-    // Subscribe to the same URL again (a fresh `Pooled` record is created)
-    // and kill it once more.
+    // Subscribe to the same URL again (a fresh `Pooled` record is created).
+    // It waits out the rest of the 4000ms backoff, then dies once more.
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    clock.advance(4000);
     connections.get("wss://one/")?.die();
 
-    // If the counter had been reset by the drop, this delay would be back
-    // at the base (1000ms). It must instead continue from count=3:
-    // 1000 * 2^3 = 8000ms.
-    expect(reconnectDelays()).toEqual([1000, 2000, 4000, 8000]);
+    // If the counter had been reset by the drop, the new record would have
+    // connected at once and this delay would be back at the base (1000ms).
+    // It must instead continue from count=3: 1000 * 2^3 = 8000ms.
+    expect(reconnectDelays()).toEqual([1000, 2000, 4000, 4000, 8000]);
   });
 
   // Mutation: change the `degradedRelays` threshold check from `>=` to `>`,
@@ -1307,7 +1352,9 @@ describe("backoff growth and degraded relays", () => {
 
     clock.advance(8000); // 5th reconnect attempt fires, socket created
     connections.get("wss://one/")?.open(); // this time it actually opens
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
 
+    clock.advance(STABLE_AFTER_MS); // and stays open
     expect(pool.degradedRelays).toEqual([]);
   });
 
@@ -1389,6 +1436,7 @@ describe("backoff growth and degraded relays", () => {
 
     clock.advance(8000); // the 5th reconnect attempt creates a socket
     connections.get("wss://one/")?.open(); // this time it really opens
+    clock.advance(STABLE_AFTER_MS);
 
     expect(pool.degradedRelays).toEqual([]);
     expect(changed).toEqual(["wss://one/", "wss://one/"]);
@@ -1475,6 +1523,100 @@ describe("backoff growth and degraded relays", () => {
 // 交差した瞬間の通知が要る (ポーリングではなく)。`onDegradedChanged` が
 // それで、集合への出入り両方で発火する。バッチ処理は
 // `subscription-manager.test.ts` 側の責務。
+describe("one-shot fetches to a relay that will not open", () => {
+  /** `collect()` と同じく、購読への onClosed を受けたらその場で閉じる取得。 */
+  const fetchOnce = (
+    pool: ConnectionPool,
+    url: RelayUrl,
+  ): PooledSubscription | undefined => {
+    let subscription: PooledSubscription | undefined;
+    subscription = pool.subscribe(
+      url,
+      [{ kinds: [5] }],
+      { ...noopHandlers(), onClosed: () => subscription?.close() },
+      { once: true },
+    );
+    return subscription;
+  };
+
+  // Mutation: 猶予中に死んだ接続を、開いたかどうかに関わらず数えずに片付ける。
+  // 購読への onClosed がソケットの死より先に届き、窓口が猶予に入ってから死ぬため、
+  // 一度きりの取得では失敗が一度も記録されなくなる。
+  it("records a failure when the socket dies before opening", () => {
+    const { pool, connections } = createPool({ neverOpens: ["wss://one/"] });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    expect(pool.statusOf("wss://one/")).toBe("failing");
+  });
+
+  // Mutation: 上の記録を、開いた後に空いて閉じた接続にも付ける。
+  it("does not record a failure when an opened socket dies while idle", () => {
+    const { pool, connections } = createPool();
+    const subscription = fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.emitEose(0);
+    subscription?.close();
+    connections.get("wss://one/")?.die();
+
+    expect(pool.statusOf("wss://one/")).toBe("idle");
+  });
+
+  // Mutation: `#acquire` でバックオフの残りを見ない。削除依頼などの取得は 200ms ごとに
+  // 来るので、そのたびに死んだリレーへソケットを開く。
+  it("does not open a new socket until the backoff since the last failure has passed", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      neverOpens: ["wss://one/"],
+    });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    clock.advance(999);
+    fetchOnce(pool, "wss://one/");
+    expect(connectCalls).toEqual(["wss://one/"]);
+
+    clock.advance(1);
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+
+    // 2 回続けて失敗したので、次は 2 秒あける。
+    clock.advance(1999);
+    fetchOnce(pool, "wss://one/");
+    expect(connectCalls).toHaveLength(2);
+    clock.advance(1);
+    fetchOnce(pool, "wss://one/");
+    expect(connectCalls).toHaveLength(3);
+  });
+
+  // Mutation: 待つ間の取得に「繋がらない」を返さない。取得が期限まで待たされる。
+  it("tells a one-shot fetch during the backoff that the relay is unavailable", () => {
+    const { pool, connections } = createPool({ neverOpens: ["wss://one/"] });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    const reasons: string[] = [];
+    pool.subscribe(
+      "wss://one/",
+      [{ kinds: [5] }],
+      { ...noopHandlers(), onClosed: (reason) => reasons.push(reason) },
+      { once: true },
+    );
+    expect(reasons).toEqual(["relay unavailable"]);
+  });
+
+  // Mutation: 書き込みにも同じ間隔を当てる。押した人が待たされ、失敗として返る。
+  it("still opens the relay at once for a publish during the backoff", () => {
+    const { pool, connections, connectCalls } = createPool({
+      neverOpens: ["wss://one/"],
+    });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    void pool.publish("wss://one/", fakeEvent("a")).catch(() => {});
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+  });
+});
+
 describe("ConnectionPool.onDegradedChanged", () => {
   // Mutation: fire the listener on every `#noteFailure` call instead of only
   // the one that pushes `hard` across `DEGRADED_AFTER_FAILURES` -- this is
@@ -1586,11 +1728,13 @@ describe("ConnectionPool.onDegradedChanged", () => {
     const seenByOther: RelayUrl[] = [];
     pool.onDegradedChanged((url) => seenByOther.push(url));
 
-    // The 4th relay-caused failure -- and the crossing it triggers -- both
-    // happen synchronously inside this call.
+    // The new subscription waits out the 4000ms backoff; the 4th
+    // relay-caused failure -- and the crossing it triggers -- both happen
+    // synchronously inside the reconnect that follows.
     expect(() =>
       pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers()),
     ).not.toThrow();
+    expect(() => clock.advance(4000)).not.toThrow();
 
     expect(seenByOther).toEqual(["wss://one/"]);
     errorSpy.mockRestore();
@@ -1612,7 +1756,9 @@ describe("budget vs relay health, and cleanup", () => {
       random: () => 0.5,
     });
     const reconnectDelays = () =>
-      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+      clock.scheduledDelays.filter(
+        (d) => d !== DEGRADED_COOLDOWN_MS && d !== STABLE_AFTER_MS,
+      );
 
     pool.subscribe("wss://a/", [{ kinds: [1] }], noopHandlers());
     connections.get("wss://a/")?.die(); // A's own, single, genuine failure
@@ -1721,6 +1867,7 @@ describe("statusOf", () => {
 
     clock.advance(1000);
     connections.get("wss://one/")?.open();
+    clock.advance(STABLE_AFTER_MS);
     expect(pool.statusOf("wss://one/")).toBe("in-use");
   });
 });
