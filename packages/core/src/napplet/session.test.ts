@@ -38,6 +38,7 @@ const setup = (
     filters: RelayFilter[];
     sink: NappletSubscriptionSink;
     hints?: readonly string[];
+    relay?: string;
     closed: boolean;
   }[] = [];
   const stored = new Map<string, string>();
@@ -172,8 +173,8 @@ const setup = (
     },
     writeRelays: (pubkey) =>
       pubkey === "b".repeat(64) ? ["wss://author.example/"] : undefined,
-    subscribe: (filters, sink, hints) => {
-      const entry = { filters, sink, hints, closed: false };
+    subscribe: (filters, sink, hints, relay) => {
+      const entry = { filters, sink, hints, relay, closed: false };
       opened.push(entry);
       return () => {
         entry.closed = true;
@@ -358,7 +359,7 @@ describe("createNappletSession", () => {
   });
 
   // NAP-RELAY: > Subscription filters SHOULD be validated to prevent resource exhaustion
-  it("何も絞らない購読と、リレーを指定した購読は張らずに閉じたと返す", () => {
+  it("何も絞らない購読は張らずに閉じたと返す", () => {
     const { session, sent, opened } = setup();
     session.receive({
       type: "relay.subscribe",
@@ -366,18 +367,65 @@ describe("createNappletSession", () => {
       subId: "a",
       filters: [{ limit: 10 }],
     });
-    session.receive({
-      type: "relay.subscribe",
-      id: "r2",
-      subId: "b",
-      filters: [{ kinds: [9] }],
-      relay: "wss://groups.example",
-    });
     expect(opened).toEqual([]);
     expect(sent).toEqual([
       { type: "relay.closed", subId: "a", reason: "invalid: filters" },
-      { type: "relay.closed", subId: "b", reason: "unsupported: scoped relay" },
     ]);
+  });
+
+  // NAP-RELAY: `relay.subscribe` の `relay` は "Optional: target a specific relay URL."
+  it("リレーを指定した購読は、そのリレーだけから読む", () => {
+    const { session, opened } = setup();
+    session.receive({
+      type: "relay.subscribe",
+      id: "r",
+      subId: "a",
+      filters: [{ kinds: [1], "#t": ["nostrasia2026"] }],
+      relay: "wss://yabu.me",
+    });
+    expect(opened.map((entry) => entry.relay)).toEqual(["wss://yabu.me"]);
+  });
+
+  it("wss で始まらないリレーを指定した購読は張らない", () => {
+    const { session, sent, opened } = setup();
+    session.receive({
+      type: "relay.subscribe",
+      id: "r",
+      subId: "a",
+      filters: [{ kinds: [1] }],
+      relay: "https://yabu.me",
+    });
+    expect(opened).toEqual([]);
+    expect(sent).toEqual([
+      { type: "relay.closed", subId: "a", reason: "invalid: relay" },
+    ]);
+  });
+
+  it("リレーを指定した購読で同時に使えるリレーは 4 本までで、閉じれば空く", () => {
+    const { session, sent, opened } = setup();
+    const subscribe = (subId: string, relay: string) =>
+      session.receive({
+        type: "relay.subscribe",
+        id: subId,
+        subId,
+        filters: [{ kinds: [1] }],
+        relay,
+      });
+    for (const n of [1, 2, 3, 4]) subscribe(`s${n}`, `wss://r${n}.example`);
+    // 同じリレーへの購読は数を増やさない。
+    subscribe("again", "wss://r1.example");
+    subscribe("s5", "wss://r5.example");
+    expect(opened).toHaveLength(5);
+    expect(sent).toEqual([
+      {
+        type: "relay.closed",
+        subId: "s5",
+        reason: "rate-limited: too many relays",
+      },
+    ]);
+    session.receive({ type: "relay.close", id: "c", subId: "s2" });
+    subscribe("s5", "wss://r5.example");
+    expect(opened.at(-1)?.relay).toBe("wss://r5.example");
   });
 
   it("query は EOSE までに届いたものを重ねずにまとめて返し、購読を閉じる", () => {

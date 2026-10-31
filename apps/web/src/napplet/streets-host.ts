@@ -110,6 +110,7 @@ export const subscribeThroughReadLayer =
       eose: () => void;
     },
     hints: readonly string[] = [],
+    relay?: string,
   ): (() => void) => {
     const answered = new Set<RelayUrl>();
     const seen = new Set<string>();
@@ -124,7 +125,7 @@ export const subscribeThroughReadLayer =
     };
     const handle = readLayer.manager.subscribe(
       filters,
-      undefined,
+      relay === undefined ? undefined : [relay as RelayUrl],
       {
         onEvent: (id, relay) => {
           if (seen.has(id)) return;

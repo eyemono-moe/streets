@@ -92,11 +92,13 @@ export type NappletHost = {
   /**
    * 読み取り層へ購読を張る。著者が分かるフィルタは Outbox で行き先が決まるので、
    * NAP-RELAY と NAP-OUTBOX のどちらもこれを使う。`hints` は行き先に足すリレー。
+   * `relay` を渡したら、行き先を決めずにそのリレーだけから読む。
    */
   subscribe: (
     filters: RelayFilter[],
     sink: NappletSubscriptionSink,
     hints?: readonly string[],
+    relay?: string,
   ) => () => void;
   /** その人の書き込み先（NIP-65）。分からなければ `undefined`。 */
   writeRelays: (pubkey: string) => readonly string[] | undefined;
@@ -224,6 +226,8 @@ export const NAPPLET_MAX_SUBSCRIPTIONS = 20;
 export const NAPPLET_QUERY_TIMEOUT_MS = 15_000;
 /** napplet が足せるリレーのヒントの数。明示した行き先は接続の予算を超えても開くので絞る。 */
 export const NAPPLET_MAX_RELAY_HINTS = 4;
+/** 1 つの napplet が、リレーを指定した購読で同時に使えるリレーの数。ヒントと同じ理由で絞る。 */
+export const NAPPLET_MAX_SCOPED_RELAYS = 4;
 /** 1 つのアップレットが登録できる操作の数。偽りの名前で並べ立てさせない。 */
 const MAX_KEY_ACTIONS = 50;
 
@@ -436,6 +440,7 @@ export const createNappletSession = (
   const cancel = options.clearTimeout ?? clearTimeout;
   const exposed = new Set(host.domains);
   const subscriptions = new Map<string, () => void>();
+  const scopedRelays = new Map<string, string>();
   const queries = new Set<() => void>();
   const fetches = new Map<string, AbortController>();
   let initialized = false;
@@ -1005,6 +1010,7 @@ export const createNappletSession = (
   const closeSubscription = (subId: string) => {
     subscriptions.get(subId)?.();
     subscriptions.delete(subId);
+    scopedRelays.delete(subId);
   };
 
   /** 購読を張る。張れなければ理由を返す。 */
@@ -1013,6 +1019,7 @@ export const createNappletSession = (
     rawFilters: unknown,
     hints: readonly string[],
     sink: NappletSubscriptionSink,
+    relay?: string,
   ): string | undefined => {
     closeSubscription(subId);
     const filters = sanitizeNappletFilters(rawFilters);
@@ -1020,7 +1027,14 @@ export const createNappletSession = (
     if (subscriptions.size >= NAPPLET_MAX_SUBSCRIPTIONS) {
       return "rate-limited: too many subscriptions";
     }
-    subscriptions.set(subId, host.subscribe(filters, sink, hints));
+    if (relay !== undefined) {
+      const using = new Set(scopedRelays.values()).add(relay);
+      if (using.size > NAPPLET_MAX_SCOPED_RELAYS) {
+        return "rate-limited: too many relays";
+      }
+      scopedRelays.set(subId, relay);
+    }
+    subscriptions.set(subId, host.subscribe(filters, sink, hints, relay));
     return undefined;
   };
 
@@ -1074,20 +1088,29 @@ export const createNappletSession = (
         if (typeof subId !== "string") return;
         const closed = (reason: string) =>
           send({ type: "relay.closed", subId, reason });
-        // 指定したリレーへ直に繋ぐ購読は、Streets の接続の上限と許可の外になるので、まだ受けない。
-        if (request.relay !== undefined) {
+        const scoped = request.relay;
+        if (
+          scoped !== undefined &&
+          (typeof scoped !== "string" || !scoped.startsWith("wss://"))
+        ) {
           closeSubscription(subId);
-          return closed("unsupported: scoped relay");
+          return closed("invalid: relay");
         }
-        const refused = openSubscription(subId, request.filters, [], {
-          event: (event, relay) =>
-            send({
-              type: "relay.event",
-              subId,
-              result: resultOf(event, relay),
-            }),
-          eose: () => send({ type: "relay.eose", subId }),
-        });
+        const refused = openSubscription(
+          subId,
+          request.filters,
+          [],
+          {
+            event: (event, relay) =>
+              send({
+                type: "relay.event",
+                subId,
+                result: resultOf(event, relay),
+              }),
+            eose: () => send({ type: "relay.eose", subId }),
+          },
+          scoped,
+        );
         if (refused) closed(refused);
         return;
       }
