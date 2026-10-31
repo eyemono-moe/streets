@@ -27,7 +27,7 @@ function installNapplet(domains: readonly string[]): void {
     pick: (message: Message) => unknown;
     /** NAP-OUTBOX の結果は `error` を欄として返し、reject しない（@napplet/shim と同じ）。 */
     rejectOnError: boolean;
-    timer: ReturnType<typeof setTimeout>;
+    timer: ReturnType<typeof setTimeout> | undefined;
   };
   const pending = new Map<string, Pending>();
   const pushes = new Map<string, Set<Handler>>();
@@ -68,6 +68,24 @@ function installNapplet(domains: readonly string[]): void {
     for (const handler of pushes.get(message.type) ?? []) handler(message);
   });
 
+  // 確認を待つ操作は、時間切れにしてもランチャー側の処理が止まらない。利用者が後から
+  // 承認した結果を捨てないよう、この操作だけはランチャーが答えるまで待つ。
+  const waitsForUser = new Set([
+    "relay.publish",
+    "relay.publishEncrypted",
+    "outbox.publish",
+    "intent.invoke",
+    "upload.upload",
+    "common.follow",
+    "common.unfollow",
+    "common.react",
+    "common.report",
+    "link.open",
+    "notify.permission.request",
+    "notify.send",
+    "lists.add",
+    "lists.remove",
+  ]);
   const request = (
     type: string,
     payload: Record<string, unknown>,
@@ -76,9 +94,11 @@ function installNapplet(domains: readonly string[]): void {
     id = newId(),
   ): Promise<never> =>
     new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        if (pending.delete(id)) reject(new Error(`${type} timed out`));
-      }, 30_000);
+      const timer = waitsForUser.has(type)
+        ? undefined
+        : setTimeout(() => {
+            if (pending.delete(id)) reject(new Error(`${type} timed out`));
+          }, 30_000);
       pending.set(id, {
         resolve: resolve as (value: unknown) => void,
         reject,
@@ -352,7 +372,9 @@ function installNapplet(domains: readonly string[]): void {
           return Promise.reject(error);
         }
       }
-      const cached = inflight.get(url);
+      // 中止できる呼び出しを共有すると、片方の中止がほかの取得まで止めてしまう。
+      const signal = options?.signal;
+      const cached = signal ? undefined : inflight.get(url);
       const id = newId();
       const work =
         cached ??
@@ -362,20 +384,33 @@ function installNapplet(domains: readonly string[]): void {
           (message) => message.blob,
           true,
           id,
-        ).finally(() => inflight.delete(url));
-      if (!cached) inflight.set(url, work);
-      const signal = options?.signal;
-      if (!signal) return work;
-      return new Promise<Blob>((resolve, reject) => {
-        signal.addEventListener(
-          "abort",
-          () => {
-            if (!cached) post({ type: "resource.cancel", id });
-            reject(new DOMException("Aborted", "AbortError"));
-          },
-          { once: true },
         );
-        work.then(resolve, reject);
+      if (!signal) {
+        if (cached) return cached;
+        const shared = work.finally(() => inflight.delete(url));
+        inflight.set(url, shared);
+        return shared;
+      }
+      return new Promise<Blob>((resolve, reject) => {
+        const abort = () => {
+          const waiting = pending.get(id);
+          if (!waiting) return;
+          pending.delete(id);
+          clearTimeout(waiting.timer);
+          post({ type: "resource.cancel", id });
+          waiting.reject(new DOMException("Aborted", "AbortError"));
+        };
+        signal.addEventListener("abort", abort, { once: true });
+        work.then(
+          (blob) => {
+            signal.removeEventListener("abort", abort);
+            resolve(blob);
+          },
+          (error) => {
+            signal.removeEventListener("abort", abort);
+            reject(error);
+          },
+        );
       });
     };
     napplet.resource = {
