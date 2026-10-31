@@ -28,7 +28,7 @@ const Emoji: Component<{ shortcode: string; url: string; class?: string }> = (
         title={`:${props.shortcode}:`}
         loading="lazy"
         decoding="async"
-        class={`inline-block w-auto object-contain ${props.class ?? "h-6"}`}
+        class={`inline-block w-auto object-contain aspect-pending-square ${props.class ?? "h-6"}`}
         onError={() => setBroken(true)}
       />
     </Show>

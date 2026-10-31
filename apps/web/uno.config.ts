@@ -245,6 +245,13 @@ export default defineConfig({
         "contain-intrinsic-size": "auto 160px",
       },
     ],
+    /*
+      高さだけ決めて幅を画像に任せる絵文字は、読み込むまで幅が 0 で、読み込んだ
+      ときに後ろの文字が押し出される。絵文字のタグは画像の大きさを持たないので
+      width/height を書けない。読み込むまでは正方形で場所を取り、読み込んだら
+      画像の縦横比に従う（多くの絵文字は正方形なので動かない）。
+    */
+    ["aspect-pending-square", { "aspect-ratio": "auto 1 / 1" }],
   ],
   shortcuts: [
     {

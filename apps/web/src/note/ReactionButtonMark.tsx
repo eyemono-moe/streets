@@ -54,7 +54,7 @@ const ReactionButtonMark: Component<{
                 draggable={false}
                 alt=""
                 loading="lazy"
-                class={`h-4.5 w-auto max-w-12 object-contain ${tone()}`}
+                class={`h-4.5 w-auto max-w-12 object-contain aspect-pending-square ${tone()}`}
                 onError={() => setBroken(true)}
               />
             </Match>
