@@ -12,6 +12,7 @@ import {
   RelaySession,
   type SessionHold,
   type SessionSubscription,
+  reconnectDelayMs,
 } from "./relay-session";
 import { reportIsolated } from "./report-isolated";
 import { type Scheduler, defaultScheduler } from "./scheduler";
@@ -85,7 +86,13 @@ export class ConnectionPool {
   /** 窓口が消えても失敗の記録は残したいので、プールが持つ。 */
   readonly #failures = new Map<
     RelayUrl,
-    { count: number; hard: number; timer: ReturnType<Scheduler["setTimeout"]> }
+    {
+      count: number;
+      hard: number;
+      /** 最後にリレーの側で失敗した時刻。予算で断った分では動かさない。 */
+      hardAt: number;
+      timer: ReturnType<Scheduler["setTimeout"]>;
+    }
   >();
 
   /** `replan()` を呼ぶのは `subscribe()` と `handle.close()` だけなので、無いと degraded が積み上がっても再選択が起きない。 */
@@ -224,12 +231,14 @@ export class ConnectionPool {
     const count = (existing?.count ?? 0) + 1;
     const previousHard = existing?.hard ?? 0;
     const hard = previousHard + (reason === "relay" ? 1 : 0);
+    const hardAt =
+      reason === "relay" ? this.#scheduler.now() : (existing?.hardAt ?? 0);
     const timer = this.#scheduler.setTimeout(() => {
       // `#failures.delete` を直に呼ばない —— クールダウン満了は degraded
       // 集合からの離脱そのものなので、通知経路 (`#clearFailures`) を通す。
       this.#clearFailures(url);
     }, DEGRADED_COOLDOWN_MS);
-    this.#failures.set(url, { count, hard, timer });
+    this.#failures.set(url, { count, hard, hardAt, timer });
 
     if (
       previousHard < DEGRADED_AFTER_FAILURES &&
@@ -277,6 +286,19 @@ export class ConnectionPool {
     return session;
   }
 
+  /**
+   * 窓口の中の再接続と同じ間隔を、窓口の外にも当てる。一度きりの取得は窓口ごと
+   * 片付くので、窓口の中のバックオフが効かず、取得のたびに死んだリレーへ繋ぎにいく。
+   */
+  #backingOff(url: RelayUrl): boolean {
+    const failure = this.#failures.get(url);
+    if (!failure || failure.hard === 0) return false;
+    return (
+      this.#scheduler.now() - failure.hardAt <
+      reconnectDelayMs(failure.hard - 1)
+    );
+  }
+
   #acquire(
     url: RelayUrl,
     options?: SubscribeOptions,
@@ -285,6 +307,9 @@ export class ConnectionPool {
     const key = sessionKey(url, options?.lane);
     let session = this.#pool.get(key);
     const created = !session;
+    // 流し続ける購読と書き込みは断らない。断った購読は計画を立て直すまで戻らず、
+    // 書き込みは押した人へ失敗として返ってしまう。
+    if (!session && options?.once && this.#backingOff(url)) return undefined;
     if (!session) {
       // 接続を開く前に表へ載せる。接続数の最大値 (`#recordPeak`) が、この窓口を数えるため。
       session = this.#createSession(url, key);

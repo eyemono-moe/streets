@@ -9,6 +9,7 @@ import {
   ConnectionPool,
   type ConnectionPoolOptions,
   DEGRADED_COOLDOWN_MS,
+  type PooledSubscription,
 } from "./connection-pool";
 import { IDLE_LINGER_MS } from "./relay-session";
 
@@ -1475,6 +1476,86 @@ describe("backoff growth and degraded relays", () => {
 // 交差した瞬間の通知が要る (ポーリングではなく)。`onDegradedChanged` が
 // それで、集合への出入り両方で発火する。バッチ処理は
 // `subscription-manager.test.ts` 側の責務。
+describe("one-shot fetches to a relay that will not open", () => {
+  /** `collect()` と同じく、購読への onClosed を受けたらその場で閉じる取得。 */
+  const fetchOnce = (
+    pool: ConnectionPool,
+    url: RelayUrl,
+  ): PooledSubscription | undefined => {
+    let subscription: PooledSubscription | undefined;
+    subscription = pool.subscribe(
+      url,
+      [{ kinds: [5] }],
+      { ...noopHandlers(), onClosed: () => subscription?.close() },
+      { once: true },
+    );
+    return subscription;
+  };
+
+  // Mutation: 猶予中に死んだ接続を、開いたかどうかに関わらず数えずに片付ける。
+  // 購読への onClosed がソケットの死より先に届き、窓口が猶予に入ってから死ぬため、
+  // 一度きりの取得では失敗が一度も記録されなくなる。
+  it("records a failure when the socket dies before opening", () => {
+    const { pool, connections } = createPool({ neverOpens: ["wss://one/"] });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    expect(pool.statusOf("wss://one/")).toBe("failing");
+  });
+
+  // Mutation: 上の記録を、開いた後に空いて閉じた接続にも付ける。
+  it("does not record a failure when an opened socket dies while idle", () => {
+    const { pool, connections } = createPool();
+    const subscription = fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.emitEose(0);
+    subscription?.close();
+    connections.get("wss://one/")?.die();
+
+    expect(pool.statusOf("wss://one/")).toBe("idle");
+  });
+
+  // Mutation: `#acquire` で `#backingOff` を見ない。削除依頼などの取得は 200ms ごとに
+  // 来るので、そのたびに死んだリレーへソケットを開く。
+  it("does not open a new socket until the backoff since the last failure has passed", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      neverOpens: ["wss://one/"],
+    });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    clock.advance(999);
+    expect(fetchOnce(pool, "wss://one/")).toBeUndefined();
+    expect(connectCalls).toEqual(["wss://one/"]);
+
+    clock.advance(1);
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+
+    // 2 回続けて失敗したので、次は 2 秒あける。
+    clock.advance(1999);
+    expect(fetchOnce(pool, "wss://one/")).toBeUndefined();
+    clock.advance(1);
+    expect(fetchOnce(pool, "wss://one/")).toBeDefined();
+    expect(connectCalls).toHaveLength(3);
+  });
+
+  // Mutation: 一度きりでない購読や書き込みにも同じ間隔を当てる。断った購読は計画を
+  // 立て直すまで戻らない。
+  it("still opens streaming subscriptions during the backoff", () => {
+    const { pool, connections, connectCalls } = createPool({
+      neverOpens: ["wss://one/"],
+    });
+    fetchOnce(pool, "wss://one/");
+    connections.get("wss://one/")?.die();
+
+    expect(
+      pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers()),
+    ).toBeDefined();
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+  });
+});
+
 describe("ConnectionPool.onDegradedChanged", () => {
   // Mutation: fire the listener on every `#noteFailure` call instead of only
   // the one that pushes `hard` across `DEGRADED_AFTER_FAILURES` -- this is

@@ -45,6 +45,10 @@ const RECONNECT_BASE_MS = 1_000;
 /** 指数バックオフの上限。ここで頭打ちにしても諦めずに回し続ける。 */
 const RECONNECT_MAX_MS = 60_000;
 
+/** `failures` 回続けて失敗した後、次に繋ぎにいくまで空ける時間（ジッタを除く）。 */
+export const reconnectDelayMs = (failures: number): number =>
+  Math.min(RECONNECT_BASE_MS * 2 ** failures, RECONNECT_MAX_MS);
+
 /**
  * NIP-01 は OK 送信を義務づけるが、レート制限時に黙って捨てる relay が実在し、
  * `publish()` は OK かソケット死亡でしか settle しないため必要。
@@ -109,6 +113,7 @@ export class RelaySession {
   #offClose: (() => void) | null = null;
   /** `connect()` が返っただけでは開いた証拠にならないので、失敗の記録を消すのはこの発火時だけ。 */
   #offOpen: (() => void) | null = null;
+  #opened = false;
   /** 接続済み、または待つエントリが無い間は必ず `null`。残すと誰も待っていないリレーへ再接続し続ける。 */
   #timer: ReturnType<Scheduler["setTimeout"]> | null = null;
   /** `selectRelays` の `pinned` とは別物 —— こちらは予算チェックそのものを迂回する側。 */
@@ -370,10 +375,15 @@ export class RelaySession {
   /** 購読への `onClosed` は接続側が配り済みなので、ここで呼ぶと二重計上になる。 */
   #onConnectionDied(): void {
     if (this.#closed) return;
+    const opened = this.#opened;
     this.#detachConnection();
     this.#requeueAll();
     // 猶予中に死んだ接続は再接続しない。残すと接続の無い記録が枠を食い続ける。
     if (this.#linger) {
+      // 一度きりの取得は、ソケットの死より先に届く onClosed で購読を閉じるので、繋がらな
+      // かったときも猶予中として片付く。ここで数えないと、失敗が記録されずに取得のたびに
+      // 繋ぎにいく。
+      if (!opened) this.#options.noteFailure("relay");
       this.close();
       return;
     }
@@ -409,7 +419,7 @@ export class RelaySession {
 
     // 順序を逆にすると、1 回目の遅延から既に 2 倍されてしまう。
     const count = this.#options.failureCount();
-    const base = Math.min(RECONNECT_BASE_MS * 2 ** count, RECONNECT_MAX_MS);
+    const base = reconnectDelayMs(count);
     const delay = base * (0.5 + this.#options.random());
     this.#options.noteFailure(reason);
     this.#timer = this.#options.scheduler.setTimeout(() => {
@@ -427,6 +437,7 @@ export class RelaySession {
     // 通常は #onConnectionDied で解除済みだが、念のため先に外す。
     this.#offOpen?.();
     this.#connection = connection;
+    this.#opened = false;
     const offClose = connection.onClose(() => this.#onConnectionDied());
     const offNotice = connection.onNotice?.((message) =>
       this.#onNotice(message),
@@ -435,7 +446,10 @@ export class RelaySession {
       offClose();
       offNotice?.();
     };
-    this.#offOpen = connection.onOpen(() => this.#options.clearFailures());
+    this.#offOpen = connection.onOpen(() => {
+      this.#opened = true;
+      this.#options.clearFailures();
+    });
     this.#options.onConnected();
 
     this.#pump();
