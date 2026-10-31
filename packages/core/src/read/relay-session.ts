@@ -45,6 +45,13 @@ const RECONNECT_BASE_MS = 1_000;
 /** 指数バックオフの上限。ここで頭打ちにしても諦めずに回し続ける。 */
 const RECONNECT_MAX_MS = 60_000;
 
+/**
+ * 開いてからこれだけ生き延びたら、失敗の記録を消す。開いた直後に切ってくるリレー
+ * （relay.damus.io が数十 ms で切ってきた）を開いた時点で許すと、バックオフが毎回
+ * 振り出しに戻り、数秒おきに繋ぎ直し続ける。
+ */
+export const STABLE_AFTER_MS = 10_000;
+
 /** `failures` 回続けて失敗した後、次に繋ぎにいくまで空ける時間（ジッタを除く）。 */
 export const reconnectDelayMs = (failures: number): number =>
   Math.min(RECONNECT_BASE_MS * 2 ** failures, RECONNECT_MAX_MS);
@@ -114,6 +121,7 @@ export class RelaySession {
   /** `connect()` が返っただけでは開いた証拠にならないので、失敗の記録を消すのはこの発火時だけ。 */
   #offOpen: (() => void) | null = null;
   #opened = false;
+  #stableTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
   /** 接続済み、または待つエントリが無い間は必ず `null`。残すと誰も待っていないリレーへ再接続し続ける。 */
   #timer: ReturnType<Scheduler["setTimeout"]> | null = null;
   /** `selectRelays` の `pinned` とは別物 —— こちらは予算チェックそのものを迂回する側。 */
@@ -369,6 +377,10 @@ export class RelaySession {
     this.#offClose = null;
     this.#offOpen?.();
     this.#offOpen = null;
+    if (this.#stableTimer !== null) {
+      this.#options.scheduler.clearTimeout(this.#stableTimer);
+      this.#stableTimer = null;
+    }
     this.#connection = null;
   }
 
@@ -448,7 +460,10 @@ export class RelaySession {
     };
     this.#offOpen = connection.onOpen(() => {
       this.#opened = true;
-      this.#options.clearFailures();
+      this.#stableTimer = this.#options.scheduler.setTimeout(() => {
+        this.#stableTimer = null;
+        this.#options.clearFailures();
+      }, STABLE_AFTER_MS);
     });
     this.#options.onConnected();
 
