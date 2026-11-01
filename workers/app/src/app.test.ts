@@ -1,3 +1,6 @@
+import { encodeNprofile } from "@streets/core/nostr/nip19";
+import { FakeRelayConnection } from "@streets/core/relay/fake-relay-connection";
+import { createFakeSigner } from "@streets/core/signer/fake-signer";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { type LinkCardResponse, createApp } from "./app";
 
@@ -147,6 +150,67 @@ describe("GET /api/link-card", () => {
     // 捕まえる変異: ホスト名を比べずに外への fetch を使う（本番では自分に届かず null になる）
     expect(fetch).not.toHaveBeenCalled();
     expect(assets).toHaveBeenCalledTimes(1);
+  });
+
+  describe("自分の人や投稿の URL", () => {
+    const signer = createFakeSigner(new Uint8Array(32).fill(7));
+    /** 繋いだらすぐ、持っているプロフィールを返して終えるリレー。 */
+    const answering = (
+      events: Awaited<ReturnType<typeof signer.signEvent>>[],
+    ) =>
+      vi.fn((url: string) => {
+        const connection = new FakeRelayConnection(url);
+        const subscribe = connection.subscribe.bind(connection);
+        connection.subscribe = (filters, handlers) => {
+          const subscription = subscribe(filters, handlers);
+          queueMicrotask(() => {
+            for (const event of events) handlers.onEvent(event);
+            handlers.onEose();
+          });
+          return subscription;
+        };
+        return connection;
+      });
+
+    it("静的ファイルの既定のカードではなく、リレーから引いた中身のカードを返す", async () => {
+      const profile = await signer.signEvent({
+        kind: 0,
+        pubkey: "",
+        content: JSON.stringify({ name: "あいもの", about: "自己紹介" }),
+        tags: [],
+        created_at: 1,
+      });
+      const assets = pageFetch();
+      const target = `${ORIGIN}/${encodeNprofile({ pubkey: profile.pubkey, relays: [] })}`;
+      const response = await createApp({
+        fetch: pageFetch(),
+        connect: answering([profile]),
+      }).request(path(target), { headers: SAME_SITE }, {
+        ASSETS: { fetch: assets },
+      } as unknown as Env);
+      expect(((await response.json()) as LinkCardResponse).card).toEqual({
+        url: target,
+        title: "あいもの | Streets",
+        description: "自己紹介",
+        siteName: "Streets",
+      });
+      // 捕まえる変異: 静的ファイルを読む（中身を足す前の、アプリの既定のカードになる）
+      expect(assets).not.toHaveBeenCalled();
+    });
+
+    it("見つからなければ、既定のカードを長く覚えさせず null を返す", async () => {
+      const target = `${ORIGIN}/${encodeNprofile({ pubkey: "b".repeat(64), relays: [] })}`;
+      const response = await createApp({
+        fetch: pageFetch(),
+        connect: answering([]),
+      }).request(path(target), { headers: SAME_SITE }, {
+        ASSETS: { fetch: pageFetch() },
+      } as unknown as Env);
+      expect(((await response.json()) as LinkCardResponse).card).toBeNull();
+      expect(response.headers.get("cache-control")).toBe(
+        "public, max-age=3600",
+      );
+    });
   });
 
   it("知らない API は 404", async () => {

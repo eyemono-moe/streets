@@ -6,7 +6,11 @@ import { entityPage } from "./entity-page";
 
 const ORIGIN = "https://streets.example";
 const BOT = { "user-agent": "Twitterbot/1.0" };
-const HUMAN = { "user-agent": "Mozilla/5.0 Chrome/140.0 Safari/537.36" };
+const HUMAN = {
+  "user-agent": "Mozilla/5.0 Chrome/140.0 Safari/537.36",
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-dest": "document",
+};
 const APP_HTML =
   '<html><head><title>Streets</title></head><body><div id="root"></div></body></html>';
 

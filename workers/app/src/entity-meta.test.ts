@@ -1,12 +1,7 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { describe, expect, it } from "vite-plus/test";
-import {
-  entityMeta,
-  entityOfPath,
-  isLinkPreviewBot,
-  withMeta,
-} from "./entity-meta";
+import { entityMeta, entityOfPath, wantsCard, withMeta } from "./entity-meta";
 
 const PUBKEY = "a".repeat(64);
 const URL_ = "https://streets.example/note1x";
@@ -38,28 +33,43 @@ describe("entityOfPath", () => {
   });
 });
 
-describe("isLinkPreviewBot", () => {
-  it("カードを作りに来るボットを見分ける", () => {
-    for (const agent of [
-      "Twitterbot/1.0",
-      "facebookexternalhit/1.1",
-      "Mozilla/5.0 (compatible; Discordbot/2.0)",
-      "Slackbot-LinkExpanding 1.0",
-      "Misskey/2024.11.0 (https://misskey.io)",
-      "Mastodon/4.3.0 (http.rb/5.2.0; +https://mastodon.social/)",
-      "Mozilla/5.0 (compatible; Googlebot/2.1)",
-    ]) {
-      expect(isLinkPreviewBot(agent), agent).toBe(true);
-    }
+describe("wantsCard", () => {
+  const CHROME =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
+  const NAVIGATE = {
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-dest": "document",
+  };
+
+  it("ブラウザでページを開いた人には、リレーを待たせない", () => {
+    expect(wantsCard(new Headers({ ...NAVIGATE, "user-agent": CHROME }))).toBe(
+      false,
+    );
   });
 
-  it("人のブラウザでは待たせない", () => {
-    expect(
-      isLinkPreviewBot(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36",
-      ),
-    ).toBe(false);
-    expect(isLinkPreviewBot(null)).toBe(false);
+  it("ページを開くのでない取得には、名乗りによらずカードを入れる", () => {
+    for (const agent of [
+      "Twitterbot/1.0",
+      "Mozilla/5.0 (compatible; Discordbot/2.0)",
+      // 確認ツールや Nostr クライアントの取得口は、ブラウザを名乗ることが多い。
+      CHROME,
+      "node",
+    ]) {
+      expect(wantsCard(new Headers({ "user-agent": agent })), agent).toBe(true);
+    }
+    expect(wantsCard(new Headers())).toBe(true);
+  });
+
+  it("ブラウザを動かして読むボットにもカードを入れる", () => {
+    for (const agent of [
+      "Mozilla/5.0 (compatible; Googlebot/2.1)",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0 Safari/537.36",
+    ]) {
+      expect(
+        wantsCard(new Headers({ ...NAVIGATE, "user-agent": agent })),
+        agent,
+      ).toBe(true);
+    }
   });
 });
 
