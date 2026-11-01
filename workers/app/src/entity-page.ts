@@ -2,6 +2,7 @@ import type { Nip19Ref } from "@streets/core/nostr/nip19";
 import { type Connect, fetchEntity } from "./entity-fetch";
 import {
   type PageMeta,
+  canonicalEntityPath,
   entityMeta,
   entityOfPath,
   wantsCard,
@@ -48,6 +49,12 @@ export const entityPage = async (
   options: EntityPageOptions,
 ): Promise<Response> => {
   const url = new URL(request.url);
+  // 人にもボットにも同じ URL を見せるため、付け足して返さずに飛ばす。カードの
+  // og:url とキャッシュの鍵も 1 つにまとまる。
+  const canonical = canonicalEntityPath(url.pathname);
+  if (canonical) {
+    return Response.redirect(`${url.origin}${canonical}${url.search}`, 301);
+  }
   const ref = entityOfPath(url.pathname);
   if (!ref || !wantsCard(request.headers)) {
     return options.assets.fetch(request);

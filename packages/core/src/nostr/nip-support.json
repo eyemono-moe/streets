@@ -126,7 +126,8 @@
     "tags": [],
     "paths": [
       "packages/core/src/nostr/content.ts",
-      "apps/web/src/note/UserLink.tsx"
+      "apps/web/src/note/UserLink.tsx",
+      "packages/core/src/deck/temp-column.ts"
     ],
     "gap": ""
   },

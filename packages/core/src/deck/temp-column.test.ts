@@ -20,10 +20,19 @@ describe("tempColumnFor", () => {
     });
   });
 
+  it("nostr: 付きでも、外したものと同じカラムになる", () => {
+    const npub = encodeBech32("npub", PUBKEY);
+    // NIP-21: "nostr:npub1sn0wdenkukak0d9dfczzeacvhkrgz92ak56egt7vdgzn8pv2wfqqhrjdv9"
+    for (const value of [`nostr:${npub}`, `NOSTR:${npub}`, `nostr%3A${npub}`]) {
+      expect(tempColumnFor(value), value).toEqual(tempColumnFor(npub));
+    }
+  });
+
   it("読めない文字列では作らない", () => {
     // 捕まえる変異: 例外を握って空のカラムを返す
     expect(tempColumnFor("nostr")).toBeUndefined();
     expect(tempColumnFor("")).toBeUndefined();
+    expect(tempColumnFor("nostr:")).toBeUndefined();
   });
 });
 

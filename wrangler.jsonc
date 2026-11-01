@@ -18,6 +18,9 @@
       "/note1*",
       "/nevent1*",
       "/naddr1*",
+      // NIP-21 の形で貼られたもの。`nostr:` を外したパスへ飛ばす。
+      "/nostr:*",
+      "/nostr%3A*",
     ],
   },
   "ratelimits": [

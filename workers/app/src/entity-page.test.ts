@@ -71,6 +71,20 @@ describe("entityPage", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it("nostr: 付きのパスは、外したパスへ飛ばす", async () => {
+    const connect = vi.fn();
+    const npub = encodeBech32("npub", "a".repeat(64));
+    for (const headers of [BOT, HUMAN]) {
+      const response = await entityPage(
+        new Request(`${ORIGIN}/nostr:${npub}`, { headers }),
+        { assets: assets(), connect },
+      );
+      expect(response.status).toBe(301);
+      expect(response.headers.get("location")).toBe(`${ORIGIN}/${npub}`);
+    }
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it("見つからなければ、アプリの既定のカードのまま返す", async () => {
     const response = await entityPage(
       new Request(`${ORIGIN}/${encodeBech32("note", "e".repeat(64))}`, {

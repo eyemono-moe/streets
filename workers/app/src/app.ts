@@ -7,7 +7,11 @@ import { cache } from "hono/cache";
 import * as v from "valibot";
 import { type EmojiResult, createEmoji } from "./emoji";
 import type { Connect } from "./entity-fetch";
-import { type PageMeta, entityOfPath } from "./entity-meta";
+import {
+  type PageMeta,
+  canonicalEntityPath,
+  entityOfPath,
+} from "./entity-meta";
 import { findEntityMeta } from "./entity-page";
 import { fetchLinkCard } from "./fetch-card";
 import {
@@ -199,15 +203,18 @@ export const createApp = (options: AppOptions = {}) => {
           : outbound(input, init);
       // 自分の `/npub1…` などは、静的ファイルを読んでも中身を足す前の既定のカードしか
       // 無い。外のボットに返すのと同じカードを、リレーから引いて作る。
-      const entity =
-        target?.host === host ? entityOfPath(target.pathname) : undefined;
+      const entityPath =
+        target?.host === host
+          ? (canonicalEntityPath(target.pathname) ?? target.pathname)
+          : undefined;
+      const entity = entityPath ? entityOfPath(entityPath) : undefined;
       let card: LinkCard | undefined;
       try {
         if (entity && target) {
           const meta = await findEntityMeta(
             entity,
             connect,
-            `${target.origin}${target.pathname}`,
+            `${target.origin}${entityPath}`,
           );
           card = meta ? cardOfMeta(meta) : undefined;
         } else {

@@ -1,7 +1,13 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { describe, expect, it } from "vite-plus/test";
-import { entityMeta, entityOfPath, wantsCard, withMeta } from "./entity-meta";
+import {
+  canonicalEntityPath,
+  entityMeta,
+  entityOfPath,
+  wantsCard,
+  withMeta,
+} from "./entity-meta";
 
 const PUBKEY = "a".repeat(64);
 const URL_ = "https://streets.example/note1x";
@@ -30,6 +36,21 @@ describe("entityOfPath", () => {
     expect(entityOfPath(`/${npub}/extra`)).toBeUndefined();
     expect(entityOfPath("/npub1broken")).toBeUndefined();
     expect(entityOfPath("/")).toBeUndefined();
+  });
+});
+
+describe("canonicalEntityPath", () => {
+  it("nostr: 付きのパスを、外したパスに直す", () => {
+    const npub = encodeBech32("npub", PUBKEY);
+    expect(canonicalEntityPath(`/nostr:${npub}`)).toBe(`/${npub}`);
+    expect(canonicalEntityPath(`/nostr%3A${npub}`)).toBe(`/${npub}`);
+  });
+
+  it("直す必要が無いものと、外しても読めないものは直さない", () => {
+    const npub = encodeBech32("npub", PUBKEY);
+    expect(canonicalEntityPath(`/${npub}`)).toBeUndefined();
+    expect(canonicalEntityPath("/nostr:npub1broken")).toBeUndefined();
+    expect(canonicalEntityPath(`/nostr:${npub}/extra`)).toBeUndefined();
   });
 });
 

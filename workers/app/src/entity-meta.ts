@@ -4,7 +4,11 @@ import {
 } from "@streets/core/nostr/content";
 import { contentWarning } from "@streets/core/nostr/content-warning";
 import { articleExcerpt, parseArticle } from "@streets/core/nostr/long-form";
-import { type Nip19Ref, decodeNip19 } from "@streets/core/nostr/nip19";
+import {
+  type Nip19Ref,
+  decodeNip19,
+  withoutNostrScheme,
+} from "@streets/core/nostr/nip19";
 import { parseProfile, shortNpub } from "@streets/core/nostr/profile";
 import type { EntityFound } from "./entity-fetch";
 
@@ -27,6 +31,17 @@ export const entityOfPath = (pathname: string): Nip19Ref | undefined => {
   const value = pathname.replace(/^\//, "");
   if (value === "" || value.includes("/")) return undefined;
   return decodeNip19(value);
+};
+
+/**
+ * `/nostr:npub1…` のように NIP-21 の形で貼られたパスを、`/npub1…` に直したもの。
+ * 直す必要が無いか、直しても読めないときは undefined。
+ */
+export const canonicalEntityPath = (pathname: string): string | undefined => {
+  const value = pathname.replace(/^\//, "");
+  const stripped = withoutNostrScheme(value);
+  if (stripped === value) return undefined;
+  return entityOfPath(`/${stripped}`) ? `/${stripped}` : undefined;
 };
 
 /**
