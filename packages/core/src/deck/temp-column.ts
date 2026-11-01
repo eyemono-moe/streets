@@ -1,6 +1,6 @@
 import { CHANNEL_CREATE_KIND } from "../nostr/channel";
 import { relayOf } from "../nostr/event-refs";
-import { decodeNip19 } from "../nostr/nip19";
+import { decodeNip19, withoutNostrScheme } from "../nostr/nip19";
 import { buildChannelColumn, buildUserColumn } from "./column-presets";
 import type { ColumnDef } from "./deck";
 import { columnForNaddr } from "./open-event";
@@ -9,11 +9,11 @@ import { columnForNaddr } from "./open-event";
 export const TEMP_COLUMN_ID = "temp";
 
 /**
- * URL から開くカラムを作る。読めない文字列では `undefined` を返し、
+ * URL から開くカラムを作る。`nostr:` 付き（`/nostr:nevent1…`）でも開く。読めない文字列では `undefined` を返し、
  * 呼び出し側が「開けません」を出す —— 黙って空のカラムを出さない。
  */
 export const tempColumnFor = (entity: string): ColumnDef | undefined => {
-  const ref = decodeNip19(entity.trim());
+  const ref = decodeNip19(withoutNostrScheme(entity));
   if (!ref) return undefined;
 
   if (ref.kind === "npub" || ref.kind === "nprofile") {

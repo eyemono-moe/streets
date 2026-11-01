@@ -1,10 +1,18 @@
 import { vValidator } from "@hono/valibot-validator";
 import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import { isValidSpec } from "@streets/core/emoji-maker/url";
+import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { cache } from "hono/cache";
 import * as v from "valibot";
 import { type EmojiResult, createEmoji } from "./emoji";
+import type { Connect } from "./entity-fetch";
+import {
+  type PageMeta,
+  canonicalEntityPath,
+  entityOfPath,
+} from "./entity-meta";
+import { findEntityMeta } from "./entity-page";
 import { fetchLinkCard } from "./fetch-card";
 import {
   IMAGE_PRESETS,
@@ -136,9 +144,19 @@ const linkCardQuery = v.object({
   ),
 });
 
+const cardOfMeta = (meta: PageMeta): LinkCard => ({
+  url: meta.url,
+  title: meta.title,
+  ...(meta.description ? { description: meta.description } : {}),
+  ...(meta.image ? { image: meta.image } : {}),
+  siteName: "Streets",
+});
+
 export type AppOptions = {
   /** 外へ取りに行く fetch。テストで差し替える。 */
   fetch?: typeof fetch;
+  /** リレーへ繋ぐ。テストで差し替える。 */
+  connect?: Connect;
   /** 同じサイトかを確かめない。テストで使う。 */
   skipSiteCheck?: boolean;
   /**
@@ -152,6 +170,7 @@ export type AppOptions = {
 export const createApp = (options: AppOptions = {}) => {
   // Workers の fetch は、オブジェクトのメソッドとして呼ぶと this が食い違って落ちる。
   const outbound = options.fetch ?? ((input, init) => fetch(input, init));
+  const connect = options.connect ?? ((url) => connectRelay(url));
   const app = new Hono<{ Bindings: Env }>().basePath("/api");
 
   if (!options.skipSiteCheck) app.use("/link-card", sameSiteOnly);
@@ -182,11 +201,27 @@ export const createApp = (options: AppOptions = {}) => {
         new URL(input instanceof Request ? input.url : input).host === host
           ? assets.fetch(input, init)
           : outbound(input, init);
+      // 自分の `/npub1…` などは、静的ファイルを読んでも中身を足す前の既定のカードしか
+      // 無い。外のボットに返すのと同じカードを、リレーから引いて作る。
+      const entityPath =
+        target?.host === host
+          ? (canonicalEntityPath(target.pathname) ?? target.pathname)
+          : undefined;
+      const entity = entityPath ? entityOfPath(entityPath) : undefined;
       let card: LinkCard | undefined;
       try {
-        card = target
-          ? await fetchLinkCard(target, { fetch: fetchPage })
-          : undefined;
+        if (entity && target) {
+          const meta = await findEntityMeta(
+            entity,
+            connect,
+            `${target.origin}${entityPath}`,
+          );
+          card = meta ? cardOfMeta(meta) : undefined;
+        } else {
+          card = target
+            ? await fetchLinkCard(target, { fetch: fetchPage })
+            : undefined;
+        }
       } catch {
         card = undefined;
       }

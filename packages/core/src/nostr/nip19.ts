@@ -288,11 +288,18 @@ export const encodeNevent = (ref: {
 };
 
 /**
+ * NIP-21 の `nostr:` を外す。スキームは大文字と小文字を区別しない（RFC 3986）。
+ * URL の 1 区画に入れて共有されると、`:` が `%3A` に変わって届くことがある。
+ */
+export const withoutNostrScheme = (value: string): string =>
+  value.trim().replace(/^nostr(?::|%3a)/i, "");
+
+/**
  * 人を指す入力（hex・npub・nprofile、`nostr:` 付きも）から pubkey を取り出す。
  * 補完で選ぶと nprofile が入るので、npub だけでは足りない。
  */
 export const decodeUserInput = (input: string): string | undefined => {
-  const value = input.trim().replace(/^nostr:/, "");
+  const value = withoutNostrScheme(input);
   const direct = decodeNpub(value);
   if (direct) return direct;
   const ref = decodeNip19(value);

@@ -1,8 +1,11 @@
+import type { Nip19Ref } from "@streets/core/nostr/nip19";
 import { type Connect, fetchEntity } from "./entity-fetch";
 import {
+  type PageMeta,
+  canonicalEntityPath,
   entityMeta,
   entityOfPath,
-  isLinkPreviewBot,
+  wantsCard,
   withMeta,
 } from "./entity-meta";
 
@@ -22,18 +25,38 @@ export type EntityPageOptions = {
   waitUntil?: (promise: Promise<unknown>) => void;
 };
 
+/** URL が指すものをリレーから引いてカードの中身にする。見つからなければ undefined。 */
+export const findEntityMeta = async (
+  ref: Nip19Ref,
+  connect: Connect,
+  url: string,
+): Promise<PageMeta | undefined> => {
+  try {
+    const found = await fetchEntity(ref, connect, QUERY_TIMEOUT_MS);
+    return entityMeta(ref, found, url);
+  } catch {
+    return undefined;
+  }
+};
+
 /**
- * `/npub1…`・`/nevent1…` などの URL。リンクのカードを作りに来たボットには、
- * 指すものをリレーから引いてカードの中身を入れたアプリの HTML を返す。人には
- * 何も足さずにアプリをそのまま返す（リレーを待たせない）。
+ * `/npub1…`・`/nevent1…` などの URL。リンクのカードを作りに来たものには、
+ * 指すものをリレーから引いてカードの中身を入れたアプリの HTML を返す。ブラウザで
+ * 開いた人には何も足さずにアプリをそのまま返す（リレーを待たせない）。
  */
 export const entityPage = async (
   request: Request,
   options: EntityPageOptions,
 ): Promise<Response> => {
   const url = new URL(request.url);
+  // 人にもボットにも同じ URL を見せるため、付け足して返さずに飛ばす。カードの
+  // og:url とキャッシュの鍵も 1 つにまとまる。
+  const canonical = canonicalEntityPath(url.pathname);
+  if (canonical) {
+    return Response.redirect(`${url.origin}${canonical}${url.search}`, 301);
+  }
   const ref = entityOfPath(url.pathname);
-  if (!ref || !isLinkPreviewBot(request.headers.get("user-agent"))) {
+  if (!ref || !wantsCard(request.headers)) {
     return options.assets.fetch(request);
   }
 
@@ -45,13 +68,11 @@ export const entityPage = async (
   const app = await options.assets.fetch(new Request(`${url.origin}/`));
   if (!app.ok) return app;
   const html = await app.text();
-  let meta;
-  try {
-    const found = await fetchEntity(ref, options.connect, QUERY_TIMEOUT_MS);
-    meta = entityMeta(ref, found, `${url.origin}${url.pathname}`);
-  } catch {
-    meta = undefined;
-  }
+  const meta = await findEntityMeta(
+    ref,
+    options.connect,
+    `${url.origin}${url.pathname}`,
+  );
   const response = new Response(meta ? withMeta(html, meta) : html, {
     headers: {
       "content-type": "text/html; charset=utf-8",

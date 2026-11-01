@@ -6,7 +6,11 @@ import { entityPage } from "./entity-page";
 
 const ORIGIN = "https://streets.example";
 const BOT = { "user-agent": "Twitterbot/1.0" };
-const HUMAN = { "user-agent": "Mozilla/5.0 Chrome/140.0 Safari/537.36" };
+const HUMAN = {
+  "user-agent": "Mozilla/5.0 Chrome/140.0 Safari/537.36",
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-dest": "document",
+};
 const APP_HTML =
   '<html><head><title>Streets</title></head><body><div id="root"></div></body></html>';
 
@@ -64,6 +68,20 @@ describe("entityPage", () => {
       { assets: files, connect },
     );
     expect(await response.text()).toBe(APP_HTML);
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("nostr: 付きのパスは、外したパスへ飛ばす", async () => {
+    const connect = vi.fn();
+    const npub = encodeBech32("npub", "a".repeat(64));
+    for (const headers of [BOT, HUMAN]) {
+      const response = await entityPage(
+        new Request(`${ORIGIN}/nostr:${npub}`, { headers }),
+        { assets: assets(), connect },
+      );
+      expect(response.status).toBe(301);
+      expect(response.headers.get("location")).toBe(`${ORIGIN}/${npub}`);
+    }
     expect(connect).not.toHaveBeenCalled();
   });
 

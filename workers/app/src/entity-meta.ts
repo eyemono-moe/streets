@@ -4,7 +4,11 @@ import {
 } from "@streets/core/nostr/content";
 import { contentWarning } from "@streets/core/nostr/content-warning";
 import { articleExcerpt, parseArticle } from "@streets/core/nostr/long-form";
-import { type Nip19Ref, decodeNip19 } from "@streets/core/nostr/nip19";
+import {
+  type Nip19Ref,
+  decodeNip19,
+  withoutNostrScheme,
+} from "@streets/core/nostr/nip19";
 import { parseProfile, shortNpub } from "@streets/core/nostr/profile";
 import type { EntityFound } from "./entity-fetch";
 
@@ -30,13 +34,28 @@ export const entityOfPath = (pathname: string): Nip19Ref | undefined => {
 };
 
 /**
- * リンクのカードを作りに来たボットか。カードの中身を作るにはリレーへ聞きに行く
- * ので、人が開いたときには待たせない。
+ * `/nostr:npub1…` のように NIP-21 の形で貼られたパスを、`/npub1…` に直したもの。
+ * 直す必要が無いか、直しても読めないときは undefined。
  */
-export const isLinkPreviewBot = (userAgent: string | null): boolean =>
-  userAgent !== null &&
-  /bot|crawler|spider|preview|facebookexternalhit|embedly|slackbot|discord|telegram|whatsapp|line\/|misskey|mastodon|pleroma|akkoma|bluesky|cardyb|skype|vkshare|iframely|outbrain|pinterest|google-inspectiontool/i.test(
-    userAgent,
+export const canonicalEntityPath = (pathname: string): string | undefined => {
+  const value = pathname.replace(/^\//, "");
+  const stripped = withoutNostrScheme(value);
+  if (stripped === value) return undefined;
+  return entityOfPath(`/${stripped}`) ? `/${stripped}` : undefined;
+};
+
+/**
+ * カードの中身を入れて返すか。中身を作るにはリレーへ聞きに行くので、人が開いたときには
+ * 待たせない。人の見分けは、ブラウザがページを開くときにだけ付ける
+ * `Sec-Fetch-Mode: navigate` で行う。カードを取りに来るものを UA で数え上げると、
+ * 名前を知らない確認ツールや Nostr クライアントの取得口に既定のカードを返してしまう。
+ * ブラウザを動かして読む取得口（ヘッドレスブラウザなど）は navigate を付けるので、
+ * そちらだけ UA で拾う。
+ */
+export const wantsCard = (headers: Headers): boolean =>
+  headers.get("sec-fetch-mode") !== "navigate" ||
+  /bot|crawler|spider|preview|headless|facebookexternalhit|embedly|iframely|cardyb/i.test(
+    headers.get("user-agent") ?? "",
   );
 
 const clip = (text: string, max: number): string => {
