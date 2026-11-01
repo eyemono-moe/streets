@@ -14,6 +14,7 @@ import {
 import {
   FALLBACK_RELAYS,
   MAX_CONNECTIONS,
+  OUTBOX_RELAY_BUDGET,
   RELAY_REDUNDANCY,
 } from "./default-relays";
 import type { EventStore } from "./event-store";
@@ -790,7 +791,8 @@ export class SubscriptionManager {
       routing: this.#readRouting,
       defaultRelays: this.#defaultRelays(),
       writeRelaysFor: (author) => this.#options.routing.writeRelaysFor(author),
-      budget: this.#options.maxConnections ?? MAX_CONNECTIONS,
+      budget: OUTBOX_RELAY_BUDGET,
+      maxRelays: this.#options.maxConnections ?? MAX_CONNECTIONS,
       redundancy,
       openRelays: [...openRelays],
       degraded: this.#pool.degradedRelays,

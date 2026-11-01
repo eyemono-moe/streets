@@ -24,8 +24,10 @@ export type ReadRedundancyViewProps = {
   relayCount: number | undefined;
   /** 本数を変えたら、何本のリレーを読むことになるか。 */
   preview: (redundancy: ReadRedundancy) => number;
-  /** 同時につなげるリレーの数。 */
+  /** フォローしている人の投稿を探すリレーの上限。 */
   budget: number;
+  /** 上限に届いて、選びきれなかったリレーがあるか。 */
+  budgetReached: boolean;
 };
 
 /** 投稿を探すリレーの数。変えたらイベントを上へ渡す。 */
@@ -77,7 +79,7 @@ const ReadRedundancyView: Component<ReadRedundancyViewProps> = (props) => {
                 })}
               </Show>
             </p>
-            <Show when={count() >= props.budget}>
+            <Show when={props.budgetReached}>
               <p class="flex items-start gap-1">
                 <span
                   class="i-material-symbols:warning-outline-rounded c-status-warn mt-0.5 size-4 shrink-0"

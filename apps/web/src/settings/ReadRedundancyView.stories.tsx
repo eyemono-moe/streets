@@ -13,8 +13,9 @@ type Args = {
   width: number;
 };
 
+/** 名指しと既定のリレー 6 本は上限の外で数える。 */
 const countFor = (args: Args, value: number) =>
-  Math.min(args.budget, 6 + args.perStep * value);
+  6 + Math.min(args.budget, args.perStep * value);
 
 /** アプリではデッキが裁定するイベントを、ここで手元の値に当てる。 */
 const Story = (props: Args) => {
@@ -33,6 +34,7 @@ const Story = (props: Args) => {
           relayCount={props.loaded ? countFor(props, value()) : undefined}
           preview={(redundancy) => countFor(props, redundancy)}
           budget={props.budget}
+          budgetReached={props.perStep * value() > props.budget}
         />
       </div>
     </Mediates>
@@ -57,8 +59,8 @@ export const 既定: S = {};
 /** 既定から変えてある。名前の横に「既定に戻す」が出る。 */
 export const 変えてある: S = { args: { value: 3 } };
 
-/** 同時につなげる数に届いた。 */
-export const 上限に届いた: S = { args: { value: 4 } };
+/** フォローしている人の投稿を探すリレーが上限に届いた。 */
+export const 上限に届いた: S = { args: { value: 4, perStep: 9 } };
 
 /** 読み取り層がまだ無い。見込みは出さない。 */
 export const 読み込み中: S = { args: { loaded: false } };

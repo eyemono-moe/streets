@@ -6,7 +6,7 @@ const HEX64 = /^[0-9a-f]{64}$/;
 /** 宛先 1 人につき送る read リレーの数。 */
 export const RELAYS_PER_RECIPIENT = 2;
 /**
- * 宛先のために自分の送信先へ足すリレーの数。同時に開く接続は 30 本までで、
+ * 宛先のために自分の送信先へ足すリレーの数。同時に開く接続は `MAX_CONNECTIONS` 本までで、
  * 読み取りの購読と同じ枠を使うため、宛先の多い投稿で枠を食い尽くさない。
  */
 export const MAX_RECIPIENT_RELAYS = 6;

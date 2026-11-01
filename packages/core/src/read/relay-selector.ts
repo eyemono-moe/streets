@@ -1,7 +1,7 @@
 import type { RelayUrl } from "../relay/relay-connection";
 
 export type Selection = {
-  /** 開くべきリレー。pinned を含む。長さ <= budget */
+  /** 開くべきリレー。pinned を含む。長さ <= maxRelays */
   readonly picks: readonly RelayUrl[];
   /**
    * 著者 → 購読するリレー。demand の全著者が入る。**空配列になる理由は 3 つ** —
@@ -10,16 +10,21 @@ export type Selection = {
   readonly assignment: ReadonlyMap<string, readonly RelayUrl[]>;
   /** 1 本も確保できなかった著者 */
   readonly uncovered: readonly string[];
+  /** 上限で選ぶのをやめたとき、まだ誰かの役に立つリレーが残っていたか */
+  readonly budgetReached: boolean;
 };
 
 export type SelectRelaysOptions = {
   /** 著者 → その著者が宣言した write リレー全部 (切り捨てなし) */
   demand: ReadonlyMap<string, readonly RelayUrl[]>;
-  /** 明示指定と fallback。demand より先に予算を取るので押し出されないが、予算を超えた分は落ちる */
+  /** 明示指定と fallback。`budget` を使わず先に取るので、demand に押し出されない */
   pinned: readonly RelayUrl[];
   /** いま開いているリレー。同点時に優先して churn を減らす */
   current: readonly RelayUrl[];
+  /** demand のために選ぶリレーの数の上限。pinned はここに数えない */
   budget: number;
+  /** pinned と demand を合わせた上限。接続全体の上限を超えて選ばない */
+  maxRelays: number;
   redundancy: number;
   /**
    * 連続して開けなかったリレー。候補から外す (割り当てても被覆は増えず
@@ -49,6 +54,7 @@ export const selectRelays = ({
   pinned,
   current,
   budget,
+  maxRelays,
   redundancy,
   degraded,
   blocked,
@@ -90,15 +96,16 @@ export const selectRelays = ({
   // pinned が先。後から選ぶ demand に押し出させない
   for (const url of pinned) {
     if (picked.has(url) || blockedSet.has(url)) continue;
-    if (picks.length >= budget) break;
+    if (picks.length >= maxRelays) break;
     take(url);
   }
+  const demandLimit = Math.min(maxRelays, picks.length + budget);
 
   const currentSet = new Set(current);
   const candidates = new Map(relayToAuthors);
   for (const url of picked) candidates.delete(url);
 
-  while (picks.length < budget) {
+  while (picks.length < demandLimit) {
     let best: RelayUrl | undefined;
     let bestGain = 0;
     let bestIsCurrent = false;
@@ -132,6 +139,9 @@ export const selectRelays = ({
     take(best);
     candidates.delete(best);
   }
+  const budgetReached = [...candidates.values()].some((authors) =>
+    [...authors].some((pubkey) => (need.get(pubkey) ?? 0) > 0),
+  );
 
   // kind:10002 に書かれた順は、その人がいま使っているかと関係がない。古い一覧を
   // 何本も並べている人は、実際に書いているリレーが後ろにあって切り捨てられる。
@@ -155,7 +165,7 @@ export const selectRelays = ({
     if (assigned.length === 0) uncovered.push(pubkey);
   }
 
-  return { picks, assignment, uncovered };
+  return { picks, assignment, uncovered, budgetReached };
 };
 
 export type OrderAuthorRelaysOptions = {
