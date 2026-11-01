@@ -15,7 +15,7 @@ export type Selection = {
 export type SelectRelaysOptions = {
   /** 著者 → その著者が宣言した write リレー全部 (切り捨てなし) */
   demand: ReadonlyMap<string, readonly RelayUrl[]>;
-  /** 明示指定・fallback・インデクサ。予算を消費するが決して落とさない */
+  /** 明示指定と fallback。demand より先に予算を取るので押し出されないが、予算を超えた分は落ちる */
   pinned: readonly RelayUrl[];
   /** いま開いているリレー。同点時に優先して churn を減らす */
   current: readonly RelayUrl[];
@@ -87,7 +87,7 @@ export const selectRelays = ({
     }
   };
 
-  // pinned が先。予算を食うが決して落とさない
+  // pinned が先。後から選ぶ demand に押し出させない
   for (const url of pinned) {
     if (picked.has(url) || blockedSet.has(url)) continue;
     if (picks.length >= budget) break;
