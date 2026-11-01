@@ -26,6 +26,8 @@ export type ReadPlan = {
   unroutableAuthors: readonly string[];
   /** 接続の上限や、宣言したリレーに繋がらないことで、どこからも読めていない人。 */
   uncoveredAuthors: readonly string[];
+  /** フォローしている人の投稿を探すリレーを、上限で選びきれなかったか。 */
+  budgetReached: boolean;
 };
 
 export type SectionPlanInput = {
@@ -40,6 +42,7 @@ export const EMPTY_READ_PLAN: ReadPlan = {
   relays: [],
   unroutableAuthors: [],
   uncoveredAuthors: [],
+  budgetReached: false,
 };
 
 /**
@@ -50,6 +53,7 @@ export const summarizeReadPlan = (input: {
   mode: ReadRoutingMode;
   fallbackRelays: readonly RelayUrl[];
   sections: readonly SectionPlanInput[];
+  budgetReached: boolean;
 }): ReadPlan => {
   const fallbackSet = new Set(input.fallbackRelays);
   const rows = new Map<
@@ -112,6 +116,7 @@ export const summarizeReadPlan = (input: {
     relays,
     unroutableAuthors: [...unroutable].sort(),
     uncoveredAuthors: [...uncovered].sort(),
+    budgetReached: input.budgetReached,
   };
 };
 

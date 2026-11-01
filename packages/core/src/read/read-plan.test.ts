@@ -7,6 +7,7 @@ describe("summarizeReadPlan", () => {
   it("著者ごとに選んだリレーを、読む人の多い順に並べる", () => {
     const plan = summarizeReadPlan({
       mode: "outbox",
+      budgetReached: false,
       fallbackRelays,
       sections: [
         {
@@ -40,6 +41,7 @@ describe("summarizeReadPlan", () => {
     };
     const plan = summarizeReadPlan({
       mode: "outbox",
+      budgetReached: false,
       fallbackRelays,
       sections: [section, section],
     });
@@ -50,6 +52,7 @@ describe("summarizeReadPlan", () => {
   it("リレーの設定が分からない人は、既定のリレーの理由として数え、読む人には数えない", () => {
     const plan = summarizeReadPlan({
       mode: "outbox",
+      budgetReached: false,
       fallbackRelays,
       sections: [
         {
@@ -71,6 +74,7 @@ describe("summarizeReadPlan", () => {
   it("人を決めない読み取りは既定のリレーとして扱う", () => {
     const plan = summarizeReadPlan({
       mode: "outbox",
+      budgetReached: false,
       fallbackRelays,
       sections: [
         {
@@ -87,6 +91,7 @@ describe("summarizeReadPlan", () => {
   it("名指しのリレーは名指しとだけ記す", () => {
     const plan = summarizeReadPlan({
       mode: "outbox",
+      budgetReached: false,
       fallbackRelays,
       sections: [
         {
@@ -105,6 +110,7 @@ describe("summarizeReadPlan", () => {
   it("読み込みリレーだけのときは、全員をそのリレーの読む人に数える", () => {
     const plan = summarizeReadPlan({
       mode: "direct",
+      budgetReached: false,
       fallbackRelays: ["wss://mine/"],
       sections: [
         {
@@ -132,6 +138,7 @@ describe("summarizeReadPlan", () => {
       ],
       unroutableAuthors: [],
       uncoveredAuthors: [],
+      budgetReached: false,
     });
   });
 });

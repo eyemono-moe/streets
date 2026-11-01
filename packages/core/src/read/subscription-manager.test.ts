@@ -2603,6 +2603,7 @@ describe("SubscriptionManager の読み取り先の計画", () => {
       ],
       unroutableAuthors: ["f".repeat(64)],
       uncoveredAuthors: [],
+      budgetReached: false,
     });
     expect(listener).toHaveBeenCalledTimes(1);
 
@@ -2622,6 +2623,7 @@ describe("SubscriptionManager の読み取り先の計画", () => {
       ],
       unroutableAuthors: [],
       uncoveredAuthors: [],
+      budgetReached: false,
     });
 
     handle.close();

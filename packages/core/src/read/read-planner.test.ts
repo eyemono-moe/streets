@@ -30,6 +30,7 @@ const environment = (
     defaultRelays: [FALLBACK],
     writeRelaysFor: (author) => writeRelays[author] ?? [],
     budget: 10,
+    maxRelays: 100,
     redundancy: 2,
     openRelays: [],
     degraded: [],
@@ -99,6 +100,40 @@ describe("planReads", () => {
     expect(readPlan.uncoveredAuthors).toEqual(
       [...routes[0].uncoveredAuthors].sort(),
     );
+    expect(readPlan.budgetReached).toBe(true);
+  });
+
+  it("名指しのリレーと既定のリレーは、著者のために選ぶ本数を減らさない", () => {
+    const { routes, readPlan } = planReads(
+      [
+        request(1, [{ kinds: [1], authors: ["a"] }]),
+        request(2, [{ kinds: [42] }], {
+          explicitRelays: ["wss://x/", "wss://y/"],
+        }),
+      ],
+      environment({ writeRelays: { a: ["wss://a/"] }, budget: 1 }),
+    );
+
+    expect(routes[0].perRelay.has("wss://a/")).toBe(true);
+    expect(routes[0].uncoveredAuthors).toEqual([]);
+    expect(readPlan.budgetReached).toBe(false);
+  });
+
+  it("名指しと合わせた上限を超えては、著者のためのリレーを選ばない", () => {
+    const { routes } = planReads(
+      [
+        request(1, [{ kinds: [1], authors: ["a"] }]),
+        request(2, [{ kinds: [42] }], { explicitRelays: ["wss://x/"] }),
+      ],
+      environment({
+        writeRelays: { a: ["wss://a/"] },
+        defaultRelays: [],
+        budget: 5,
+        maxRelays: 1,
+      }),
+    );
+
+    expect(routes[0].uncoveredAuthors).toEqual(["a"]);
   });
 
   it("宣言リレーが全部 degraded な著者は、取れない著者に数える", () => {

@@ -7,7 +7,13 @@ const B = "b".repeat(64);
 const C = "c".repeat(64);
 const D = "d".repeat(64);
 
-const base = { pinned: [], current: [], budget: 10, redundancy: 1 } as const;
+const base = {
+  pinned: [],
+  current: [],
+  budget: 10,
+  maxRelays: 100,
+  redundancy: 1,
+} as const;
 
 describe("selectRelays", () => {
   it("prefers the relay that covers the most authors", () => {
@@ -19,6 +25,7 @@ describe("selectRelays", () => {
         [C, ["wss://hub/"]],
       ]),
       budget: 1,
+      maxRelays: 100,
     });
 
     expect(selection.picks).toEqual(["wss://hub/"]);
@@ -45,18 +52,36 @@ describe("selectRelays", () => {
       demand: new Map([[A, ["wss://useful/"]]]),
       pinned: ["wss://fallback/"],
       budget: 2,
+      maxRelays: 100,
     });
 
     expect(selection.picks).toContain("wss://fallback/");
     expect(selection.picks).toContain("wss://useful/");
   });
 
-  it("lets pinned relays win when the budget cannot hold them all", () => {
+  it("does not count pinned relays against the budget for followed authors", () => {
     const selection = selectRelays({
       ...base,
       demand: new Map([[A, ["wss://useful/"]]]),
       pinned: ["wss://p1/", "wss://p2/"],
-      budget: 2,
+      budget: 1,
+    });
+
+    expect(selection.picks).toEqual([
+      "wss://p1/",
+      "wss://p2/",
+      "wss://useful/",
+    ]);
+    expect(selection.uncovered).toEqual([]);
+  });
+
+  it("lets pinned relays win when the overall limit cannot hold them all", () => {
+    const selection = selectRelays({
+      ...base,
+      demand: new Map([[A, ["wss://useful/"]]]),
+      pinned: ["wss://p1/", "wss://p2/"],
+      budget: 5,
+      maxRelays: 2,
     });
 
     expect(selection.picks).toEqual(["wss://p1/", "wss://p2/"]);
@@ -75,6 +100,7 @@ describe("selectRelays", () => {
       pinned: [],
       current: [],
       budget: 3,
+      maxRelays: 100,
       redundancy: 2,
     });
 
@@ -95,6 +121,7 @@ describe("selectRelays", () => {
       pinned: [],
       current: [],
       budget: 3,
+      maxRelays: 100,
       redundancy: 2,
     });
 
@@ -114,6 +141,7 @@ describe("selectRelays", () => {
       pinned: ["wss://main/"],
       current: [],
       budget: 10,
+      maxRelays: 100,
       redundancy: 2,
       preferred: ["wss://mine/"],
     });
@@ -133,6 +161,7 @@ describe("selectRelays", () => {
       pinned: ["wss://main/"],
       current: [],
       budget: 10,
+      maxRelays: 100,
       redundancy: 2,
     });
 
@@ -150,6 +179,7 @@ describe("selectRelays", () => {
       ...base,
       demand,
       budget: 1,
+      maxRelays: 100,
       current: ["wss://open/"],
     });
 
@@ -166,6 +196,7 @@ describe("selectRelays", () => {
       demand: new Map([[A, ["wss://needed/"]]]),
       current: ["wss://stale/"],
       budget: 5,
+      maxRelays: 100,
     });
 
     expect(selection.picks).toEqual(["wss://needed/"]);
@@ -183,6 +214,7 @@ describe("selectRelays", () => {
       pinned: [],
       current: ["wss://stale/"],
       budget: 2,
+      maxRelays: 100,
       redundancy: 1,
     });
 

@@ -1,4 +1,4 @@
-import { MAX_CONNECTIONS } from "@streets/core/read/default-relays";
+import { OUTBOX_RELAY_BUDGET } from "@streets/core/read/default-relays";
 import { type Component, Show, createSignal, onCleanup } from "solid-js";
 import {
   customFallbackRelays,
@@ -79,7 +79,8 @@ const RelaySettings: Component = () => {
                   edit().readPlan?.();
                   return edit().previewRelayCount?.(redundancy) ?? 0;
                 }}
-                budget={MAX_CONNECTIONS}
+                budget={OUTBOX_RELAY_BUDGET}
+                budgetReached={edit().readPlan?.().budgetReached ?? false}
               />
             </Show>
             <FallbackRelaysView

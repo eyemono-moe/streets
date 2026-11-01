@@ -22,7 +22,10 @@ export type ReadEnvironment = {
   /** 著者で行き先を決められない読み取りの送り先。`direct` ではそのリレーだけ。 */
   defaultRelays: readonly RelayUrl[];
   writeRelaysFor: (author: string) => readonly RelayUrl[];
+  /** Outbox で選ぶ本数の上限。名指しと既定のリレーは数えない。 */
   budget: number;
+  /** 名指し・既定のリレーと合わせて選ぶ本数の上限。 */
+  maxRelays: number;
   redundancy: number;
   /** いま開いているリレー。同点のときに優先して張り直しを減らす。 */
   openRelays: readonly RelayUrl[];
@@ -92,6 +95,7 @@ export const planReads = (
     pinned,
     current: env.openRelays,
     budget: env.budget,
+    maxRelays: env.maxRelays,
     redundancy: env.redundancy,
     degraded: env.degraded,
     preferred:
@@ -123,6 +127,7 @@ export const planReads = (
       mode: env.routing.mode,
       fallbackRelays,
       sections,
+      budgetReached: selection.budgetReached,
     }),
   };
 };

@@ -96,6 +96,7 @@ const outboxPlan: ReadPlan = {
   ],
   unroutableAuthors: [],
   uncoveredAuthors: [],
+  budgetReached: false,
 };
 
 const unroutable = crowd(23, 300);
@@ -179,6 +180,7 @@ export const 読み込みリレーだけ: S = {
       ],
       unroutableAuthors: [],
       uncoveredAuthors: [],
+      budgetReached: false,
     },
   },
 };
@@ -196,6 +198,7 @@ export const 何も読んでいない: S = {
       relays: [],
       unroutableAuthors: [],
       uncoveredAuthors: [],
+      budgetReached: false,
     },
   },
 };
@@ -236,6 +239,7 @@ export const 人ごと_誰もいない: S = {
       relays: [],
       unroutableAuthors: [],
       uncoveredAuthors: [],
+      budgetReached: false,
     },
   },
 };

@@ -58,7 +58,7 @@ flowchart TD
 ### 行き先決め
 
 - ファイル：`read/read-planner.ts`（`planReads`）、`read/relay-selector.ts`、`read/query-plan.ts`、`read/read-plan.ts`、`read/read-routing.ts`
-- 受け取るもの：全カラムの要求と、環境（著者ごとの書き込みリレー、開いているリレー、止めているリレー、接続の予算 `MAX_CONNECTIONS`、1 人あたりの本数 `RELAY_REDUNDANCY`）。
+- 受け取るもの：全カラムの要求と、環境（著者ごとの書き込みリレー、開いているリレー、止めているリレー、Outbox で選ぶ本数 `OUTBOX_RELAY_BUDGET`、名指しと合わせた上限 `MAX_CONNECTIONS`、1 人あたりの本数 `RELAY_REDUNDANCY`）。
 - 返すもの：リレーごとのフィルタ、行き先が分からなかった著者、予算で漏れた著者、画面に見せる `ReadPlan`。
 - 知らないこと：時間と接続。純粋な関数で、前回の結果も覚えない。差分を当てるのは帳簿の仕事。
 
@@ -98,7 +98,7 @@ flowchart TD
 
 1. カラムが `createSection` に、`authors: [alice]` の `source` を渡す（読み口）。`SectionReader` を作り、`SubscriptionManager.subscribe` を呼ぶ。
 2. 帳簿は、開いている全カラムの要求を集め、`planReads` に渡す。環境として、`RoutingTable.writeRelaysFor(alice)` と、いま開いているリレー、止めているリレーも添える。
-3. `planReads` は Alice の kind:10002 に書いてある書き込みリレーを候補にする。`relay-selector.ts` が、全カラムの著者を少ないリレーでまとめて覆うよう貪欲に選ぶ。同じ人を `RELAY_REDUNDANCY` 本から取り、予算 `MAX_CONNECTIONS` の中に収める。開くと決めたリレーのうち、Alice に割り当てる `RELAY_REDUNDANCY` 本は、kind:10002 に書かれた順ではなく、自分の読み込みリレー、既定のリレーや名指しのリレー、多くの人をまかなうリレーの順に選ぶ（書かれた順は、本人がいま使っているかと関係がない）。結果は「リレー → フィルタ（`authors` に Alice を含む）」。Alice の kind:10002 がまだ無いときは、行き先が分からない著者として数え、既定のリレー（`FALLBACK_RELAYS`）へ回す。
+3. `planReads` は Alice の kind:10002 に書いてある書き込みリレーを候補にする。`relay-selector.ts` が、全カラムの著者を少ないリレーでまとめて覆うよう貪欲に選ぶ。同じ人を `RELAY_REDUNDANCY` 本から取り、`OUTBOX_RELAY_BUDGET` 本の中に収める。名指しのリレーと既定のリレーはこの本数に数えず、合わせて `MAX_CONNECTIONS` を超えないようにする。開くと決めたリレーのうち、Alice に割り当てる `RELAY_REDUNDANCY` 本は、kind:10002 に書かれた順ではなく、自分の読み込みリレー、既定のリレーや名指しのリレー、多くの人をまかなうリレーの順に選ぶ（書かれた順は、本人がいま使っているかと関係がない）。結果は「リレー → フィルタ（`authors` に Alice を含む）」。Alice の kind:10002 がまだ無いときは、行き先が分からない著者として数え、既定のリレー（`FALLBACK_RELAYS`）へ回す。
 4. 帳簿は結果を前回と比べ、増えたリレーにだけ `ConnectionPool.subscribe` を呼ぶ。すでにそのリレーを別のカラムのために開いていれば、REQ のフィルタだけが変わる。
 5. 窓口は URL から `RelaySession` を取り出す（無ければ作る）。同時購読の枠が埋まっていれば待ち行列に入れ、空いたら `WebSocketRelayConnection` に REQ を送らせる。
 6. EVENT が戻ると、`RelaySession` を経て帳簿に届く。帳簿は `EventStore.put` で署名を検証し、重複をまとめて入れる。入った id だけを `SectionReader` へ渡す。

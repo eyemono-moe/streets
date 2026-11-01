@@ -461,7 +461,7 @@
     },
     "increase": "{{ more }} 本にすると {{ preview }} 本ほどになります。",
     "backToDefault": "既定の {{ default }} 本なら {{ preview }} 本です。",
-    "budgetReached": "同時につなげる {{ budget }} 本に届いています。収まらない分は、多くの人が使っているリレーから順に選びます。"
+    "budgetReached": "フォローしている人の投稿を探すリレーが、上限の {{ budget }} 本に届いています。収まらない分は、多くの人が使っているリレーから順に選びます。"
   },
   "recommendations": {
     "description": "フォローしている人がよく使っているリレーの一覧です。",

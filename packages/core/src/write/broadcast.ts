@@ -40,7 +40,7 @@ export const authorRelays = (
 };
 
 /**
- * 一度に開く接続の数。同時に開ける WebSocket は 30 本までで、読み込みにも使って
+ * 一度に開く接続の数。同時に開ける WebSocket は `MAX_CONNECTIONS` 本までで、読み込みにも使って
  * いるので、送り先が多くても枠を使い切らないよう少しずつ送る。
  */
 const CONCURRENCY = 4;

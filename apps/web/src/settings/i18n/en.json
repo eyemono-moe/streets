@@ -461,7 +461,7 @@
     },
     "increase": "With {{ more }}, that becomes about {{ preview }} relays.",
     "backToDefault": "With the default of {{ default }}, it would be {{ preview }} relays.",
-    "budgetReached": "This has reached the limit of {{ budget }} simultaneous connections. Relays that don't fit are chosen starting with the ones most people use."
+    "budgetReached": "The relays used to find posts from people you follow have reached the limit of {{ budget }}. Relays that don't fit are chosen starting with the ones most people use."
   },
   "recommendations": {
     "description": "Relays that the people you follow use often.",
