@@ -19,6 +19,7 @@ import ProfileRow from "../profile/ProfileRow";
 import { notifyError } from "../toast";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
+import type { NappletPreview, NappletScreenshot } from "./napplet-media";
 import { MANIFEST_ERRORS } from "./NappletView";
 
 /** napplet が使う機能を、仕組みを知らない人にも分かる言葉で。知らない機能は名前のまま出す。 */
@@ -86,6 +87,117 @@ const Section: ParentComponent<{ title: string }> = (props) => (
 
 const isWebLink = (url: string) => /^https?:\/\//.test(url);
 
+const formatSize = (bytes: number) => {
+  const [value, unit] =
+    bytes >= 1_000_000
+      ? [bytes / 1_000_000, "megabyte"]
+      : bytes >= 1_000
+        ? [bytes / 1_000, "kilobyte"]
+        : [bytes, "byte"];
+  return new Intl.NumberFormat(locale(), {
+    style: "unit",
+    unit,
+    maximumFractionDigits: 1,
+  }).format(value);
+};
+
+const formatSeconds = (seconds: number) =>
+  new Intl.NumberFormat(locale(), {
+    style: "unit",
+    unit: "second",
+    maximumFractionDigits: 1,
+  }).format(seconds);
+
+const previewLabel = (preview: NappletPreview) => {
+  const details = [
+    preview.duration !== undefined ? formatSeconds(preview.duration) : "",
+    preview.size !== undefined ? formatSize(preview.size) : "",
+  ].filter(Boolean);
+  return details.length > 0
+    ? `プレビュー動画を見る（${details.join("・")}）`
+    : "プレビュー動画を見る";
+};
+
+/** 取る前から枠の形を決めて、取れたときに下の行が動かないようにする。 */
+const aspectOf = (media: { dim?: { width: number; height: number } }) =>
+  media.dim ? `${media.dim.width} / ${media.dim.height}` : "16 / 10";
+
+const PresentationMedia: Component<{
+  screenshots: readonly NappletScreenshot[];
+  preview?: NappletPreview;
+  onPlayPreview?: () => void;
+  onPreviewError?: () => void;
+}> = (props) => (
+  <div class="flex flex-col gap-2">
+    <Show when={props.screenshots.length > 0}>
+      <ul class="flex gap-2 overflow-x-auto pb-1">
+        <For each={props.screenshots}>
+          {(shot) => (
+            <li class="shrink-0">
+              <Show
+                when={shot.url}
+                fallback={
+                  <div
+                    class="h-40 max-w-64 animate-pulse rounded-2 bg-tertiary"
+                    style={{ "aspect-ratio": aspectOf(shot) }}
+                  />
+                }
+              >
+                {(url) => (
+                  <img
+                    src={url()}
+                    alt={shot.alt ?? ""}
+                    class="block h-40 max-w-64 rounded-2 border border-primary object-contain"
+                  />
+                )}
+              </Show>
+            </li>
+          )}
+        </For>
+      </ul>
+    </Show>
+    <Show when={props.preview}>
+      {(preview) => (
+        <Switch>
+          <Match when={preview().state === "ready" && preview().url}>
+            {(url) => (
+              // oxlint-disable-next-line jsx-a11y/media-has-caption -- アップレットのプレビューは字幕を持てない（NIP-5D の欄に無い）
+              <video
+                src={url()}
+                controls
+                autoplay
+                playsinline
+                aria-label={preview().alt}
+                class="max-h-80 w-full rounded-2 border border-primary bg-black"
+                style={{ "aspect-ratio": aspectOf(preview()) }}
+                onError={() => props.onPreviewError?.()}
+              />
+            )}
+          </Match>
+          <Match when={preview().state === "failed"}>
+            <p class="c-secondary text-caption">
+              プレビュー動画を再生できませんでした。
+            </p>
+          </Match>
+          <Match when={true}>
+            <div>
+              <Button
+                icon="i-material-symbols:play-circle-outline-rounded"
+                disabled={preview().state === "loading"}
+                onClick={() => props.onPlayPreview?.()}
+              >
+                {preview().state === "loading"
+                  ? "プレビュー動画を読み込み中…"
+                  : previewLabel(preview())}
+              </Button>
+            </div>
+          </Match>
+        </Switch>
+      )}
+    </Show>
+  </div>
+);
+
 /** napplet の情報。napplet のカラムの見出しの ⓘ から重ねて開く。 */
 const NappletInfoView: Component<{
   lookup:
@@ -95,6 +207,11 @@ const NappletInfoView: Component<{
     | { phase: "found"; manifest: NappletManifest };
   /** 照合済みのアイコン（blob の URL）。無ければ汎用の絵。 */
   iconUrl?: string;
+  /** 画面の見本。取れなかったものは含めない。 */
+  screenshots?: readonly NappletScreenshot[];
+  preview?: NappletPreview;
+  onPlayPreview?: () => void;
+  onPreviewError?: () => void;
   /** Streets が渡せる機能。 */
   supported: ReadonlySet<string>;
   /** インストール済みか。渡さなければ、インストールの操作を出さない。 */
@@ -224,6 +341,16 @@ const NappletInfoView: Component<{
                 </p>
               </Show>
             </div>
+            <Show when={(props.screenshots?.length ?? 0) > 0 || props.preview}>
+              <Section title="画面">
+                <PresentationMedia
+                  screenshots={props.screenshots ?? []}
+                  preview={props.preview}
+                  onPlayPreview={props.onPlayPreview}
+                  onPreviewError={props.onPreviewError}
+                />
+              </Section>
+            </Show>
             <Show when={(props.grants?.length ?? 0) > 0}>
               <Section title="許可していること">
                 <ul class="flex flex-col gap-1">

@@ -23,6 +23,7 @@ const manifest = (
   optional: ["theme"],
   archetypes: ["note"],
   intents: [{ convention: "napplet:note/open", params: ["id"] }],
+  screenshots: [],
   legacy: false,
   ...overrides,
 });

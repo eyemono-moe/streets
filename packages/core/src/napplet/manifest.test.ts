@@ -69,6 +69,7 @@ describe("parseNappletManifest", () => {
           hash: "ae7a3bd1a3fa9d824d0e64a6f57fe6cb4dd80c423786b6a2ecb94d587c94c75a",
           mime: "image/png",
         },
+        screenshots: [],
         legacy: false,
       },
     });

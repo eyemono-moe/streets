@@ -10,6 +10,7 @@
  * > Each tag names one bare NAP domain (e.g. `relay`, never `NAP-RELAY`).
  */
 import type { NostrEvent } from "../nostr/event";
+import { type NappletMedia, parsePresentationMedia } from "./media";
 
 export const NAPPLET_SNAPSHOT_KIND = 5129;
 export const NAPPLET_ROOT_KIND = 15129;
@@ -39,6 +40,8 @@ export type NappletManifest = {
    */
   intents: { convention: string; params: string[] }[];
   icon?: { hash: string; mime: string };
+  screenshots: NappletMedia[];
+  preview?: NappletMedia;
   source?: string;
   /**
    * 2026-10 より前の形で公開されたもの。本体のハッシュは `path` タグから取り、
@@ -168,6 +171,7 @@ export const parseNappletManifest = (
       archetypes: unique(values(event, "z")),
       intents: intentsOf(event),
       ...(icon ? { icon } : {}),
+      ...parsePresentationMedia(event.tags),
       source: values(event, "source")[0],
       legacy,
     },

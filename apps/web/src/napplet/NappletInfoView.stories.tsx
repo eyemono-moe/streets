@@ -3,7 +3,11 @@ import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
+import clipUrl from "../storybook/media-clip.mp4";
+import landscapeUrl from "../storybook/media-landscape.svg";
+import portraitUrl from "../storybook/media-portrait.svg";
 import { createStoryAuthor } from "../storybook/story-events";
+import type { NappletPreview, NappletScreenshot } from "./napplet-media";
 import NappletInfoView from "./NappletInfoView";
 import { STREETS_NAPPLET_DOMAINS } from "./streets-host";
 
@@ -29,12 +33,44 @@ const manifest: NappletManifest = {
   archetypes: ["note"],
   intents: [{ convention: "napplet:note/open", params: ["id"] }],
   source: "https://example.invalid/chronofeed",
+  screenshots: [],
   legacy: false,
+};
+
+const screenshots: NappletScreenshot[] = [
+  {
+    hash: "1".repeat(64),
+    mime: "image/png",
+    dim: { width: 1200, height: 750 },
+    alt: "フォロー中の人の投稿が新しい順に並んだ画面",
+    url: landscapeUrl,
+  },
+  {
+    hash: "2".repeat(64),
+    mime: "image/webp",
+    dim: { width: 750, height: 1200 },
+    alt: "スマートフォンの幅で開いた画面",
+    url: portraitUrl,
+  },
+  // 取得中。dim があれば、その形の枠を先に出す。
+  { hash: "3".repeat(64), dim: { width: 1200, height: 750 } },
+];
+
+const preview: NappletPreview = {
+  hash: "4".repeat(64),
+  mime: "video/mp4",
+  dim: { width: 960, height: 600 },
+  duration: 8.5,
+  size: 921_600,
+  alt: "投稿を流して読む様子",
+  state: "idle",
 };
 
 type Props = {
   lookup: Parameters<typeof NappletInfoView>[0]["lookup"];
   icon: boolean;
+  screenshots?: NappletScreenshot[];
+  preview?: NappletPreview;
   installed?: boolean;
   grants?: { key: string; label: string }[];
   /** カラムの幅（px）。 */
@@ -50,6 +86,9 @@ const InfoStory: Component<Props> = (props) => (
       <NappletInfoView
         lookup={props.lookup}
         iconUrl={props.icon ? avatarUrl : undefined}
+        screenshots={props.screenshots}
+        preview={props.preview}
+        onPlayPreview={() => {}}
         supported={new Set(STREETS_NAPPLET_DOMAINS)}
         installed={props.installed}
         grants={props.grants}
@@ -139,3 +178,32 @@ export const 壊れている: Story = {
 };
 
 export const 狭いカラム: Story = { args: { width: 240 } };
+
+/** 画面の見本（スクリーンショットとプレビュー動画）がある。3 枚目は取得中。 */
+export const 画面の見本がある: Story = { args: { screenshots, preview } };
+
+/** 押すまで動画は取らない。押すと読み込み、取れたらその場で再生する。 */
+export const プレビュー動画を読み込み中: Story = {
+  args: { screenshots, preview: { ...preview, state: "loading" } },
+};
+
+export const プレビュー動画を再生: Story = {
+  args: {
+    screenshots,
+    preview: { ...preview, state: "ready", url: clipUrl },
+  },
+};
+
+/** 照合が通らない・形が違う・ブラウザが再生できない。 */
+export const プレビュー動画を再生できない: Story = {
+  args: { screenshots, preview: { ...preview, state: "failed" } },
+};
+
+/** 大きさも長さも書かれていないプレビュー。 */
+export const プレビュー動画だけ: Story = {
+  args: { preview: { hash: "5".repeat(64), state: "idle" } },
+};
+
+export const 画面の見本を狭いカラムで: Story = {
+  args: { screenshots, preview, width: 240 },
+};

@@ -40,6 +40,7 @@ const manifest = (
   optional: [],
   archetypes,
   intents,
+  screenshots: [],
   legacy: false,
 });
 

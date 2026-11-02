@@ -24,6 +24,7 @@ const manifest = (
   optional: [],
   archetypes: [],
   intents: [],
+  screenshots: [],
   legacy: false,
   icon: { hash: "f".repeat(64), mime: "image/png" },
   ...overrides,

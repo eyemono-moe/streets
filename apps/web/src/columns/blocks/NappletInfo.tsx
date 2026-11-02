@@ -11,6 +11,7 @@ import { type Component } from "solid-js";
 import { locale } from "../../i18n/locale";
 import { useAppletLibrary } from "../../napplet/applet-library";
 import { createNappletIcons } from "../../napplet/napplet-icons";
+import { createNappletMedia } from "../../napplet/napplet-media";
 import NappletInfoView from "../../napplet/NappletInfoView";
 import { STREETS_NAPPLET_DOMAINS } from "../../napplet/streets-host";
 import { useReadLayer } from "../../read-layer";
@@ -19,7 +20,7 @@ import { createNappletManifest } from "./napplet-manifest";
 
 const SUPPORTED: ReadonlySet<string> = new Set(STREETS_NAPPLET_DOMAINS);
 
-/** napplet の情報を読む。アイコンは作者のサーバーから取り、ハッシュを照合してから出す。 */
+/** napplet の情報を読む。アイコンと画面の見本は作者のサーバーから取り、ハッシュを照合してから出す。 */
 const NappletInfo: Component<{
   pubkey: string;
   identifier: string;
@@ -31,6 +32,7 @@ const NappletInfo: Component<{
     relays: () => props.relays,
   });
   const iconFor = createNappletIcons();
+  const media = createNappletMedia(manifest);
   const dispatch = useDispatch();
   const library = useAppletLibrary();
   const { store } = useReadLayer();
@@ -47,6 +49,10 @@ const NappletInfo: Component<{
         const current = manifest();
         return current ? iconFor(current) : undefined;
       })()}
+      screenshots={media.screenshots()}
+      preview={media.preview()}
+      onPlayPreview={media.playPreview}
+      onPreviewError={media.previewFailed}
       supported={SUPPORTED}
       installed={(() => {
         const current = library();
