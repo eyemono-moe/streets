@@ -22,6 +22,7 @@ type TestNapplet = {
     bytes(url: string, options?: { signal?: AbortSignal }): Promise<Blob>;
   };
   theme: { onChanged(handler: (theme: unknown) => void): unknown };
+  link: { open(url: string, options?: { label?: string }): Promise<unknown> };
   intent: {
     invoke(uri: string, options?: Record<string, unknown>): Promise<unknown>;
     open(uri: string, options?: Record<string, unknown>): Promise<unknown>;
@@ -430,6 +431,43 @@ describe("nappletPrelude", () => {
     subscription.close();
     expect(results).toEqual([{ event: { id: "1" } }]);
     expect(sent[1]).toMatchObject({ type: "outbox.close", subId });
+  });
+
+  /*
+   * NAP-LINK（napplet/naps PR #53、2026-11-01 版）:
+   * > Resolves with a `LinkOpenResult`: `status` is `"opened"` when the shell accepted the
+   * > request and handed it to the user agent, or `"denied"` when user or shell policy refused
+   * > it; `error`, when present on the wire, is passed through unchanged.
+   * > <- { "type": "link.open.result", "id": "l2", "status": "denied", "error": "unsupported-scheme" }
+   */
+  it("link.open は断られた理由を、結果の error としてそのまま返す", async () => {
+    const { win, sent, deliver } = run(["link"]);
+    const result = win.napplet.link.open("file:///etc/passwd");
+    deliver({
+      type: "link.open.result",
+      id: sent[0]?.id,
+      status: "denied",
+      error: "unsupported-scheme",
+    });
+    await expect(result).resolves.toEqual({
+      status: "denied",
+      error: "unsupported-scheme",
+    });
+  });
+
+  /*
+   * NAP-LINK（napplet/naps PR #53、2026-11-01 版）の LinkOpenResult:
+   * > | `error` | `text` | no | Reason when `status` is `"denied"`; same value as the wire field;
+   * > absent when `status` is `"opened"`. |
+   * > <- { "type": "link.open.result", "id": "l1", "status": "opened" }
+   */
+  it("link.open が開けたときは error の欄を持たない", async () => {
+    const { win, sent, deliver } = run(["link"]);
+    const result = win.napplet.link.open("https://example.com/post/123", {
+      label: "Read post",
+    });
+    deliver({ type: "link.open.result", id: sent[0]?.id, status: "opened" });
+    await expect(result).resolves.toStrictEqual({ status: "opened" });
   });
 
   it("テーマが変わったら onChanged に渡す", () => {

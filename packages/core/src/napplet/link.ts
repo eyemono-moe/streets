@@ -1,5 +1,5 @@
 /*
- * NAP-LINK（napplet/naps PR #53）。アップレットに頼まれて、外のページを開く。
+ * NAP-LINK（napplet/naps PR #53、2026-11-01 版）。アップレットに頼まれて、外のページを開く。
  *
  * > The shell MUST reject relative URLs.
  * > The shell MUST reject `javascript:`, `data:`, `blob:`, `file:`, and other local or

@@ -949,13 +949,18 @@ function installNapplet(domains: readonly string[]): void {
   }
 
   if (exposed.has("link")) {
-    // 断られたときも reject せず `{ status: "denied" }` で返す（@napplet/shim と同じ）。
+    // 断られたときも reject せず `{ status: "denied", error }` で返す（@napplet/shim と同じ）。
     napplet.link = {
       open: (url: string, options?: { label?: string }) =>
         request(
           "link.open",
           { url, ...(options ? { options } : {}) },
-          (message) => ({ status: message.status }),
+          (message) => ({
+            status: message.status,
+            ...(typeof message.error === "string"
+              ? { error: message.error }
+              : {}),
+          }),
           false,
         ),
     };
