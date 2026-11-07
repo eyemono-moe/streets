@@ -207,7 +207,7 @@
     "contrast": {
       "standard": "標準"
     },
-    "darkBackground": {
+    "backgroundBrightness": {
       "standard": "標準"
     }
   },

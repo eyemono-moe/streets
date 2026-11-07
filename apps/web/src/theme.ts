@@ -1,23 +1,26 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import {
+  BACKGROUND_BRIGHTNESS_DEFAULT,
+  type BackgroundBrightness,
+  type BackgroundScheme,
+  backgroundBrightnessStorageKey,
+  backgroundLift,
+  loadBackgroundBrightness,
+} from "@streets/core/settings/background-brightness";
+import {
   COLOR_SCHEME_STORAGE_KEY,
   type ColorScheme,
   loadColorScheme,
 } from "@streets/core/settings/color-scheme";
-import {
-  DARK_BACKGROUND_DEFAULT,
-  DARK_BACKGROUND_STORAGE_KEY,
-  type DarkBackground,
-  loadDarkBackground,
-} from "@streets/core/settings/dark-background";
 import {
   loadUiContrast,
   UI_CONTRAST_DEFAULT,
   UI_CONTRAST_STORAGE_KEY,
   type UiContrast,
 } from "@streets/core/settings/ui-contrast";
+import { createSignal } from "solid-js";
 
-export type { ColorScheme, DarkBackground, UiContrast };
+export type { BackgroundBrightness, BackgroundScheme, ColorScheme, UiContrast };
 
 /**
  * テーマ色の元になる 2 色。Penpot の `Primitives/*` の `accent.original` と `ui.original`。
@@ -89,18 +92,24 @@ export const applyPalette = (name: PaletteName) => applyColors(PALETTES[name]);
  * `.dark` を `<html>` に付け外しする。`system` の間は OS の切り替えにも追従する。
  * 戻り値で追従を止める。
  */
+const [shown, setShownScheme] = createSignal<BackgroundScheme>("light");
+
+/** いま画面に出ているテーマ。「OS に合わせる」の間は OS の切り替えで変わる。 */
+export const shownScheme = shown;
+
+const showScheme = (scheme: BackgroundScheme) => {
+  document.documentElement.classList.toggle("dark", scheme === "dark");
+  setShownScheme(scheme);
+  syncThemeColor();
+};
+
 export const applyColorScheme = (scheme: ColorScheme): (() => void) => {
-  const root = document.documentElement.classList;
   if (scheme !== "system") {
-    root.toggle("dark", scheme === "dark");
-    syncThemeColor();
+    showScheme(scheme);
     return () => {};
   }
   const query = matchMedia("(prefers-color-scheme: dark)");
-  const sync = () => {
-    root.toggle("dark", query.matches);
-    syncThemeColor();
-  };
+  const sync = () => showScheme(query.matches ? "dark" : "light");
   sync();
   query.addEventListener("change", sync);
   return () => query.removeEventListener("change", sync);
@@ -159,29 +168,43 @@ export const setUiContrast = (contrast: UiContrast, save = true) => {
   }
 };
 
-/** 端末に保存したダークの背景の明るさ。 */
-export const savedDarkBackground = (): DarkBackground => {
+/** 端末に保存した、そのテーマの背景の明るさ。 */
+export const savedBackgroundBrightness = (
+  scheme: BackgroundScheme,
+): BackgroundBrightness => {
   try {
-    return loadDarkBackground(
-      localStorage.getItem(DARK_BACKGROUND_STORAGE_KEY),
+    return loadBackgroundBrightness(
+      scheme,
+      localStorage.getItem(backgroundBrightnessStorageKey(scheme)),
     );
   } catch {
-    return DARK_BACKGROUND_DEFAULT;
+    return BACKGROUND_BRIGHTNESS_DEFAULT;
   }
 };
 
-/** ダークの背景の明るさを当てる。`sync` はコントラストと同じく、離したときだけ。 */
-export const applyDarkBackground = (value: DarkBackground, sync = true) => {
-  document.documentElement.style.setProperty("--ui-dark-lift", String(value));
+/** そのテーマの背景の明るさを当てる。`sync` はコントラストと同じく、離したときだけ。 */
+export const applyBackgroundBrightness = (
+  scheme: BackgroundScheme,
+  value: BackgroundBrightness,
+  sync = true,
+) => {
+  document.documentElement.style.setProperty(
+    `--ui-${scheme}-lift`,
+    String(backgroundLift(value)),
+  );
   if (sync) syncThemeColor();
 };
 
-/** ダークの背景の明るさを当てて、この端末に保存する。 */
-export const setDarkBackground = (value: DarkBackground, save = true) => {
-  applyDarkBackground(value);
+/** そのテーマの背景の明るさを当てて、この端末に保存する。 */
+export const setBackgroundBrightness = (
+  scheme: BackgroundScheme,
+  value: BackgroundBrightness,
+  save = true,
+) => {
+  applyBackgroundBrightness(scheme, value);
   if (!save) return;
   try {
-    localStorage.setItem(DARK_BACKGROUND_STORAGE_KEY, String(value));
+    localStorage.setItem(backgroundBrightnessStorageKey(scheme), String(value));
   } catch {
     // 保存できなくても、今の画面には当たっている。
   }

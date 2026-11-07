@@ -207,7 +207,7 @@
     "contrast": {
       "standard": "Default"
     },
-    "darkBackground": {
+    "backgroundBrightness": {
       "standard": "Default"
     }
   },

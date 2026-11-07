@@ -16,13 +16,13 @@ interface Colors {
  * 中間の 0.5 を軸にすると、ライトで `ui-50`〜`200`（区切り線や薄い面）が白に溶け、背景との差が
  * 逆に縮む。標準（1）では pivot + (L - pivot) = L で、元の色と変わらない。
  *
- * `--ui-lift`（ダークの背景の明るさ。ライトでは 0）は、中心を白の側へその割合だけ寄せ、
- * 中心からの距離を同じ割合で縮める。白（1）の位置は動かないので、背景だけが明るくなり、
+ * `--ui-lift`（設定の背景の明るさ）は、中心を文字の側の端 `--ui-end`（ライトは黒、ダークは白）へ
+ * その割合だけ寄せ、中心からの距離を同じ割合で縮める。端の位置は動かないので、背景だけが動き、
  * 文字はほぼ今の明るさに残る。コントラストを下げるのと違い、背景そのものが動く。
  * 段ごとに変数を持たず式を 1 か所にして、段どうしの順序が崩れないようにする。
  */
 const uiStep = (lightness: number, chroma: number, alpha = true) =>
-  `oklch(from var(--theme-ui-color) clamp(0, calc(var(--ui-pivot, 1) + (1 - var(--ui-pivot, 1)) * var(--ui-lift, 0) + (${lightness} - var(--ui-pivot, 1)) * (1 - var(--ui-lift, 0)) * var(--ui-contrast, 1)), 1) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
+  `oklch(from var(--theme-ui-color) clamp(0, calc(var(--ui-pivot, 1) + (var(--ui-end, 0) - var(--ui-pivot, 1)) * var(--ui-lift, 0) + (${lightness} - var(--ui-pivot, 1)) * (1 - var(--ui-lift, 0)) * var(--ui-contrast, 1)), 1) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
 
 const colors: Colors = {
   // l: unocssのgray系を除いた色のlの平均値
@@ -46,6 +46,8 @@ const colors: Colors = {
   // l: unocssのslateのLと同じ値
   // c: unocssのslateのcと同じ値 * --theme-ui-colorのcの値(cの最大値は約0.37)
   ui: {
+    // ライトの背景。白も段の式に通さないと、背景の明るさの設定で動かない。
+    0: uiStep(1, 0),
     50: uiStep(0.9841, 0.0033),
     100: uiStep(0.9682, 0.0068),
     200: uiStep(0.9287, 0.0125),
@@ -287,7 +289,7 @@ export default defineConfig({
       "bg-accent-hover": "bg-accent-6",
       "bg-accent-active": "bg-accent-7",
 
-      "bg-primary": "bg-white dark:bg-ui-950",
+      "bg-primary": "bg-ui-0 dark:bg-ui-950",
       "bg-secondary": "bg-ui-1 dark:bg-ui-8",
       "bg-tertiary": "bg-ui-2 dark:bg-ui-7",
       // 本文の途中に置く引用。本文の面（bg-primary）からごくわずかに浮かせる。
@@ -410,7 +412,9 @@ export default defineConfig({
           color-scheme: light;
           --color-scrollbar-thumb: ${uiStep(0.8689, 0.0198, false)};
           --ui-pivot: 1;
-          --ui-lift: 0;
+          --ui-end: 0;
+          /* 値は設定から html 要素の style に入る。テーマごとに別の値を持つので、ここで受け直す。 */
+          --ui-lift: var(--ui-light-lift, 0);
           --color-danger: #C5221F;
           --color-danger-subtle: #FCE8E6;
           --color-status-ok: #188038;
@@ -425,7 +429,7 @@ export default defineConfig({
           color-scheme: dark;
           --color-scrollbar-thumb: ${uiStep(0.3716, 0.0391, false)};
           --ui-pivot: 0.1287;
-          /* 値は設定から html 要素の style に入る。ライトでは効かせないので、ここで受け直す。 */
+          --ui-end: 1;
           --ui-lift: var(--ui-dark-lift, 0);
           --color-danger: #F28B82;
           --color-danger-subtle: #3C1F1D;

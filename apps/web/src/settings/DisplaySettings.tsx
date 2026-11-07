@@ -7,6 +7,14 @@ import {
   sameActionLayout,
 } from "@streets/core/settings/action-layout";
 import {
+  BACKGROUND_BRIGHTNESS_DEFAULT,
+  BACKGROUND_BRIGHTNESS_STEP,
+  type BackgroundBrightness,
+  type BackgroundScheme,
+  backgroundBrightnessRange,
+  formatBackgroundBrightness,
+} from "@streets/core/settings/background-brightness";
+import {
   type ChatOrder,
   loadChatOrder,
 } from "@streets/core/settings/chat-order-setting";
@@ -19,14 +27,6 @@ import {
   type ContentWarningMode,
   loadContentWarningMode,
 } from "@streets/core/settings/content-warning-setting";
-import {
-  DARK_BACKGROUND_MAX,
-  DARK_BACKGROUND_MIN,
-  DARK_BACKGROUND_STEP,
-  type DarkBackground,
-  formatDarkBackground,
-  loadDarkBackground,
-} from "@streets/core/settings/dark-background";
 import {
   type DeckLayout,
   loadDeckLayout,
@@ -49,9 +49,9 @@ import {
   type UiContrast,
 } from "@streets/core/settings/ui-contrast";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { localePreference, messageOrText, t } from "../i18n/locale";
-import { DEFAULT_APPEARANCE, paletteOf } from "../theme";
+import { DEFAULT_APPEARANCE, paletteOf, shownScheme } from "../theme";
 import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -112,8 +112,8 @@ const DisplaySettings: Component<{
   scheme: ColorScheme;
   /** 文字と背景のコントラスト（この端末の設定）。 */
   contrast: UiContrast;
-  /** ダークの背景の明るさ（この端末の設定）。 */
-  darkBackground: DarkBackground;
+  /** テーマごとの背景の明るさ（この端末の設定）。 */
+  backgroundBrightness: Record<BackgroundScheme, BackgroundBrightness>;
   appearance: DeckAppearance;
   /** 保存の進み具合を出すか（この端末の設定）。 */
   writeProgress: boolean;
@@ -148,7 +148,6 @@ const DisplaySettings: Component<{
   // 既定は、何も保存していないときに読み込む値。
   const initialScheme = loadColorScheme(null);
   const initialContrast = loadUiContrast(null);
-  const initialDarkBackground = loadDarkBackground(null);
   const initialLayout = loadDeckLayout(null);
   const initialSwipeMode = loadSwipeMode(null);
   const initialContentWarning = loadContentWarningMode(null);
@@ -224,34 +223,56 @@ const DisplaySettings: Component<{
         />
       </SettingsSection>
 
-      <SettingsSection
-        id="darkBackground"
-        scope="device"
-        changed={props.darkBackground !== initialDarkBackground}
-        onReset={() =>
-          dispatch({
-            type: "deck/set-dark-background",
-            value: initialDarkBackground,
-          })
-        }
-        description={t("settings.display.darkBackground.description")}
-      >
-        <Slider
-          label={settingTitle("darkBackground")}
-          labelHidden
-          value={props.darkBackground}
-          min={DARK_BACKGROUND_MIN}
-          max={DARK_BACKGROUND_MAX}
-          step={DARK_BACKGROUND_STEP}
-          format={(value) => messageOrText(formatDarkBackground(value))}
-          onChange={(value) =>
-            dispatch({ type: "deck/preview-dark-background", value })
-          }
-          onChangeEnd={(value) =>
-            dispatch({ type: "deck/set-dark-background", value })
-          }
-        />
-      </SettingsSection>
+      {/* 動かせる向きと値はいま出ているテーマのもの。テーマが替わったら作り直し、範囲を当て直す。 */}
+      <Show when={shownScheme()} keyed>
+        {(scheme) => (
+          <SettingsSection
+            id="backgroundBrightness"
+            scope="device"
+            changed={
+              props.backgroundBrightness[scheme] !==
+              BACKGROUND_BRIGHTNESS_DEFAULT
+            }
+            onReset={() =>
+              dispatch({
+                type: "deck/set-background-brightness",
+                scheme,
+                value: BACKGROUND_BRIGHTNESS_DEFAULT,
+              })
+            }
+            description={
+              scheme === "dark"
+                ? t("settings.display.backgroundBrightness.dark")
+                : t("settings.display.backgroundBrightness.light")
+            }
+          >
+            <Slider
+              label={settingTitle("backgroundBrightness")}
+              labelHidden
+              value={props.backgroundBrightness[scheme]}
+              {...backgroundBrightnessRange(scheme)}
+              step={BACKGROUND_BRIGHTNESS_STEP}
+              format={(value) =>
+                messageOrText(formatBackgroundBrightness(value))
+              }
+              onChange={(value) =>
+                dispatch({
+                  type: "deck/preview-background-brightness",
+                  scheme,
+                  value,
+                })
+              }
+              onChangeEnd={(value) =>
+                dispatch({
+                  type: "deck/set-background-brightness",
+                  scheme,
+                  value,
+                })
+              }
+            />
+          </SettingsSection>
+        )}
+      </Show>
 
       <SettingsSection
         id="accent"

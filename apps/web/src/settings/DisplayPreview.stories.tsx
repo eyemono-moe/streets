@@ -1,7 +1,9 @@
 import {
-  DARK_BACKGROUND_MAX,
-  formatDarkBackground,
-} from "@streets/core/settings/dark-background";
+  type BackgroundScheme,
+  backgroundBrightnessRange,
+  backgroundLift,
+  formatBackgroundBrightness,
+} from "@streets/core/settings/background-brightness";
 import {
   formatUiContrast,
   UI_CONTRAST_MAX,
@@ -58,22 +60,25 @@ export const Contrast: Story = {
   ),
 };
 
-const DARK_BACKGROUNDS = [0, DARK_BACKGROUND_MAX / 2, DARK_BACKGROUND_MAX];
-
 /**
- * ダークの背景の明るさの標準・中ほど・上限を並べる。ライトでは効かない設定なので、
- * ツールバーの「カラーモード」によらず、それぞれをダークで描く。
- * `.dark` の段は子孫にしか効かないので、変数を置く箱と描く箱を分ける。
+ * 背景の明るさの標準・中ほど・端を並べる。テーマはストーリーで固定する。
+ * `--ui-lift` は html で受け直した値が継がれるので、見本ごとに `--ui-lift` を直に置く。
  */
-export const DarkBackground: Story = {
-  render: () => (
-    <div class="grid gap-4 md:grid-cols-3">
-      <For each={DARK_BACKGROUNDS}>
-        {(lift) => (
-          <div class="dark" style={{ "--ui-dark-lift": lift }}>
-            <div class="c-primary flex flex-col gap-2 bg-primary p-4">
+const backgroundStory = (scheme: BackgroundScheme): Story => {
+  const { min, max } = backgroundBrightnessRange(scheme);
+  const edge = scheme === "dark" ? max : min;
+  return {
+    globals: { colorScheme: scheme },
+    render: () => (
+      <div class="grid gap-4 md:grid-cols-3">
+        <For each={[0, edge / 2, edge]}>
+          {(value) => (
+            <div
+              class="c-primary flex flex-col gap-2 bg-primary p-4"
+              style={{ "--ui-lift": backgroundLift(value) }}
+            >
               <p class="text-body font-bold">
-                {messageOrText(formatDarkBackground(lift))}
+                {messageOrText(formatBackgroundBrightness(value))}
               </p>
               <DisplayPreview />
               <div class="flex flex-col gap-1 rounded-2 border border-primary p-2">
@@ -86,9 +91,12 @@ export const DarkBackground: Story = {
                 <p class="text-body c-secondary">c-secondary</p>
               </div>
             </div>
-          </div>
-        )}
-      </For>
-    </div>
-  ),
+          )}
+        </For>
+      </div>
+    ),
+  };
 };
+
+export const BackgroundLight = backgroundStory("light");
+export const BackgroundDark = backgroundStory("dark");

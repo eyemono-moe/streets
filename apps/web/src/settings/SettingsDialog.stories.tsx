@@ -4,7 +4,6 @@ import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { decodeBlockedRelayList } from "@streets/core/settings/blocked-relay-list";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
-import type { DarkBackground } from "@streets/core/settings/dark-background";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
 import type { SwipeMode } from "@streets/core/settings/swipe-mode-setting";
@@ -19,7 +18,7 @@ import {
   DEFAULT_APPEARANCE,
   PALETTES,
   applyColors,
-  applyDarkBackground,
+  applyBackgroundBrightness,
   setUiContrast,
 } from "../theme";
 import { Mediates } from "../ui-events";
@@ -84,7 +83,10 @@ const blockedRelayList = (tags: string[][], content = ""): NostrEvent => ({
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
   const [contrast, setContrast] = createSignal<UiContrast>(1);
-  const [darkBackground, setDarkBackground] = createSignal<DarkBackground>(0);
+  const [backgroundBrightness, setBackgroundBrightness] = createSignal({
+    light: 0,
+    dark: 0,
+  });
   const [appearance, setAppearance] = createSignal(props.appearance);
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
@@ -230,10 +232,17 @@ const Story = (props: Props) => {
                           setContrast(event.contrast);
                           setUiContrast(event.contrast, false);
                           return true;
-                        case "deck/preview-dark-background":
-                        case "deck/set-dark-background":
-                          setDarkBackground(event.value);
-                          applyDarkBackground(event.value, false);
+                        case "deck/preview-background-brightness":
+                        case "deck/set-background-brightness":
+                          setBackgroundBrightness((current) => ({
+                            ...current,
+                            [event.scheme]: event.value,
+                          }));
+                          applyBackgroundBrightness(
+                            event.scheme,
+                            event.value,
+                            false,
+                          );
                           return true;
                         case "deck/preview-appearance":
                           applyColors(event.appearance);
@@ -289,7 +298,7 @@ const Story = (props: Props) => {
                       wide={props.wide}
                       scheme={scheme()}
                       contrast={contrast()}
-                      darkBackground={darkBackground()}
+                      backgroundBrightness={backgroundBrightness()}
                       appearance={appearance()}
                       writeProgress={writeProgress()}
                       errorReport={errorReport()}

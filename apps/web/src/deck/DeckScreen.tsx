@@ -143,13 +143,13 @@ import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
   applyColors,
-  applyDarkBackground,
+  applyBackgroundBrightness,
   applyUiContrast,
   savedColorScheme,
-  savedDarkBackground,
+  savedBackgroundBrightness,
   savedUiContrast,
   setColorScheme,
-  setDarkBackground,
+  setBackgroundBrightness,
   setUiContrast,
 } from "../theme";
 import { setTimeFormat } from "../time-format-setting";
@@ -677,9 +677,10 @@ const DeckScreen: Component<{
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
   const [uiContrast, setContrast] = createSignal(savedUiContrast());
-  const [darkBackground, setDarkBackgroundValue] = createSignal(
-    savedDarkBackground(),
-  );
+  const [backgroundBrightness, setBackgroundBrightnessValue] = createSignal({
+    light: savedBackgroundBrightness("light"),
+    dark: savedBackgroundBrightness("dark"),
+  });
   // 選んだ色はまず画面に当て、保存は少し待ってからまとめて送る —— 色を選ぶたびに
   // 署名とリレーへの書き込みをすると、つまみを動かすだけで待たされる。
   const [appearance, setAppearance] =
@@ -986,14 +987,20 @@ const DeckScreen: Component<{
         setContrast(event.contrast);
         setUiContrast(event.contrast);
         return true;
-      case "deck/preview-dark-background":
-        setDarkBackgroundValue(event.value);
-        applyDarkBackground(event.value, false);
+      case "deck/preview-background-brightness":
+        setBackgroundBrightnessValue((current) => ({
+          ...current,
+          [event.scheme]: event.value,
+        }));
+        applyBackgroundBrightness(event.scheme, event.value, false);
         return true;
-      case "deck/set-dark-background":
+      case "deck/set-background-brightness":
         measureUntilPaint("appearance.apply", "ui.theme");
-        setDarkBackgroundValue(event.value);
-        setDarkBackground(event.value);
+        setBackgroundBrightnessValue((current) => ({
+          ...current,
+          [event.scheme]: event.value,
+        }));
+        setBackgroundBrightness(event.scheme, event.value);
         return true;
       case "deck/preview-appearance":
         // 動かしている最中。画面にだけ当てる。
@@ -1526,7 +1533,7 @@ const DeckScreen: Component<{
           wide={isWide()}
           scheme={scheme()}
           contrast={uiContrast()}
-          darkBackground={darkBackground()}
+          backgroundBrightness={backgroundBrightness()}
           appearance={appearance()}
           writeProgress={showWriteProgress()}
           errorReport={errorReport()}
