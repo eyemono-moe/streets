@@ -15,10 +15,14 @@ interface Colors {
  * 背景の明るさ `--ui-pivot`（ライトは白、ダークは `ui-950`）を中心に、距離を倍率で広げる・狭める。
  * 中間の 0.5 を軸にすると、ライトで `ui-50`〜`200`（区切り線や薄い面）が白に溶け、背景との差が
  * 逆に縮む。標準（1）では pivot + (L - pivot) = L で、元の色と変わらない。
+ *
+ * `--ui-lift`（ダークの背景の明るさ。ライトでは 0）は、中心を白の側へその割合だけ寄せ、
+ * 中心からの距離を同じ割合で縮める。白（1）の位置は動かないので、背景だけが明るくなり、
+ * 文字はほぼ今の明るさに残る。コントラストを下げるのと違い、背景そのものが動く。
  * 段ごとに変数を持たず式を 1 か所にして、段どうしの順序が崩れないようにする。
  */
 const uiStep = (lightness: number, chroma: number, alpha = true) =>
-  `oklch(from var(--theme-ui-color) clamp(0, calc(var(--ui-pivot, 1) + (${lightness} - var(--ui-pivot, 1)) * var(--ui-contrast, 1)), 1) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
+  `oklch(from var(--theme-ui-color) clamp(0, calc(var(--ui-pivot, 1) + (1 - var(--ui-pivot, 1)) * var(--ui-lift, 0) + (${lightness} - var(--ui-pivot, 1)) * (1 - var(--ui-lift, 0)) * var(--ui-contrast, 1)), 1) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
 
 const colors: Colors = {
   // l: unocssのgray系を除いた色のlの平均値
@@ -406,6 +410,7 @@ export default defineConfig({
           color-scheme: light;
           --color-scrollbar-thumb: ${uiStep(0.8689, 0.0198, false)};
           --ui-pivot: 1;
+          --ui-lift: 0;
           --color-danger: #C5221F;
           --color-danger-subtle: #FCE8E6;
           --color-status-ok: #188038;
@@ -420,6 +425,8 @@ export default defineConfig({
           color-scheme: dark;
           --color-scrollbar-thumb: ${uiStep(0.3716, 0.0391, false)};
           --ui-pivot: 0.1287;
+          /* 値は設定から html 要素の style に入る。ライトでは効かせないので、ここで受け直す。 */
+          --ui-lift: var(--ui-dark-lift, 0);
           --color-danger: #F28B82;
           --color-danger-subtle: #3C1F1D;
           --color-status-ok: #81C995;

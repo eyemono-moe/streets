@@ -1,4 +1,8 @@
 import {
+  DARK_BACKGROUND_MAX,
+  formatDarkBackground,
+} from "@streets/core/settings/dark-background";
+import {
   formatUiContrast,
   UI_CONTRAST_MAX,
   UI_CONTRAST_MIN,
@@ -46,6 +50,41 @@ export const Contrast: Story = {
                 ui-200 / ui-700
               </div>
               <p class="text-body c-status-off">補助の文字（status-off）</p>
+            </div>
+          </div>
+        )}
+      </For>
+    </div>
+  ),
+};
+
+const DARK_BACKGROUNDS = [0, DARK_BACKGROUND_MAX / 2, DARK_BACKGROUND_MAX];
+
+/**
+ * ダークの背景の明るさの標準・中ほど・上限を並べる。ライトでは効かない設定なので、
+ * ツールバーの「カラーモード」によらず、それぞれをダークで描く。
+ * `.dark` の段は子孫にしか効かないので、変数を置く箱と描く箱を分ける。
+ */
+export const DarkBackground: Story = {
+  render: () => (
+    <div class="grid gap-4 md:grid-cols-3">
+      <For each={DARK_BACKGROUNDS}>
+        {(lift) => (
+          <div class="dark" style={{ "--ui-dark-lift": lift }}>
+            <div class="c-primary flex flex-col gap-2 bg-primary p-4">
+              <p class="text-body font-bold">
+                {messageOrText(formatDarkBackground(lift))}
+              </p>
+              <DisplayPreview />
+              <div class="flex flex-col gap-1 rounded-2 border border-primary p-2">
+                <div class="rounded-1 bg-secondary p-2 text-body">
+                  bg-secondary
+                </div>
+                <div class="rounded-1 bg-tertiary p-2 text-body">
+                  bg-tertiary
+                </div>
+                <p class="text-body c-secondary">c-secondary</p>
+              </div>
             </div>
           </div>
         )}

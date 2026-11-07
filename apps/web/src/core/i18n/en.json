@@ -206,6 +206,9 @@
   "display": {
     "contrast": {
       "standard": "Default"
+    },
+    "darkBackground": {
+      "standard": "Default"
     }
   },
   "sync": {

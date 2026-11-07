@@ -151,6 +151,17 @@
       "description": "Choose how much text stands out from the background",
       "keywords": ["text", "background", "readability"]
     },
+    "darkBackground": {
+      "title": "Dark background brightness",
+      "description": "Make the background lighter than black in dark mode",
+      "keywords": [
+        "background",
+        "black",
+        "dark mode",
+        "brightness",
+        "readability"
+      ]
+    },
     "accent": {
       "title": "Accent color",
       "keywords": ["color", "theme"]
@@ -649,6 +660,9 @@
     },
     "contrast": {
       "description": "Choose the difference in brightness between text and background. Moving right makes text and dividers crisper, and moving left makes the screen softer. It works in both light and dark."
+    },
+    "darkBackground": {
+      "description": "Moves the dark mode background from pure black toward a lighter color. Text brightness stays about the same. It has no effect in light mode."
     },
     "accent": {
       "description": "Set the color used for buttons, links, the likes you've given, and more.",

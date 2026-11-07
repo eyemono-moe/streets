@@ -1,6 +1,7 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { DarkBackground } from "@streets/core/settings/dark-background";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";
 import type { SwipeMode } from "@streets/core/settings/swipe-mode-setting";
@@ -54,6 +55,7 @@ const SettingsDialog: Component<{
   wide: boolean;
   scheme: ColorScheme;
   contrast: UiContrast;
+  darkBackground: DarkBackground;
   appearance: DeckAppearance;
   writeProgress: boolean;
   /** 不具合の報告を送るか（この端末の設定）。 */
@@ -224,6 +226,7 @@ const SettingsDialog: Component<{
         <DisplaySettings
           scheme={props.scheme}
           contrast={props.contrast}
+          darkBackground={props.darkBackground}
           appearance={props.appearance}
           writeProgress={props.writeProgress}
           contentWarning={contentWarningMode()}

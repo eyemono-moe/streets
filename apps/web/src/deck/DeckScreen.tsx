@@ -143,10 +143,13 @@ import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
   applyColors,
+  applyDarkBackground,
   applyUiContrast,
   savedColorScheme,
+  savedDarkBackground,
   savedUiContrast,
   setColorScheme,
+  setDarkBackground,
   setUiContrast,
 } from "../theme";
 import { setTimeFormat } from "../time-format-setting";
@@ -674,6 +677,9 @@ const DeckScreen: Component<{
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
   const [uiContrast, setContrast] = createSignal(savedUiContrast());
+  const [darkBackground, setDarkBackgroundValue] = createSignal(
+    savedDarkBackground(),
+  );
   // 選んだ色はまず画面に当て、保存は少し待ってからまとめて送る —— 色を選ぶたびに
   // 署名とリレーへの書き込みをすると、つまみを動かすだけで待たされる。
   const [appearance, setAppearance] =
@@ -979,6 +985,15 @@ const DeckScreen: Component<{
         measureUntilPaint("appearance.apply", "ui.theme");
         setContrast(event.contrast);
         setUiContrast(event.contrast);
+        return true;
+      case "deck/preview-dark-background":
+        setDarkBackgroundValue(event.value);
+        applyDarkBackground(event.value, false);
+        return true;
+      case "deck/set-dark-background":
+        measureUntilPaint("appearance.apply", "ui.theme");
+        setDarkBackgroundValue(event.value);
+        setDarkBackground(event.value);
         return true;
       case "deck/preview-appearance":
         // 動かしている最中。画面にだけ当てる。
@@ -1511,6 +1526,7 @@ const DeckScreen: Component<{
           wide={isWide()}
           scheme={scheme()}
           contrast={uiContrast()}
+          darkBackground={darkBackground()}
           appearance={appearance()}
           writeProgress={showWriteProgress()}
           errorReport={errorReport()}

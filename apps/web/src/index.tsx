@@ -9,8 +9,10 @@ import { receiveShare, registerShareWorker } from "./share/share-inbox";
 import { startTelemetry } from "./telemetry";
 import {
   savedColorScheme,
+  savedDarkBackground,
   savedUiContrast,
   setColorScheme,
+  setDarkBackground,
   setUiContrast,
 } from "./theme";
 import { blockTouchMenusOnMarkedImages } from "./touch-menu";
@@ -23,6 +25,7 @@ void startTelemetry();
 // 描画前に付けないと、ダークの環境で一瞬ライトで描かれる。
 setColorScheme(savedColorScheme(), false);
 setUiContrast(savedUiContrast(), false);
+setDarkBackground(savedDarkBackground(), false);
 swallowPressesThatDismissPopups();
 blockTouchMenusOnMarkedImages();
 // ルーターより先に、URL から共有の引数を消す。

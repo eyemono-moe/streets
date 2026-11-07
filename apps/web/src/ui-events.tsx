@@ -22,6 +22,7 @@ import type { BlockedRelayEntry } from "@streets/core/settings/blocked-relay-lis
 import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
+import type { DarkBackground } from "@streets/core/settings/dark-background";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { EmojiSetRef } from "@streets/core/settings/emoji-list";
 import type { ShortcutAction } from "@streets/core/settings/keymap";
@@ -218,6 +219,10 @@ export type DeckEvent =
   | { type: "deck/preview-ui-contrast"; contrast: UiContrast }
   /** 文字と背景のコントラストを確定する。この端末に保存する。 */
   | { type: "deck/set-ui-contrast"; contrast: UiContrast }
+  /** ダークの背景の明るさを動かしている途中。当てるだけで保存しない。 */
+  | { type: "deck/preview-dark-background"; value: DarkBackground }
+  /** ダークの背景の明るさを確定する。この端末に保存する。 */
+  | { type: "deck/set-dark-background"; value: DarkBackground }
   /** 色を動かしている途中。当てるだけで保存しない。 */
   | { type: "deck/preview-appearance"; appearance: DeckAppearance }
   /** 色を確定する。デッキと一緒にアカウントへ保存する。 */

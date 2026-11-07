@@ -5,13 +5,19 @@ import {
   loadColorScheme,
 } from "@streets/core/settings/color-scheme";
 import {
+  DARK_BACKGROUND_DEFAULT,
+  DARK_BACKGROUND_STORAGE_KEY,
+  type DarkBackground,
+  loadDarkBackground,
+} from "@streets/core/settings/dark-background";
+import {
   loadUiContrast,
   UI_CONTRAST_DEFAULT,
   UI_CONTRAST_STORAGE_KEY,
   type UiContrast,
 } from "@streets/core/settings/ui-contrast";
 
-export type { ColorScheme, UiContrast };
+export type { ColorScheme, DarkBackground, UiContrast };
 
 /**
  * テーマ色の元になる 2 色。Penpot の `Primitives/*` の `accent.original` と `ui.original`。
@@ -148,6 +154,34 @@ export const setUiContrast = (contrast: UiContrast, save = true) => {
   if (!save) return;
   try {
     localStorage.setItem(UI_CONTRAST_STORAGE_KEY, String(contrast));
+  } catch {
+    // 保存できなくても、今の画面には当たっている。
+  }
+};
+
+/** 端末に保存したダークの背景の明るさ。 */
+export const savedDarkBackground = (): DarkBackground => {
+  try {
+    return loadDarkBackground(
+      localStorage.getItem(DARK_BACKGROUND_STORAGE_KEY),
+    );
+  } catch {
+    return DARK_BACKGROUND_DEFAULT;
+  }
+};
+
+/** ダークの背景の明るさを当てる。`sync` はコントラストと同じく、離したときだけ。 */
+export const applyDarkBackground = (value: DarkBackground, sync = true) => {
+  document.documentElement.style.setProperty("--ui-dark-lift", String(value));
+  if (sync) syncThemeColor();
+};
+
+/** ダークの背景の明るさを当てて、この端末に保存する。 */
+export const setDarkBackground = (value: DarkBackground, save = true) => {
+  applyDarkBackground(value);
+  if (!save) return;
+  try {
+    localStorage.setItem(DARK_BACKGROUND_STORAGE_KEY, String(value));
   } catch {
     // 保存できなくても、今の画面には当たっている。
   }

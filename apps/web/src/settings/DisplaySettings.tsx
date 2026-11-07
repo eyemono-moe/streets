@@ -20,6 +20,14 @@ import {
   loadContentWarningMode,
 } from "@streets/core/settings/content-warning-setting";
 import {
+  DARK_BACKGROUND_MAX,
+  DARK_BACKGROUND_MIN,
+  DARK_BACKGROUND_STEP,
+  type DarkBackground,
+  formatDarkBackground,
+  loadDarkBackground,
+} from "@streets/core/settings/dark-background";
+import {
   type DeckLayout,
   loadDeckLayout,
 } from "@streets/core/settings/deck-layout-setting";
@@ -104,6 +112,8 @@ const DisplaySettings: Component<{
   scheme: ColorScheme;
   /** 文字と背景のコントラスト（この端末の設定）。 */
   contrast: UiContrast;
+  /** ダークの背景の明るさ（この端末の設定）。 */
+  darkBackground: DarkBackground;
   appearance: DeckAppearance;
   /** 保存の進み具合を出すか（この端末の設定）。 */
   writeProgress: boolean;
@@ -138,6 +148,7 @@ const DisplaySettings: Component<{
   // 既定は、何も保存していないときに読み込む値。
   const initialScheme = loadColorScheme(null);
   const initialContrast = loadUiContrast(null);
+  const initialDarkBackground = loadDarkBackground(null);
   const initialLayout = loadDeckLayout(null);
   const initialSwipeMode = loadSwipeMode(null);
   const initialContentWarning = loadContentWarningMode(null);
@@ -209,6 +220,35 @@ const DisplaySettings: Component<{
           }
           onChangeEnd={(contrast) =>
             dispatch({ type: "deck/set-ui-contrast", contrast })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        id="darkBackground"
+        scope="device"
+        changed={props.darkBackground !== initialDarkBackground}
+        onReset={() =>
+          dispatch({
+            type: "deck/set-dark-background",
+            value: initialDarkBackground,
+          })
+        }
+        description={t("settings.display.darkBackground.description")}
+      >
+        <Slider
+          label={settingTitle("darkBackground")}
+          labelHidden
+          value={props.darkBackground}
+          min={DARK_BACKGROUND_MIN}
+          max={DARK_BACKGROUND_MAX}
+          step={DARK_BACKGROUND_STEP}
+          format={(value) => messageOrText(formatDarkBackground(value))}
+          onChange={(value) =>
+            dispatch({ type: "deck/preview-dark-background", value })
+          }
+          onChangeEnd={(value) =>
+            dispatch({ type: "deck/set-dark-background", value })
           }
         />
       </SettingsSection>
