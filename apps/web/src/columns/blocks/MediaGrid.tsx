@@ -146,7 +146,7 @@ const TileVideo: Component<{
         }}
       </Show>
       {/* 絵を取れなくても、拡大表示では再生できることがある。印だけ残す。 */}
-      <span class="absolute inset-0 m-auto flex size-8 items-center justify-center rounded-full bg-ui-950/60">
+      <span class="absolute inset-0 m-auto flex size-8 items-center justify-center rounded-full bg-overlay">
         <span
           class="i-material-symbols:play-arrow-rounded c-white size-5"
           aria-hidden="true"

@@ -24,7 +24,7 @@ const NostrDiagram: Component = () => (
     aria-label={t("welcome.diagram.label")}
     class="c-primary w-full rounded-3 border border-primary bg-secondary"
   >
-    <g class="stroke-ui-3 dark:stroke-ui-6" stroke-width="1.5" fill="none">
+    <g class="stroke-diagram" stroke-width="1.5" fill="none">
       <For each={APPS}>
         {(app) => (
           <>
@@ -75,11 +75,7 @@ const NostrDiagram: Component = () => (
             width={APP_W}
             height={APP_H}
             rx="6"
-            class={
-              app.self
-                ? "fill-accent-5"
-                : "fill-white stroke-ui-3 dark:fill-ui-950 dark:stroke-ui-6"
-            }
+            class={app.self ? "fill-accent-5" : "fill-page stroke-diagram"}
           />
           <text
             x={APP_X + APP_W / 2}
@@ -101,14 +97,14 @@ const NostrDiagram: Component = () => (
           {/* リレーはサーバーなので、データベースの円柱で描く。 */}
           <path
             d={`M${RELAY_X - 14} ${y - 8}v16a14 4 0 0 0 28 0v-16`}
-            class="fill-white stroke-ui-4 dark:fill-ui-950 dark:stroke-ui-5"
+            class="fill-page stroke-diagram-node"
           />
           <ellipse
             cx={RELAY_X}
             cy={y - 8}
             rx="14"
             ry="4"
-            class="fill-white stroke-ui-4 dark:fill-ui-950 dark:stroke-ui-5"
+            class="fill-page stroke-diagram-node"
           />
         </>
       )}

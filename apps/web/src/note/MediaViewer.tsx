@@ -90,7 +90,7 @@ const ViewerOrigin: Component<{ event: NostrEvent; onOpen: () => void }> = (
     () => layoutNote(props.event, { quotes: false }).text,
   );
   return (
-    <div class="c-white pointer-events-auto flex w-full max-w-160 items-center gap-3 rounded-3 bg-ui-950/60 p-3">
+    <div class="c-white pointer-events-auto flex w-full max-w-160 items-center gap-3 rounded-3 bg-overlay p-3">
       <Avatar pubkey={props.event.pubkey} size="compact" static />
       <div class="min-w-0 flex-1">
         <p class="truncate font-600 text-caption">
@@ -144,7 +144,7 @@ const MediaViewer: Component<{
   };
   return (
     <DialogRoot open={props.index !== undefined} onClose={props.onClose}>
-      <DialogPortal class="p-0" backdropClass="bg-ui-950/90">
+      <DialogPortal class="p-0" backdropClass="bg-scrim-strong">
         <ArkDialog.Content
           aria-label={t("note.viewer.label")}
           class="motion-fade fixed inset-0 outline-none"
@@ -226,7 +226,7 @@ const MediaViewer: Component<{
               )}
             />
             <Show when={count() > 1}>
-              <span class="c-white rounded-full bg-ui-950/60 px-3 py-1 text-caption tabular-nums">
+              <span class="c-white rounded-full bg-overlay px-3 py-1 text-caption tabular-nums">
                 {page() + 1} / {count()}
               </span>
             </Show>

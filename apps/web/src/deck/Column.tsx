@@ -211,7 +211,7 @@ const Column: Component<ColumnProps> = (props) => {
             <button
               type="button"
               aria-label={t("deck.column.closeStack")}
-              class="motion-fade absolute inset-0 w-full cursor-pointer bg-ui-950/25"
+              class="motion-fade absolute inset-0 w-full cursor-pointer bg-scrim-subtle"
               data-state={opened() ? "open" : "closed"}
               onClick={() => handle({ type: "stack/back" })}
             />

@@ -176,7 +176,7 @@ export const UserStatusBubble: Component<{
             <p
               class="c-primary flex min-w-0 items-center gap-1.5"
               classList={{
-                "mt-1 border-ui-2 border-t pt-1 dark:border-ui-7": !!general(),
+                "mt-1 border-control border-t pt-1": !!general(),
               }}
             >
               <svg
@@ -246,15 +246,15 @@ export const StatusBadgeView: Component<{
         aria-hidden="true"
       >
         <g
-          class="stroke-white dark:stroke-ui-950"
+          class="stroke-page"
           fill="none"
           stroke-width={RIM * 2}
           stroke-linejoin="round"
         >
           {shapes()}
         </g>
-        <g class="fill-ui-3 dark:fill-ui-7">{shapes()}</g>
-        <g class="fill-ui-5 dark:fill-ui-4">
+        <g class="fill-badge">{shapes()}</g>
+        <g class="fill-badge-mark">
           <Show when={props.music}>
             <WaveBars x={3} y={TAIL + 1.5} animate />
           </Show>

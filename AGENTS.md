@@ -48,6 +48,7 @@ pnpm workspace の 2 パッケージ。
 - リレーの URL を入れる欄は、`TextField` で書かず `src/deck/RelayInput.tsx` を使う。自分のリレーとフォローしている人のリレーを候補に出し、打った URL の検証もそこで行う。選んだリレーを一覧で見せて外せるようにするなら `src/deck/RelayColumnEditor.tsx` を使う
 - フォームの項目名（スイッチの名前・入力欄の名前など）は `truncate` で切らず、折り返す。切れると何を変えるのか分からなくなる。切ってよいのは、切れても中身が分かるもの（投稿の本文・人の名前・URL の続きなど）だけ
 - 意味を持つ色は、色の値や `red-500` のような色の名前で書かない。`uno.config.ts` の意味の名前（`danger`・`danger-subtle`・`status-ok`・`status-warn`・`status-off`）で書く（`c-danger`・`border-danger`・`bg-status-ok`・`stroke-status-ok` など）。値はライト／ダークを preflight の変数に置いてある。新しい意味が要るときは、`uno.config.ts` に名前を足す
+- 文字・面・枠のような中立の色も、`c-ui-6` のような段を直に書かず、`uno.config.ts` の意味の名前（`c-secondary`・`bg-tertiary`・`border-control`・`bg-scrim`・`border-page` など）で書く。段を直に書いた色は、テーマで色を変えたときに付いてこない
 - ボタンは「押すと何かが起きる」ものだけに使う。入り切りは `Switch`、いくつかから 1 つを選ぶのは `SegmentedControl` にし、ボタンの色で状態を表さない。組み合わせに選べないもの（読み込みも書き込みもしない、など）があるなら、入り切りを並べず、選べる組だけを選択肢にする
 - 消す操作はアイコンを使い分ける。そのもの自体が無くなる（投稿・カラムの削除）はゴミ箱、一覧から外すだけでそのものは残る（リレーを一覧から外す、ミュートを解く）は ⊖（`do-not-disturb-on-outline-rounded`）、表示や入力を空に戻す・閉じるは ×
 - 設定の説明は、Nostr の仕組みを知らない人にも分かる言葉で書く（「kind:10002」「NIP-65」のような語を説明の主語にしない）。保存先（この端末／アカウント）は各項目の名前の横に `StorageHint` で示す

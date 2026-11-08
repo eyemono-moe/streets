@@ -144,7 +144,7 @@ const PickerSurface: Component<{
           {(trigger) => <Drawer.Trigger asChild={trigger()} />}
         </Show>
         <Portal>
-          <Drawer.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
+          <Drawer.Backdrop class="motion-fade fixed inset-0 bg-scrim" />
           {/* キーボードが出ている間は、見えている部分に置き直してその上に載せる。 */}
           <Drawer.Positioner
             class="fixed inset-0"
@@ -172,7 +172,7 @@ const PickerSurface: Component<{
             >
               <FollowKeyboard sheet={() => sheet} onChange={setKeyboard} />
               <Drawer.Grabber class="flex shrink-0 justify-center py-2">
-                <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-ui-4" />
+                <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-grabber" />
               </Drawer.Grabber>
               <Drawer.Title class="sr-only">{props.title}</Drawer.Title>
               {/* 低い位置で止めている間、シートの下端は画面の外にある。その分を下に空けて、

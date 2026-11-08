@@ -91,7 +91,7 @@ export const ProfileHeaderCard: Component<{
             pubkey={props.pubkey}
             picture={props.profile?.picture}
             loading="eager"
-            class="size-20 rounded-3 border-3 border-white dark:border-ui-950"
+            class="size-20 rounded-3 border-3 border-page"
           />
           {props.action}
         </div>

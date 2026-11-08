@@ -31,7 +31,7 @@ export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     "border border-control bg-primary c-danger enabled:hover:bg-secondary",
   muted: "bg-secondary c-secondary",
   ghost: "bg-transparent c-secondary enabled:hover:bg-secondary",
-  overlay: "bg-ui-950/60 c-white enabled:hover:bg-ui-950/80",
+  overlay: "bg-overlay c-white enabled:hover:bg-overlay-hover",
 };
 
 const SIZE: Record<ButtonSize, string> = {

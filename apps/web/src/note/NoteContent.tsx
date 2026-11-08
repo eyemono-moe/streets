@@ -104,7 +104,7 @@ const CollapsibleBody: ParentComponent<{
       <Show when={folded()}>
         <button
           type="button"
-          class="absolute bottom-0 flex w-full appearance-none justify-center bg-gradient-to-b bg-transparent from-ui-0/0 to-ui-0 pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
+          class="absolute bottom-0 flex w-full appearance-none justify-center bg-transparent fade-to-page pt-4 text-caption"
           classList={{
             "cursor-pointer": props.longBody === "open",
             "cursor-s-resize": props.longBody === "expand",

@@ -48,7 +48,7 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
           <Avatar
             pubkey={props.pubkey}
             picture={profile()?.picture}
-            class="size-14 rounded-2 border-3 border-white dark:border-ui-950"
+            class="size-14 rounded-2 border-3 border-page"
           />
           <FollowButton pubkey={props.pubkey} size="small" />
         </div>

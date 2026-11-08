@@ -707,11 +707,11 @@ const EventMenu: Component<{
               )}
             />
             <Portal>
-              <Drawer.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
+              <Drawer.Backdrop class="motion-fade fixed inset-0 bg-scrim" />
               <Drawer.Positioner class="fixed inset-0">
                 <Drawer.Content class={sheetContentClass}>
                   <Drawer.Grabber class="flex shrink-0 justify-center py-2">
-                    <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-ui-4" />
+                    <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-grabber" />
                   </Drawer.Grabber>
                   <Drawer.Title class="sr-only">
                     {t("note.eventMenu.label")}
