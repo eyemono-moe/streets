@@ -73,6 +73,7 @@ const placements = {
   language: { page: "display" },
   theme: { page: "display" },
   contrast: { page: "display" },
+  backgroundBrightness: { page: "display" },
   accent: { page: "display" },
   preview: { page: "display", searchable: false },
   deckLayout: { page: "display" },

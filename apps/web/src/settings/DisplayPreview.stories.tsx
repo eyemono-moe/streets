@@ -1,4 +1,10 @@
 import {
+  type BackgroundScheme,
+  backgroundBrightnessRange,
+  backgroundLift,
+  formatBackgroundBrightness,
+} from "@streets/core/settings/background-brightness";
+import {
   formatUiContrast,
   UI_CONTRAST_MAX,
   UI_CONTRAST_MIN,
@@ -53,3 +59,44 @@ export const Contrast: Story = {
     </div>
   ),
 };
+
+/**
+ * 背景の明るさの標準・中ほど・端を並べる。テーマはストーリーで固定する。
+ * `--ui-lift` は html で受け直した値が継がれるので、見本ごとに `--ui-lift` を直に置く。
+ */
+const backgroundStory = (scheme: BackgroundScheme): Story => {
+  const { min, max } = backgroundBrightnessRange(scheme);
+  const edge = scheme === "dark" ? max : min;
+  return {
+    globals: { colorScheme: scheme },
+    render: () => (
+      <div class="grid gap-4 md:grid-cols-3">
+        <For each={[0, edge / 2, edge]}>
+          {(value) => (
+            <div
+              class="c-primary flex flex-col gap-2 bg-primary p-4"
+              style={{ "--ui-lift": backgroundLift(value) }}
+            >
+              <p class="text-body font-bold">
+                {messageOrText(formatBackgroundBrightness(value))}
+              </p>
+              <DisplayPreview />
+              <div class="flex flex-col gap-1 rounded-2 border border-primary p-2">
+                <div class="rounded-1 bg-secondary p-2 text-body">
+                  bg-secondary
+                </div>
+                <div class="rounded-1 bg-tertiary p-2 text-body">
+                  bg-tertiary
+                </div>
+                <p class="text-body c-secondary">c-secondary</p>
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+    ),
+  };
+};
+
+export const BackgroundLight = backgroundStory("light");
+export const BackgroundDark = backgroundStory("dark");

@@ -206,6 +206,9 @@
   "display": {
     "contrast": {
       "standard": "標準"
+    },
+    "backgroundBrightness": {
+      "standard": "標準"
     }
   },
   "sync": {

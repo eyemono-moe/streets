@@ -135,6 +135,7 @@ export type MessageKey =
   | "profile.error.nip05"
   | "profile.error.lightningAddress"
   | "display.contrast.standard"
+  | "display.backgroundBrightness.standard"
   | "sync.error.storage"
   | "sync.error.nip44Unavailable"
   | "sync.error.invalidRemote"

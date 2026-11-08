@@ -56,7 +56,7 @@ const AvatarRow: Component<{
             // 重ねるときは、下の人と区別できるよう背景色で縁取る。
             classList={{
               "-ml-1.5": props.size === "tiny" && index() > 0,
-              "rounded-1.5 ring-2 ring-white dark:ring-ui-950":
+              "rounded-1.5 ring-2 ring-ui-0 dark:ring-ui-950":
                 props.size === "tiny",
             }}
           >

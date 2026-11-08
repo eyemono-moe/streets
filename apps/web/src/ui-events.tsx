@@ -18,6 +18,10 @@ import type {
   ActionArrangeEvent,
   ActionLayout,
 } from "@streets/core/settings/action-layout";
+import type {
+  BackgroundBrightness,
+  BackgroundScheme,
+} from "@streets/core/settings/background-brightness";
 import type { BlockedRelayEntry } from "@streets/core/settings/blocked-relay-list";
 import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
@@ -218,6 +222,18 @@ export type DeckEvent =
   | { type: "deck/preview-ui-contrast"; contrast: UiContrast }
   /** 文字と背景のコントラストを確定する。この端末に保存する。 */
   | { type: "deck/set-ui-contrast"; contrast: UiContrast }
+  /** そのテーマの背景の明るさを動かしている途中。当てるだけで保存しない。 */
+  | {
+      type: "deck/preview-background-brightness";
+      scheme: BackgroundScheme;
+      value: BackgroundBrightness;
+    }
+  /** そのテーマの背景の明るさを確定する。この端末に保存する。 */
+  | {
+      type: "deck/set-background-brightness";
+      scheme: BackgroundScheme;
+      value: BackgroundBrightness;
+    }
   /** 色を動かしている途中。当てるだけで保存しない。 */
   | { type: "deck/preview-appearance"; appearance: DeckAppearance }
   /** 色を確定する。デッキと一緒にアカウントへ保存する。 */

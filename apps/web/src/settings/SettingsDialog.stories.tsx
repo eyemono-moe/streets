@@ -18,6 +18,7 @@ import {
   DEFAULT_APPEARANCE,
   PALETTES,
   applyColors,
+  applyBackgroundBrightness,
   setUiContrast,
 } from "../theme";
 import { Mediates } from "../ui-events";
@@ -82,6 +83,10 @@ const blockedRelayList = (tags: string[][], content = ""): NostrEvent => ({
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
   const [contrast, setContrast] = createSignal<UiContrast>(1);
+  const [backgroundBrightness, setBackgroundBrightness] = createSignal({
+    light: 0,
+    dark: 0,
+  });
   const [appearance, setAppearance] = createSignal(props.appearance);
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
@@ -227,6 +232,18 @@ const Story = (props: Props) => {
                           setContrast(event.contrast);
                           setUiContrast(event.contrast, false);
                           return true;
+                        case "deck/preview-background-brightness":
+                        case "deck/set-background-brightness":
+                          setBackgroundBrightness((current) => ({
+                            ...current,
+                            [event.scheme]: event.value,
+                          }));
+                          applyBackgroundBrightness(
+                            event.scheme,
+                            event.value,
+                            false,
+                          );
+                          return true;
                         case "deck/preview-appearance":
                           applyColors(event.appearance);
                           return true;
@@ -281,6 +298,7 @@ const Story = (props: Props) => {
                       wide={props.wide}
                       scheme={scheme()}
                       contrast={contrast()}
+                      backgroundBrightness={backgroundBrightness()}
                       appearance={appearance()}
                       writeProgress={writeProgress()}
                       errorReport={errorReport()}

@@ -143,10 +143,13 @@ import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
   applyColors,
+  applyBackgroundBrightness,
   applyUiContrast,
   savedColorScheme,
+  savedBackgroundBrightness,
   savedUiContrast,
   setColorScheme,
+  setBackgroundBrightness,
   setUiContrast,
 } from "../theme";
 import { setTimeFormat } from "../time-format-setting";
@@ -674,6 +677,10 @@ const DeckScreen: Component<{
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
   const [uiContrast, setContrast] = createSignal(savedUiContrast());
+  const [backgroundBrightness, setBackgroundBrightnessValue] = createSignal({
+    light: savedBackgroundBrightness("light"),
+    dark: savedBackgroundBrightness("dark"),
+  });
   // 選んだ色はまず画面に当て、保存は少し待ってからまとめて送る —— 色を選ぶたびに
   // 署名とリレーへの書き込みをすると、つまみを動かすだけで待たされる。
   const [appearance, setAppearance] =
@@ -979,6 +986,21 @@ const DeckScreen: Component<{
         measureUntilPaint("appearance.apply", "ui.theme");
         setContrast(event.contrast);
         setUiContrast(event.contrast);
+        return true;
+      case "deck/preview-background-brightness":
+        setBackgroundBrightnessValue((current) => ({
+          ...current,
+          [event.scheme]: event.value,
+        }));
+        applyBackgroundBrightness(event.scheme, event.value, false);
+        return true;
+      case "deck/set-background-brightness":
+        measureUntilPaint("appearance.apply", "ui.theme");
+        setBackgroundBrightnessValue((current) => ({
+          ...current,
+          [event.scheme]: event.value,
+        }));
+        setBackgroundBrightness(event.scheme, event.value);
         return true;
       case "deck/preview-appearance":
         // 動かしている最中。画面にだけ当てる。
@@ -1511,6 +1533,7 @@ const DeckScreen: Component<{
           wide={isWide()}
           scheme={scheme()}
           contrast={uiContrast()}
+          backgroundBrightness={backgroundBrightness()}
           appearance={appearance()}
           writeProgress={showWriteProgress()}
           errorReport={errorReport()}
