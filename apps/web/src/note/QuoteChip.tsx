@@ -33,7 +33,7 @@ const Line: Component<{ muted?: boolean }> = (props) => (
     class="w-0.5 shrink-0 rounded-[1px]"
     classList={{
       "bg-accent-5": !props.muted,
-      "bg-ui-2 dark:bg-ui-7": props.muted,
+      "bg-tertiary": props.muted,
     }}
     aria-hidden="true"
   />

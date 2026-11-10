@@ -132,7 +132,7 @@ const DeckTour: Component<{ requests: number; wide: boolean }> = (props) => {
   return (
     <Tour.Root tour={tour} lazyMount unmountOnExit>
       <Portal>
-        <Tour.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
+        <Tour.Backdrop class="motion-fade fixed inset-0 bg-scrim" />
         <Tour.Spotlight class="rounded-2 ring-2 ring-accent-5" />
         {/* 真ん中に出すステップ（dialog）は、Ark UI が置き場所を決めないので自分で置く。 */}
         <Tour.Positioner class="data-[type=dialog]:pointer-events-none data-[type=dialog]:fixed data-[type=dialog]:inset-0 data-[type=dialog]:grid data-[type=dialog]:place-items-center">

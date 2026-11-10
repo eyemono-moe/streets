@@ -69,6 +69,7 @@ const cramped = (spec: EmojiSpec) =>
     Math.max(...spec.lines.map((line) => graphemes(line).length)) >= 4);
 
 /** 投稿の下に並んだときの姿。明るい背景と暗い背景で並べる。 */
+// 意味の名前（bg-primary など）は今の配色の片方にしかならないので、両方を並べるここだけ段を直に書く。
 const RealSize: Component<{ src: string | undefined }> = (props) => (
   <span class="inline-flex items-center gap-1.5">
     <For each={[false, true]}>
@@ -233,6 +234,7 @@ export const MakerEditor: Component<{
     setOutlineMode("auto");
   };
 
+  // RealSize と同じく、明るい背景と暗い背景を並べるので段を直に書く。
   const Sample = (p: { dark: boolean }) => (
     <div
       class="grid h-24 place-items-center p-2 sm:h-36"

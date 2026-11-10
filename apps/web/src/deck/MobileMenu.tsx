@@ -171,7 +171,7 @@ const MobileMenu: Component<{
       >
         <Portal>
           <ArkDialog.Backdrop
-            class="fixed inset-0 bg-ui-950/40"
+            class="fixed inset-0 bg-scrim"
             style={{
               opacity: shown(),
               transition: transition("opacity"),

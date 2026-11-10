@@ -8,7 +8,7 @@ import type { Component } from "solid-js";
  */
 const StackGrabber: Component = () => (
   <Drawer.Grabber class="flex h-4 w-full shrink-0 cursor-grab items-center justify-center active:cursor-grabbing">
-    <Drawer.GrabberIndicator class="block h-1 w-10 rounded-full bg-ui-3 dark:bg-ui-6" />
+    <Drawer.GrabberIndicator class="block h-1 w-10 rounded-full bg-grabber" />
   </Drawer.Grabber>
 );
 

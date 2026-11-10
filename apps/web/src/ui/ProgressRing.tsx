@@ -84,7 +84,7 @@ const ProgressRing: Component<{
         r={RADIUS}
         fill="none"
         stroke-width={STROKE}
-        class="stroke-ui-2 dark:stroke-ui-7"
+        class="stroke-tertiary"
       />
       {/* 弧は常に置いておく。最初の結果が届いたとき、0 から伸びて見える。 */}
       <ArcCircle arc={arc(0, doneShare(), both())} class="stroke-status-ok" />

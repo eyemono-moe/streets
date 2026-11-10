@@ -47,7 +47,7 @@ const RelayIcon: Component<{
       <Show when={props.status}>
         {(status) => (
           <span
-            class={`-bottom-0.5 -right-0.5 absolute size-2.5 rounded-full border-2 border-white dark:border-ui-950 ${STATUS[status()].dot}`}
+            class={`-bottom-0.5 -right-0.5 absolute size-2.5 rounded-full border-2 border-page ${STATUS[status()].dot}`}
             aria-hidden="true"
           />
         )}

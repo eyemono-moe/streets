@@ -25,7 +25,7 @@ const PalettePicker: Component<{
       {([name, palette]) => (
         <RadioGroup.Item
           value={name}
-          class="group grid size-12 cursor-pointer place-items-center rounded-full border border-primary transition-colors data-[state=checked]:border-2 data-[state=checked]:border-ui-9 dark:data-[state=checked]:border-ui-1"
+          class="group grid size-12 cursor-pointer place-items-center rounded-full border border-primary transition-colors data-[state=checked]:border-2 data-[state=checked]:border-selected"
         >
           {/*
             左がアクセント、右が文字と背景の色味。境目は斜めにする（v0 と同じ）。

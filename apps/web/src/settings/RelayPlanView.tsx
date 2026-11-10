@@ -239,7 +239,7 @@ const AvatarStack: Component<{ pubkeys: readonly string[] }> = (props) => (
     <For each={props.pubkeys.slice(0, STACKED)}>
       {(pubkey, index) => (
         <span
-          class="flex rounded-1.5 ring-2 ring-ui-0 dark:ring-ui-950"
+          class="flex rounded-1.5 ring-2 ring-page"
           classList={{ "-ml-1.5": index() > 0 }}
         >
           <Avatar pubkey={pubkey} size="tiny" static />

@@ -299,12 +299,46 @@ export default defineConfig({
       "bg-alpha-hover": "bg-ui-2/20 dark:bg-ui-7/20",
       "bg-alpha-active": "bg-ui-2/40 dark:bg-ui-7/40",
 
+      // 開いた面（ダイアログ・シート・ツアー）の後ろを暗くする幕。ライトでも暗くする。
+      "bg-scrim": "bg-ui-950/40",
+      // 重ねたカラムの下の段。カラムの中だけなので、画面全体の幕より薄くする。
+      "bg-scrim-subtle": "bg-ui-950/25",
+      // 画像を大きく見せる間。写真のまわりを暗くして、色を見やすくする。
+      "bg-scrim-strong": "bg-ui-950/90",
+      // 画像や動画の上に載せる面。上の文字は c-white。
+      "bg-overlay": "bg-ui-950/60",
+      "bg-overlay-hover": "bg-ui-950/80",
+      // シートや重ねたカラムを、つまんで下ろすためのハンドル。
+      "bg-grabber": "bg-ui-3 dark:bg-ui-6",
+
+      // 背景（bg-primary）と同じ色。重なったアイコンの縁や、背景の上に切り抜いて置く面に使う。
+      "border-page": "b-ui-0 dark:b-ui-950",
+      "ring-page": "ring-ui-0 dark:ring-ui-950",
+      "fill-page": "fill-ui-0 dark:fill-ui-950",
+      "stroke-page": "stroke-ui-0 dark:stroke-ui-950",
+      // 畳んだ本文の下端を、背景へ溶かす。
+      "fade-to-page":
+        "bg-gradient-to-b from-ui-0/0 to-ui-0 dark:from-ui-950/0 dark:to-ui-950",
+
+      // 進み具合の輪の溝。bg-tertiary（スライダーの溝）と同じ色。
+      "stroke-tertiary": "stroke-ui-2 dark:stroke-ui-7",
+
+      // 絵（はじめの案内の図・ステータスの吹き出し）の線と面。
+      "stroke-diagram": "stroke-ui-3 dark:stroke-ui-6",
+      "stroke-diagram-node": "stroke-ui-4 dark:stroke-ui-5",
+      "fill-badge": "fill-ui-3 dark:fill-ui-7",
+      "fill-badge-mark": "fill-ui-5 dark:fill-ui-4",
+
       // border color
       // 区切り線と入れ物の枠。背景に溶け込む程度まで抑える。
       "border-primary": "b-ui-1 dark:b-ui-8",
-      // 操作する部品（入力欄・ボタン）と浮かぶ面（メニュー・ダイアログ）の枠。
+      // 操作する部品（入力欄・ボタン）と浮かぶ面（メニュー・ダイアログ）の枠、
+      // bg-secondary の面の中の区切り。border-primary は bg-secondary と同じ段で、
+      // そこでは見えなくなる。
       // 区切りと同じ薄さにすると、入力欄の範囲や浮かぶ面の縁が背景に埋もれる。
       "border-control": "b-ui-2 dark:b-ui-7",
+      // いくつかから選んでいるもの（色の組み合わせ）の枠。文字と同じ濃さにする。
+      "border-selected": "b-ui-9 dark:b-ui-1",
 
       // motion
       // 開閉する部品の出入り。Ark UI が付ける data-state に合わせる。
