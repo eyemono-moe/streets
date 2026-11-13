@@ -111,10 +111,11 @@ type ColumnView<S> = {
   /** 中身が自分でスクロールする（タブの中身だけを動かす）。 */
   scrollsInternally?: boolean;
   /**
-   * 中身の下に自分の入力欄を持つ。狭い画面では、右下に浮かぶ投稿ボタンが入力欄の
-   * 送信ボタンに重なるので、このカラムを見ている間は出さない。
+   * 右下に浮かぶ投稿ボタン（狭い画面とピクチャーインピクチャー）を、このカラムを見ている
+   * 間は出さない。中身の下に自分の入力欄を持つ（送信ボタンに重なる）か、中身の全面を
+   * アップレットが描く（アップレットの操作に重なる）もの。
    */
-  ownComposer?: boolean;
+  hidesComposeFab?: boolean;
   /** ブロックを組み合わせた中身。 */
   Content: Component<{ source: S; inputs: ColumnInputs }>;
   /**
@@ -685,7 +686,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       </>
     ),
     scrollsInternally: true,
-    ownComposer: true,
+    hidesComposeFab: true,
     Content: (props) => (
       <ChannelChat
         channelId={props.source.id}
@@ -776,6 +777,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       />
     ),
     scrollsInternally: true,
+    hidesComposeFab: true,
     Content: (props) => (
       <Napplet
         pubkey={props.source.pubkey}

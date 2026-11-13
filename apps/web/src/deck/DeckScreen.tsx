@@ -1284,15 +1284,13 @@ const DeckScreen: Component<{
     </Switch>
   );
 
-  // カラムごとに、見えているカラムが自分の入力欄を持つか。重ねた段はカラムの中に
+  // カラムごとに、見えているカラムが投稿ボタンを隠すか。重ねた段はカラムの中に
   // 閉じているので、カラムから知らせてもらう。
-  const [ownComposer, setOwnComposer] = createStore<Record<string, boolean>>(
-    {},
-  );
-  const activeHasComposer = () =>
+  const [hidesFab, setHidesFab] = createStore<Record<string, boolean>>({});
+  const activeHidesFab = () =>
     ui.active !== undefined &&
     ui.settingsFor !== ui.active &&
-    ownComposer[ui.active] === true;
+    hidesFab[ui.active] === true;
   const shared = {
     registerHeader: (id: string, press: () => void) => {
       columnHeaders.set(id, press);
@@ -1301,7 +1299,7 @@ const DeckScreen: Component<{
       };
     },
     onShown: (id: string, shown: ColumnDef) =>
-      setOwnComposer(id, columnView(shown.source).ownComposer === true),
+      setHidesFab(id, columnView(shown.source).hidesComposeFab === true),
     get readLayer() {
       return props.readLayer;
     },
@@ -1562,7 +1560,7 @@ const DeckScreen: Component<{
               <Show
                 when={
                   ui.panel === undefined &&
-                  !activeHasComposer() &&
+                  !activeHidesFab() &&
                   activeColumn()?.source.kind !== "welcome"
                 }
               >

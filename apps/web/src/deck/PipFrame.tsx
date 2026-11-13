@@ -50,11 +50,11 @@ const PipFrame: ParentComponent<{
         return false;
     }
   };
-  // 自分の入力欄を持つカラム（チャット）や紹介のカラムでは、送信やログインのボタンと重なる。
+  // 紹介のカラムでは、ログインのボタンと重なる。
   const showsFab = () =>
     actions !== undefined &&
     ui.panel === undefined &&
-    columnView(props.shown.source).ownComposer !== true &&
+    columnView(props.shown.source).hidesComposeFab !== true &&
     props.shown.source.kind !== "welcome";
   return (
     <Mediates handle={handle}>
