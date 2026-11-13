@@ -131,6 +131,7 @@ pnpm workspace の 2 パッケージ。
 - ストーリーはリレーや外のサーバーへ繋がない。外の答えで見た目が変わると、レビューする人ごとに違うものを見る。`apps/web/.storybook/offline-guard.ts` が `fetch` と `WebSocket` を手元に限って外へは例外にし、画像と動画は `.storybook/main.ts` の CSP が手元と `data:`・`blob:` に限る。リレーの情報（NIP-11）・NIP-05・リンクのカードは `EventScene` の `relayInfo`・`nip05`・`linkCards` で答えを渡し、画像や動画は `apps/web/src/storybook/` の見本を使う。部品が外の URL を組み立てるもの（YouTube のサムネイルなど）は、差し替える props を足す。読めない URL を見せたいときは実在しない `example.invalid` を使い、実在する `example.com` を使わない
 - メディアの URL を本文に入れるストーリーでは、import した fixture のパスを `new URL(asset, location.href).href` で絶対 URL にする。本文の URL パーサーは `http(s)` で始まるものだけを拾う
 - **見た目を変えたら、同じ PR で Storybook も更新する**。ストーリーが無い部品なら追加する。レビューする側が、アプリを立ち上げずに変更を見られる状態にしておく
+- **見た目を変えた PR には、確かめたストーリーのスクリーンショットを本文に貼る**。変えたストーリーと足した端の状態を、余白を切って撮る。画像は `pr-screenshots` ブランチ（コードもワークフローも無い orphan ブランチ。CI は走らない）の `<PR 番号>/<名前>.png` に push し、本文から `https://raw.githubusercontent.com/eyemono-moe/streets/pr-screenshots/<PR 番号>/<名前>.png` で貼る。どのストーリーの画像かを添える
 - ストーリーには普通の状態だけでなく、崩れやすい端（長い本文、空、取得中、読み込めなかった、プロフィールが無い、幅の狭いカラム）も並べる。手で試した端は、その場でストーリーとして残す
 - 読み取り層に繋がる画面は、見た目だけの部品を切り出してストーリーにする（例: `ThreadView` に対する `ThreadSpineView`）
 - 既存のテストがリファクタの邪魔になり、バグを捕まえていないなら、その場で消してよい
