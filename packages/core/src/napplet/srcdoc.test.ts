@@ -489,9 +489,9 @@ describe("nappletPrelude", () => {
     expect(Object.isFrozen(win.napplet)).toBe(true);
   });
 
-  // NAP-INTENT: > 4. Each unique, percent-decoded `name=value` query pair becomes a text payload
-  // > field. The binding MUST NOT coerce query values to boolean, number, or null.
-  // > A `+` is a literal plus sign, not a space.
+  // NAP-INTENT: > | `payload` | Percent-decoded `name=value` query fields, or `options.payload`
+  // > for structured/non-text data. |
+  // > Query values MUST remain text; `+` is literal.
   it("intent の URI を、役割・依頼・慣習の名前と中身に分けて送る", () => {
     const { win, sent } = run(["intent"]);
     void win.napplet.intent.invoke("napplet:profile/open?pubkey=a%2Bb+c&n=1");
@@ -506,8 +506,9 @@ describe("nappletPrelude", () => {
     });
   });
 
-  // > A URI with ... malformed percent-encoding, a repeated query name, or an explicit payload
-  // > alongside query parameters MUST be rejected before invocation.
+  // > The binding MUST reject malformed percent-encoding, duplicate decoded query names,
+  // > invalid fragments, query plus `options.payload`, or fragment plus `options.handlerHint`
+  // > before invocation.
   it("読めない URI は送らずに断る", () => {
     const { win, sent } = run(["intent"]);
     for (const [uri, options] of [
@@ -541,6 +542,41 @@ describe("nappletPrelude", () => {
         },
       },
     });
+  });
+
+  // > | `handlerHint` | Bare NIP-19 `naddr` fragment decoded as `IntentHandlerHint`, ... |
+  // > The binding MUST reject ... invalid fragments ... before invocation. A fragment MUST
+  // > satisfy the `IntentHandlerHint` address constraints.
+  // > The pubkey is exactly 64 lowercase hex digits; the non-empty `d` value is opaque and
+  // > case-sensitive. ... `IntentHandlerHint` accepts kind `35129` only.
+  it("勧める受け手の住所として読めない断片は送らずに断る", () => {
+    const { win, sent } = run(["intent"]);
+    const naddr = (fields: Partial<Parameters<typeof encodeNaddr>[0]> = {}) =>
+      encodeNaddr({
+        identifier: "map",
+        pubkey: "c".repeat(64),
+        eventKind: 35129,
+        ...fields,
+      }) as string;
+    const valid = naddr();
+    const last = valid.at(-1) === "q" ? "p" : "q";
+    for (const fragment of [
+      `${valid.slice(0, -1)}${last}`,
+      `${valid.slice(0, 10)}${valid.slice(10).toUpperCase()}`,
+      `nostr:${valid}`,
+      naddr({ identifier: "" }),
+      naddr({ eventKind: 15129 }),
+    ]) {
+      expect(() =>
+        win.napplet.intent.invoke(`napplet:map/open#${fragment}`),
+      ).toThrow();
+    }
+    expect(() =>
+      win.napplet.intent.invoke(`napplet:map/open#${valid}`, {
+        handlerHint: { address: `35129:${"c".repeat(64)}:map` },
+      }),
+    ).toThrow();
+    expect(sent).toEqual([]);
   });
 
   // > The runtime-provided binding MUST retain an incoming delivery until an `onDelivery`

@@ -88,10 +88,9 @@ const request = (convention: string, extra: object = {}) => {
 const ids = (handlers: readonly IntentHandler[]) => handlers.map((h) => h.id);
 
 describe("parseIntentRequest", () => {
-  // NAP-INTENT: > The runtime MUST reject a normalized wire request when:
-  // > - `convention` contains a query or fragment;
-  // > - the convention archetype differs from `request.archetype`; or
-  // > - the convention intent differs from `request.action`.
+  // NAP-INTENT: > The runtime MUST reject a request unless `convention` is exactly the
+  // > queryless, fragment-free `napplet:<archetype>/<action>` matching its `archetype` and
+  // > `action` fields.
   it("慣習の名前と役割・依頼が食い違う要求を断る", () => {
     expect(
       parseIntentRequest(request("napplet:profile/open?pubkey=abc")).ok,
@@ -272,7 +271,7 @@ describe("resolveIntent", () => {
     );
   });
 
-  // > 1. An explicit authorized `handler` address or `handler: "choose"` selection.
+  // > 1. An explicit authorized `handler` catalog identifier or `handler: "choose"` selection.
   // > The runtime MUST NOT let a caller address a handler instance unless the user
   // > explicitly authorized that handler.
   it("choose や受け手の名指しは、既定があっても選ばせる", () => {

@@ -483,22 +483,49 @@ function installNapplet(domains: readonly string[]): void {
   if (exposed.has("intent")) {
     // NAP-INTENT の URI の読み方。`@napplet/shim` の normalizeIntentUri と同じく、
     // 送る前に断る（呼んだ側へ同期で例外を返す）。
+    // > The binding MUST reject ... invalid fragments ... before invocation. A fragment MUST
+    // > satisfy the `IntentHandlerHint` address constraints.
+    // ランチャーの側でも住所の形は確かめるが、それでは invoke が非同期に失敗するだけで、
+    // 「送る前に断る」にならない。core の nip19 は iframe の中から呼べないので、ここで検算する。
     const decodeNaddr = (value: string) => {
+      const invalid = () =>
+        new Error("Intent handler fragment must be a bare naddr");
       const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+      if (value !== value.toLowerCase() && value !== value.toUpperCase()) {
+        throw invalid();
+      }
       const lower = value.toLowerCase();
       const split = lower.lastIndexOf("1");
-      if (lower.slice(0, split) !== "naddr") {
-        throw new Error("Intent handler fragment must be a bare naddr");
+      if (lower.slice(0, split) !== "naddr" || lower.length - split - 1 < 6) {
+        throw invalid();
       }
-      const words = lower
-        .slice(split + 1, -6)
+      const data = lower
+        .slice(split + 1)
         .split("")
         .map((char) => {
           const word = CHARSET.indexOf(char);
-          if (word < 0)
-            throw new Error("Intent handler fragment must be a bare naddr");
+          if (word < 0) throw invalid();
           return word;
         });
+      // BIP-173 の検査和。
+      const GENERATOR = [
+        0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3,
+      ];
+      let checksum = 1;
+      for (const word of [
+        ..."naddr".split("").map((char) => char.charCodeAt(0) >> 5),
+        0,
+        ..."naddr".split("").map((char) => char.charCodeAt(0) & 31),
+        ...data,
+      ]) {
+        const top = checksum >> 25;
+        checksum = ((checksum & 0x1ffffff) << 5) ^ word;
+        for (let i = 0; i < 5; i += 1) {
+          if ((top >> i) & 1) checksum ^= GENERATOR[i] as number;
+        }
+      }
+      if (checksum !== 1) throw invalid();
+      const words = data.slice(0, -6);
       const bytes: number[] = [];
       let acc = 0;
       let bits = 0;
@@ -527,7 +554,9 @@ function installNapplet(domains: readonly string[]): void {
           pubkey = chunk.map((b) => b.toString(16).padStart(2, "0")).join("");
         if (type === 3) kind = chunk.reduce((n, b) => n * 256 + b, 0);
       }
-      if (identifier === undefined || !pubkey || kind !== 35129) {
+      // > The pubkey is exactly 64 lowercase hex digits; the non-empty `d` value is opaque
+      // > and case-sensitive. ... `IntentHandlerHint` accepts kind `35129` only.
+      if (!identifier || pubkey?.length !== 64 || kind !== 35129) {
         throw new Error(
           "Intent handler hint requires a named napplet coordinate",
         );

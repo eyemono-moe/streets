@@ -1,5 +1,5 @@
 /*
- * NAP-INTENT（napplet/naps、2026-10）。アップレットが役割（archetype）と依頼（action）を
+ * NAP-INTENT（napplet/naps master、2026-11-13 版）。アップレットが役割（archetype）と依頼（action）を
  * 名指しして、別のアップレットや Streets に開いてもらう。受け手はランチャーが決める。
  *
  * > The runtime MUST resolve an installed handler using manifest contracts and the
@@ -55,10 +55,8 @@ const HINT_ADDRESS = /^35129:([0-9a-f]{64}):([\s\S]+)$/;
 /**
  * 届いた `intent.invoke` の `request` を確かめる。
  *
- * > The runtime MUST reject a normalized wire request when:
- * > - `convention` contains a query or fragment;
- * > - the convention archetype differs from `request.archetype`; or
- * > - the convention intent differs from `request.action`.
+ * > The runtime MUST reject a request unless `convention` is exactly the queryless,
+ * > fragment-free `napplet:<archetype>/<action>` matching its `archetype` and `action` fields.
  */
 export const parseIntentRequest = (
   raw: unknown,
@@ -299,7 +297,7 @@ export type IntentResolution =
 /**
  * 受け手を決める。
  *
- * > 1. An explicit authorized `handler` address or `handler: "choose"` selection.
+ * > 1. An explicit authorized `handler` catalog identifier or `handler: "choose"` selection.
  * > 2. The user's applicable default handler.
  * > 3. The recommended handler, if policy permits and it supports the requested
  * >    archetype, action, and convention.

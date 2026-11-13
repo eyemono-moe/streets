@@ -695,8 +695,8 @@ describe("nappletProfile", () => {
 });
 
 describe("NAP-INTENT", () => {
-  // > The runtime MUST reject a normalized wire request when:
-  // > - the convention archetype differs from `request.archetype`
+  // > The runtime MUST reject a request unless `convention` is exactly the queryless,
+  // > fragment-free `napplet:<archetype>/<action>` matching its `archetype` and `action` fields.
   it("食い違う要求は受け手を探さずに断る", async () => {
     const { session, sent, invoked } = setup(["shell", "intent"]);
     session.receive({
