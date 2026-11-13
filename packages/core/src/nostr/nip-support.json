@@ -227,6 +227,19 @@
     "gap": ""
   },
   {
+    "nip": "31",
+    "status": "対応",
+    "summary": "専用の表示が無い kind を、作った人・kind の名前・alt タグの説明で描く。暗号化したものや認証のためのものは描かない",
+    "kinds": [],
+    "tags": ["alt"],
+    "paths": [
+      "packages/core/src/nostr/alt.ts",
+      "apps/web/src/note/KindFallback.tsx",
+      "apps/web/src/note/event-kinds.ts"
+    ],
+    "gap": ""
+  },
+  {
     "nip": "33",
     "status": "対応",
     "summary": "名前付きの置換可能イベント",

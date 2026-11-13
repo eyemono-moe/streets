@@ -38,9 +38,10 @@ import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
-import { isRenderedKind, type RenderedKind } from "./event-kinds";
+import { isOpaqueKind, isRenderedKind, type RenderedKind } from "./event-kinds";
 import { Frame, Notice } from "./EventFrame";
 import EventStamp from "./EventStamp";
+import KindFallback from "./KindFallback";
 import MutedGate from "./MutedGate";
 import { NoteContent } from "./NoteContent";
 import ReactionList from "./ReactionList";
@@ -359,7 +360,16 @@ const Repost: Component<ContentProps> = (props) => {
 
 const Unsupported: Component<ContentProps> = (props) => (
   <Row event={props.event} size={props.size}>
-    <Notice>{t("note.event.unsupported", { kind: props.event.kind })}</Notice>
+    <Show
+      when={!isOpaqueKind(props.event.kind)}
+      fallback={
+        <Notice>
+          {t("note.event.unsupported", { kind: props.event.kind })}
+        </Notice>
+      }
+    >
+      <KindFallback event={props.event} size={props.size} />
+    </Show>
   </Row>
 );
 
