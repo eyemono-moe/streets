@@ -96,14 +96,15 @@
   {
     "nip": "18",
     "status": "一部",
-    "summary": "リポストの表示と通常の投稿のリポスト、引用（本文で引用したイベントにも q タグを付け、設定で引用先の作者に p タグを付ける）。リポスト元は、タグのリレーと作者の書き込みリレーへ取りに行く",
+    "summary": "リポストの表示と通常の投稿のリポスト、引用（本文で引用したイベントにも q タグを付け、設定で引用先の作者に p タグを付ける）。リポスト元は、タグのリレーと作者の書き込みリレーへ取りに行く。汎用リポストは、リポストを流すカラム（ホーム・ユーザー・リスト・通知など）に一緒に流し、a タグがあれば住所で引く",
     "kinds": [6, 16],
-    "tags": ["e", "p", "k", "q"],
+    "tags": ["e", "p", "k", "q", "a"],
     "paths": [
       "packages/core/src/nostr/repost.ts",
       "packages/core/src/nostr/quote.ts",
       "packages/core/src/nostr/build/references.ts",
       "packages/core/src/view/repost-target.ts",
+      "packages/core/src/deck/column-sources.ts",
       "packages/core/src/read/event-requests.ts",
       "apps/web/src/note/Event.tsx"
     ],

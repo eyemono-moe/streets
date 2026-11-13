@@ -102,11 +102,11 @@ describe("followeesSource", () => {
     // 捕まえる変異: 切っていても kind:42 を取る（使わない発言を流し続ける）/
     // 既に入っている kind を重ねる
     expect(followeesSource([1, 6], ["a"], VIEWER).filters[0].kinds).toEqual([
-      1, 6, 1111,
+      1, 6, 1111, 16,
     ]);
     expect(
       followeesSource([1, 6], ["a"], VIEWER, { chats: true }).filters[0].kinds,
-    ).toEqual([1, 6, 1111, 42]);
+    ).toEqual([1, 6, 1111, 16, 42]);
     expect(
       followeesSource([1, 42], ["a"], VIEWER, { chats: true }).filters[0].kinds,
     ).toEqual([1, 42, 1111]);
@@ -115,7 +115,21 @@ describe("followeesSource", () => {
   it("投稿を取るならコメントも取り、投稿を取らないなら取らない", () => {
     // 捕まえる変異: コメントを足さない（Amethyst などの返信がホームから抜ける）/
     // 投稿を取らないカラムにまで足す
-    expect(followeesSource([6], ["a"], VIEWER).filters[0].kinds).toEqual([6]);
+    expect(followeesSource([1], ["a"], VIEWER).filters[0].kinds).toEqual([
+      1, 1111,
+    ]);
+    expect(followeesSource([6], ["a"], VIEWER).filters[0].kinds).toEqual([
+      6, 16,
+    ]);
+  });
+
+  it("リポストを取るなら汎用リポストも取り、リポストを取らないなら取らない", () => {
+    // 捕まえる変異: kind:16 を足さない（記事や動画のリポストがホームから抜ける）/
+    // リポストを切ったカラムにまで足す
+    expect(followeesSource([6], ["a"], VIEWER).filters[0].kinds).toContain(16);
+    expect(followeesSource([1], ["a"], VIEWER).filters[0].kinds).not.toContain(
+      16,
+    );
   });
 
   it("渡したフォローリストを共有しない", () => {
@@ -143,10 +157,10 @@ describe("followeesActivitySource", () => {
 
 describe("人と投稿", () => {
   it("ユーザーの投稿は投稿とリポストを対象ユーザーから集める", () => {
-    // 捕まえる変異: kind:6 または対象 pubkey を落とし、表示範囲を狭める。
+    // 捕まえる変異: kind:6・kind:16 または対象 pubkey を落とし、表示範囲を狭める。
     expect(userPostsSource("a".repeat(64))).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 1111], authors: ["a".repeat(64)] }],
+      filters: [{ kinds: [1, 6, 1111, 16], authors: ["a".repeat(64)] }],
     });
   });
 
@@ -154,7 +168,7 @@ describe("人と投稿", () => {
     // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
     expect(
       userPostsSource("a".repeat(64), { chats: true }).filters[0].kinds,
-    ).toEqual([1, 6, 1111, 42]);
+    ).toEqual([1, 6, 1111, 16, 42]);
   });
 
   it("ユーザーのメディアは、リポストを除いた投稿と画像・動画の投稿を取る", () => {
@@ -225,7 +239,7 @@ describe("notificationsSource", () => {
       }),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735, 42, 1111], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 16, 7, 9735, 42, 1111], "#p": [VIEWER] }],
       relays: ["wss://inbox/"],
     });
   });
@@ -236,7 +250,7 @@ describe("notificationsSource", () => {
     // カラムが黙って出来上がる (`authors: []` と同じ罠)。
     expect(notificationsSource(VIEWER, { phase: "missing" })).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735, 42, 1111], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 16, 7, 9735, 42, 1111], "#p": [VIEWER] }],
       relays: [...FALLBACK_RELAYS],
     });
   });
@@ -376,16 +390,18 @@ describe("followSetPostsSource", () => {
     expect(followSetPostsSource(undefined)).toBeUndefined();
     expect(followSetPostsSource([])).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 1111], authors: [] }],
+      filters: [{ kinds: [1, 6, 1111, 16], authors: [] }],
     });
   });
 
   it("チャンネルでの発言は、入れているときだけ取る", () => {
     // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
-    expect(followSetPostsSource(["a"])?.filters[0].kinds).toEqual([1, 6, 1111]);
+    expect(followSetPostsSource(["a"])?.filters[0].kinds).toEqual([
+      1, 6, 1111, 16,
+    ]);
     expect(
       followSetPostsSource(["a"], { chats: true })?.filters[0].kinds,
-    ).toEqual([1, 6, 1111, 42]);
+    ).toEqual([1, 6, 1111, 16, 42]);
   });
 });
 

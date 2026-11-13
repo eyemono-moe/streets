@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "./event";
-import { embeddedRepostEvent, repostTarget, buildRepost } from "./repost";
+import {
+  embeddedRepostEvent,
+  repostAddress,
+  repostTarget,
+  buildRepost,
+} from "./repost";
 const ID_A = "a".repeat(64);
 
 const ID_B = "b".repeat(64);
@@ -57,6 +62,56 @@ describe("repostTarget", () => {
     // 捕まえる変異: throw する —— 1 件の不正なイベントでカラム全体を壊してはいけない
     expect(() => repostTarget(noteWith([], { kind: 6 }))).not.toThrow();
     expect(repostTarget(noteWith([], { kind: 6 }))).toBeUndefined();
+  });
+});
+
+describe("repostAddress", () => {
+  // NIP-18: "When reposting a replaceable event, the repost SHOULD include an `"a"` tag
+  // with the event coordinate (`kind:pubkey:d-tag`) of the reposted event."
+  const coordinate = `34236:${PK}:clip`;
+
+  it("汎用リポストの a タグを住所として返す", () => {
+    expect(
+      repostAddress(
+        noteWith(
+          [
+            ["e", ID_B, "wss://b/"],
+            ["a", coordinate, "wss://a/"],
+            ["k", "34236"],
+          ],
+          { kind: 16 },
+        ),
+      ),
+    ).toEqual({ form: "address", address: coordinate, relay: "wss://a/" });
+  });
+
+  it("a タグが無ければ undefined（その版を指している）", () => {
+    // NIP-18: "If the `"a"` tag is not present, it indicates that a specific version
+    // of a replaceable event is being reposted"
+    expect(
+      repostAddress(noteWith([["e", ID_B, "wss://b/"]], { kind: 16 })),
+    ).toBeUndefined();
+  });
+
+  it("kind:6 の a タグは読まない", () => {
+    // 捕まえる変異: kind を見ない —— kind:6 は kind:1 だけを指す
+    expect(
+      repostAddress(noteWith([["a", coordinate]], { kind: 6 })),
+    ).toBeUndefined();
+  });
+
+  it("住所として読めない a タグは飛ばす", () => {
+    expect(
+      repostAddress(
+        noteWith(
+          [
+            ["a", "not-an-address"],
+            ["a", coordinate],
+          ],
+          { kind: 16 },
+        ),
+      )?.address,
+    ).toBe(coordinate);
   });
 });
 

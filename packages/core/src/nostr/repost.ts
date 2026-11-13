@@ -8,11 +8,25 @@
  * - 作者を `p` タグに入れる（"The repost SHOULD include a `p` tag with the `pubkey`"）
  * - `content` は元の投稿の JSON。NIP-70 で保護された投稿は埋め込まない（"Reposts of
  *   protected events MUST NOT embed the reposted event"）
+ * - 汎用リポストが置換可能なイベントを指すときは `a` タグも付く（"When reposting a
+ *   replaceable event, the repost SHOULD include an `"a"` tag with the event coordinate
+ *   (`kind:pubkey:d-tag`) of the reposted event."）。`a` が無ければ、その版を指している
+ *   （"If the `"a"` tag is not present, it indicates that a specific version of a
+ *   replaceable event is being reposted"）
  */
 import type { RelayUrl } from "../relay/relay-connection";
+import { formatEventAddress, parseEventAddress } from "./address";
 import type { EventDraft } from "./build/draft";
 import { type NostrEvent, isNostrEvent } from "./event";
-import { type IdRef, idRef, pubkeyOf } from "./event-refs";
+import {
+  type EventRef,
+  type IdRef,
+  idRef,
+  pubkeyOf,
+  relayOf,
+} from "./event-refs";
+
+export const GENERIC_REPOST_KIND = 16;
 
 /**
  * リポスト対象の `e` タグ。例外を投げない —— `e` タグの無いリポストも実在し、
@@ -30,6 +44,28 @@ export const repostTarget = (event: NostrEvent): IdRef | undefined => {
       event.tags.find((p) => p[0] === "p" && pubkeyOf(p[1]))?.[1];
     const ref = idRef(tag[1] ?? "", tag[2], author);
     if (ref) return ref;
+  }
+  return undefined;
+};
+
+/**
+ * 汎用リポスト（kind:16）が `a` タグで指す住所。版ではなく住所を指しているので、
+ * `e` タグがあってもこちらで引く —— 置換されたあとの古い版は、リレーから消えている。
+ */
+export const repostAddress = (
+  event: NostrEvent,
+): Extract<EventRef, { form: "address" }> | undefined => {
+  if (event.kind !== GENERIC_REPOST_KIND) return undefined;
+  for (const tag of event.tags) {
+    if (tag[0] !== "a") continue;
+    const address = parseEventAddress(tag[1]);
+    if (!address) continue;
+    const relay = relayOf(tag[2]);
+    return {
+      form: "address",
+      address: formatEventAddress(address),
+      ...(relay ? { relay } : {}),
+    };
   }
   return undefined;
 };
