@@ -163,41 +163,93 @@ const FALLBACKS: NostrEvent[] = [
   alice.event({ kind: 4, tags: [], content: "暗号文?iv=..." }),
 ];
 
-const Catalog: Component<{ events: NostrEvent[] }> = (props) => (
-  <EventSceneProvider
-    scene={scene(...props.events, plain, fullArticle, channel, picture, video)}
-  >
-    <div class="flex flex-wrap items-start gap-4">
-      <For each={props.events}>
-        {(event) => (
-          <section class="flex w-[360px] flex-col gap-1">
-            <h2 class="c-secondary text-caption">
-              kind:{event.kind} {kindName(event.kind, locale())}
-            </h2>
-            <Event event={event} size="normal" />
-          </section>
-        )}
-      </For>
-    </div>
-  </EventSceneProvider>
-);
+/** `quoted` は kind:1 の投稿に引用されたときの形。 */
+type CatalogView = "normal" | "compact" | "quoted";
+
+const Catalog: Component<{ events: NostrEvent[]; view: CatalogView }> = (
+  props,
+) => {
+  // 引用は全部の見え方の分を先に作り、シーンへ入れておく。シーンは最初に渡した
+  // ものしか読まないので、操作パネルで見え方を変えたときに引用元が取得中のままになる。
+  const quotes = new Map(
+    props.events.map((event) => [event, bob.quote(event, "引用した投稿。")]),
+  );
+  return (
+    <EventSceneProvider
+      scene={scene(
+        ...props.events,
+        ...quotes.values(),
+        plain,
+        fullArticle,
+        channel,
+        picture,
+        video,
+      )}
+    >
+      <div class="flex flex-wrap items-start gap-4">
+        <For each={props.events}>
+          {(event) => (
+            <section class="flex w-[360px] flex-col gap-1">
+              <h2 class="c-secondary text-caption">
+                kind:{event.kind} {kindName(event.kind, locale())}
+              </h2>
+              <Event
+                event={
+                  props.view === "quoted" ? (quotes.get(event) ?? event) : event
+                }
+                size={props.view === "compact" ? "compact" : "normal"}
+              />
+            </section>
+          )}
+        </For>
+      </div>
+    </EventSceneProvider>
+  );
+};
 
 const meta = {
   title: "イベント/一覧",
   component: Catalog,
   parameters: { layout: "padded" },
-  argTypes: { events: { control: false } },
+  args: { view: "normal" },
+  argTypes: {
+    events: { control: false },
+    view: {
+      control: "inline-radio",
+      options: ["normal", "compact", "quoted"],
+    },
+  },
 } satisfies Meta<typeof Catalog>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const RENDERED = RENDERED_KINDS.map((kind) => SAMPLES[kind]);
+
 /** Streets が専用の形で描ける kind を、1 件ずつ並べる。 */
 export const 表示できるもの: Story = {
-  args: { events: RENDERED_KINDS.map((kind) => SAMPLES[kind]) },
+  args: { events: RENDERED },
+};
+
+/** 高密度のカラムでの形。 */
+export const 表示できるもの_高密度: Story = {
+  args: { events: RENDERED, view: "compact" },
+};
+
+/** kind:1 の投稿に引用されたときの形。 */
+export const 表示できるもの_引用の中: Story = {
+  args: { events: RENDERED, view: "quoted" },
 };
 
 /** 専用の表示が無い kind。名前と説明だけを出すもの、番号だけのもの、何も出さないもの。 */
 export const 専用の表示が無いもの: Story = {
   args: { events: FALLBACKS },
+};
+
+export const 専用の表示が無いもの_高密度: Story = {
+  args: { events: FALLBACKS, view: "compact" },
+};
+
+export const 専用の表示が無いもの_引用の中: Story = {
+  args: { events: FALLBACKS, view: "quoted" },
 };
