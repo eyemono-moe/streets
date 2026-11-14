@@ -48,14 +48,26 @@ describe("groupReactions", () => {
     expect(groups).toHaveLength(2);
   });
 
-  it("名前が同じで URL が違う emoji は 1 つにまとまる", () => {
-    // 捕まえる変異: 鍵に URL を含める（別ドメインの同じショートコードで山が割れ数が読めなくなる）。
+  it("名前が同じでも URL が違う emoji は別の山になる", () => {
+    // 捕まえる変異: 鍵をショートコードだけにする（最初に届いた絵が、別の絵のリアクションまで代表する）。
     const groups = groupReactions([
       entry("u1", emoji("smile", "https://a.example/s.png")),
       entry("u2", emoji("smile", "https://b.example/s.png")),
+      entry("u3", emoji("smile", "https://a.example/s.png")),
     ]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]?.count).toBe(2);
+    expect(groups.map((group) => [group.content, group.count])).toEqual([
+      [{ type: "emoji", name: "smile", url: "https://a.example/s.png" }, 2],
+      [{ type: "emoji", name: "smile", url: "https://b.example/s.png" }, 1],
+    ]);
+  });
+
+  it("URL が同じでも名前が違う emoji は別の山になる", () => {
+    // 捕まえる変異: 鍵を URL だけにする（チップの名前が、別の名前のリアクションまで代表する）。
+    const groups = groupReactions([
+      entry("u1", emoji("smile", "https://a.example/s.png")),
+      entry("u2", emoji("grin", "https://a.example/s.png")),
+    ]);
+    expect(groups).toHaveLength(2);
   });
 
   it("空の入力では空の配列", () => {
