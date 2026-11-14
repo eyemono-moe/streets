@@ -2,6 +2,7 @@ import type { NostrEvent } from "../nostr/event";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
 import { repostTarget } from "../nostr/repost";
 import { zapSender } from "../zap/zap-receipt";
+import { reactionKey } from "./reaction-groups";
 
 /** まとめられる操作。リアクションとリポストは別々にまとめる（混ぜると何をされたか読めない）。 */
 export type NotificationAction = "reaction" | "repost";
@@ -150,7 +151,7 @@ export const actionRowsByTarget = (
   });
 };
 
-/** まとまりに付いたリアクションの種類。同じ絵文字は 1 つにまとめる。新しい順。 */
+/** まとまりに付いたリアクションの種類。同じリアクションは 1 つにまとめる。新しい順。 */
 export const groupReactionContents = (
   events: readonly NostrEvent[],
 ): ReactionContent[] => {
@@ -159,12 +160,7 @@ export const groupReactionContents = (
   for (const event of events) {
     const content = parseReaction(event)?.content;
     if (!content) continue;
-    const key =
-      content.type === "like"
-        ? "like"
-        : content.type === "emoji"
-          ? `emoji:${content.url}`
-          : `text:${content.content}`;
+    const key = reactionKey(content);
     if (seen.has(key)) continue;
     seen.add(key);
     contents.push(content);

@@ -1,6 +1,7 @@
 import { addBookmark } from "@streets/core/nostr/build/bookmark";
 import { pinNote } from "@streets/core/nostr/pinned-notes";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import avatarUrl from "../../storybook/avatar-fixture.svg";
 import emojiUrl from "../../storybook/emoji-fixture.svg";
 import {
   EventStory,
@@ -68,6 +69,20 @@ export const ミュートしている人のリアクション: Story = {
         },
       ],
     },
+  },
+};
+
+/** ショートコードが同じでも絵が違えば、別のチップにする。名前が違えば、絵が同じでも分ける。 */
+export const 同じ名前で絵が違う絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(
+      plain,
+      react(alice, { type: "emoji", shortcode: "party", url: emojiUrl }),
+      react(bob, { type: "emoji", shortcode: "party", url: avatarUrl }),
+      react(carol, { type: "emoji", shortcode: "party", url: emojiUrl }),
+      react(carol, { type: "emoji", shortcode: "yay", url: emojiUrl }),
+    ),
   },
 };
 

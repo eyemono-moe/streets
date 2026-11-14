@@ -199,6 +199,31 @@ describe("groupReactionContents", () => {
       { type: "like" },
     ]);
   });
+
+  it("カスタム絵文字は、ショートコードと URL の組が違えば別に並べる", () => {
+    // 捕まえる変異: ショートコードか URL の片方だけで突き合わせる（別の絵や別の名前が 1 つに潰れる）。
+    const custom = (pubkey: string, name: string, url: string) =>
+      event(
+        7,
+        pubkey,
+        [
+          ["e", noteA],
+          ["emoji", name, url],
+        ],
+        `:${name}:`,
+      );
+    const events = [
+      custom("1", "smile", "https://a.example/s.png"),
+      custom("2", "smile", "https://b.example/s.png"),
+      custom("3", "grin", "https://a.example/s.png"),
+      custom("4", "smile", "https://a.example/s.png"),
+    ];
+    expect(groupReactionContents(events)).toEqual([
+      { type: "emoji", name: "smile", url: "https://a.example/s.png" },
+      { type: "emoji", name: "smile", url: "https://b.example/s.png" },
+      { type: "emoji", name: "grin", url: "https://a.example/s.png" },
+    ]);
+  });
 });
 
 describe("rowAuthor", () => {
