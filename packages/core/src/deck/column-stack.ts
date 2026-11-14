@@ -1,3 +1,4 @@
+import type { IntentDelivery } from "../napplet/intent";
 import type { ColumnDef } from "./deck";
 
 /**
@@ -21,7 +22,18 @@ export type ColumnStackEvent =
    * 一番上へ積む。`from` は押した投稿の id。開いた先でも、それを受け取ったリレーに
    * 聞く（`ColumnDef.knownRelays`）。
    */
-  | { type: "stack/open"; column: ColumnDef; from?: string }
+  | {
+      type: "stack/open";
+      column: ColumnDef;
+      from?: string;
+      /**
+       * 開く先の既定（NAP-INTENT）を当てずに、このカラムのまま開く。どこで開くかを
+       * ユーザーがその場で選んだときに付ける。
+       */
+      direct?: boolean;
+      /** 開くアップレットに渡す依頼（NAP-INTENT）。開いたカラムの中の、その段が受け取る。 */
+      delivery?: IntentDelivery;
+    }
   /** 開いている一番上の段を閉じる。 */
   | { type: "stack/back" }
   /** その段の閉じる動きが終わった。 */

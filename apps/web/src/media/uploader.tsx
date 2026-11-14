@@ -28,7 +28,11 @@ export class NoUploadServerError extends Error {
 export type Uploader = {
   /** アップロード先。1 つも無ければ、画像を添える操作を出さない。 */
   servers: Accessor<readonly UploadServer[]>;
-  upload: (file: File) => Promise<BlobDescriptor>;
+  /** `protocol` を渡すと、その種類のアップロード先だけを試す。 */
+  upload: (
+    file: File,
+    options?: { protocol?: UploadServer["protocol"] },
+  ) => Promise<BlobDescriptor & { server: UploadServer }>;
 };
 
 const UploaderContext = createContext<Uploader>();
@@ -44,8 +48,10 @@ export const createUploader = (options: {
   now?: () => number;
 }): Uploader => ({
   servers: options.servers,
-  upload: async (file) => {
-    const servers = options.servers();
+  upload: async (file, only) => {
+    const servers = options
+      .servers()
+      .filter((server) => !only?.protocol || server.protocol === only.protocol);
     if (servers.length === 0) throw new NoUploadServerError();
     // 動画のフレーム待ちはアップロードと並行させる。
     const metadata = uploadMetadata(file);
@@ -94,6 +100,7 @@ export const createUploader = (options: {
           ...blob,
           type: (blob.type ?? file.type) || undefined,
           ...(await metadata),
+          server,
         };
       } catch (cause) {
         lastError = cause;

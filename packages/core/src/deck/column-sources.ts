@@ -1,4 +1,6 @@
 import { FOLLOW_SET_KIND } from "../lists/follow-set";
+import { NAPPLET_DIRECTORY_RELAYS } from "../napplet/directory";
+import { NAPPLET_NAMED_KIND } from "../napplet/manifest";
 import {
   CHANNEL_CREATE_KIND,
   CHANNEL_HIDE_MESSAGE_KIND,
@@ -220,6 +222,57 @@ export const articleSource = (
   type: "nostr",
   filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey], "#d": [identifier] }],
   ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
+});
+
+/** napplet の名前付きマニフェスト。分かっているリレーは Outbox の行き先に足す。 */
+export const nappletManifestSource = (
+  pubkey: string,
+  identifier: string,
+  relays?: readonly string[],
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    { kinds: [NAPPLET_NAMED_KIND], authors: [pubkey], "#d": [identifier] },
+  ],
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
+});
+
+/** インストールしたアップレットのマニフェスト。作者ごとに 1 つのフィルタにまとめる。 */
+export const installedAppletsSource = (
+  applets: readonly {
+    pubkey: string;
+    identifier: string;
+    relays?: readonly string[];
+  }[],
+): NostrSource | undefined => {
+  if (applets.length === 0) return undefined;
+  const byAuthor = new Map<string, string[]>();
+  for (const applet of applets) {
+    byAuthor.set(applet.pubkey, [
+      ...(byAuthor.get(applet.pubkey) ?? []),
+      applet.identifier,
+    ]);
+  }
+  const relays = [...new Set(applets.flatMap((applet) => applet.relays ?? []))];
+  return {
+    type: "nostr",
+    filters: [...byAuthor].map(([pubkey, identifiers]) => ({
+      kinds: [NAPPLET_NAMED_KIND],
+      authors: [pubkey],
+      "#d": identifiers,
+    })),
+    ...(relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
+  };
+};
+
+/**
+ * 公開されている名前付きの napplet。作者を決めない問い合わせは Outbox で行き先を
+ * 決められないので、napplet がよく公開されるリレーへ明示して聞く。
+ */
+export const nappletDirectorySource = (): NostrSource => ({
+  type: "nostr",
+  filters: [{ kinds: [NAPPLET_NAMED_KIND], limit: 500 }],
+  relays: [...NAPPLET_DIRECTORY_RELAYS] as RelayUrl[],
 });
 
 /**

@@ -173,7 +173,8 @@
     "postedFrom": "{{ client }} から投稿",
     "label": "この投稿の操作",
     "thisEvent": "このイベント",
-    "delete": "削除"
+    "delete": "削除",
+    "openIn": "{{ name }} で開く"
   },
   "linkCard": {
     "loading": "リンクの情報を読み込んでいます"

@@ -10,7 +10,8 @@ export type ColumnPresetKind =
   | "user"
   | "bookmarks"
   | "search"
-  | "channels";
+  | "channels"
+  | "napplets";
 
 const userTitle = (pubkey: string): string =>
   `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
@@ -83,6 +84,36 @@ export const buildThreadColumn = (focus: string): ColumnDef => ({
  * 長文記事を読むカラム。id を住所から決めるので、同じ記事を 2 回開いても重ならない。
  * `relays` は naddr が運ぶリレーの手がかり。
  */
+export const buildNappletColumn = (
+  pubkey: string,
+  identifier: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `napplet:${pubkey}:${identifier}`,
+  title: "アップレット",
+  source: {
+    kind: "napplet",
+    pubkey,
+    identifier,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
+export const buildNappletInfoColumn = (
+  pubkey: string,
+  identifier: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `napplet-info:${pubkey}:${identifier}`,
+  title: "アップレットの情報",
+  source: {
+    kind: "napplet-info",
+    pubkey,
+    identifier,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
 export const buildArticleColumn = (
   pubkey: string,
   identifier: string,
@@ -214,6 +245,9 @@ export const buildColumn = (
 
     case "channels":
       return { id, title: "channel-list", source: { kind: "channel-list" } };
+
+    case "napplets":
+      return { id, title: "アップレット", source: { kind: "napplet-list" } };
 
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、

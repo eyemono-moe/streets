@@ -29,6 +29,10 @@ export type ColumnScopeValue = {
   readLayer: ReadLayer;
   partOpen?: (part: string) => boolean;
   /**
+   * デッキに並んだカラムか。重ねた段や一時カラムには、カラムの設定の列が無い。
+   */
+  inDeck?: boolean;
+  /**
    * ブロックが持つセクションの状態を知らせる。カラムは警告をまとめて出す。
    * 呼んだブロックが消えると取り下げる。
    */

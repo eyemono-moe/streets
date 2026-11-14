@@ -6,6 +6,7 @@ import type {
 import {
   buildChannelInfoColumn,
   buildFollowSetInfoColumn,
+  buildNappletInfoColumn,
 } from "@streets/core/deck/column-presets";
 import {
   bookmarksSource,
@@ -45,6 +46,7 @@ import { fallbackRelays } from "../fallback-relay-setting";
 import { t, locale } from "../i18n/locale";
 import { followSetName } from "../lists/follow-set-name";
 import { useFollowSets } from "../lists/FollowSetMediator";
+import AppletConfigSettings from "../napplet/AppletConfigSettings";
 import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
@@ -68,6 +70,9 @@ import {
   FollowSetTimeline,
 } from "./blocks/FollowSets";
 import MediaGrid from "./blocks/MediaGrid";
+import Napplet from "./blocks/Napplet";
+import NappletInfo from "./blocks/NappletInfo";
+import NappletList from "./blocks/NappletList";
 import NotificationList from "./blocks/NotificationList";
 import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
@@ -106,10 +111,11 @@ type ColumnView<S> = {
   /** 中身が自分でスクロールする（タブの中身だけを動かす）。 */
   scrollsInternally?: boolean;
   /**
-   * 中身の下に自分の入力欄を持つ。狭い画面では、右下に浮かぶ投稿ボタンが入力欄の
-   * 送信ボタンに重なるので、このカラムを見ている間は出さない。
+   * 右下に浮かぶ投稿ボタン（狭い画面とピクチャーインピクチャー）を、このカラムを見ている
+   * 間は出さない。中身の下に自分の入力欄を持つ（送信ボタンに重なる）か、中身の全面を
+   * アップレットが描く（アップレットの操作に重なる）もの。
    */
-  ownComposer?: boolean;
+  hidesComposeFab?: boolean;
   /** ブロックを組み合わせた中身。 */
   Content: Component<{ source: S; inputs: ColumnInputs }>;
   /**
@@ -172,6 +178,31 @@ const ChannelInfoButton: Component<{
         dispatch({
           type: "stack/open",
           column: buildChannelInfoColumn(props.id, props.relays),
+        })
+      }
+    />
+  );
+};
+
+/** 見出しの ⓘ。napplet の情報をカラムの中に重ねる。 */
+const NappletInfoButton: Component<{
+  pubkey: string;
+  identifier: string;
+  relays: readonly RelayUrl[];
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <IconButton
+      icon="i-material-symbols:info-outline-rounded"
+      label="アップレットの情報"
+      onClick={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildNappletInfoColumn(
+            props.pubkey,
+            props.identifier,
+            props.relays,
+          ),
         })
       }
     />
@@ -655,7 +686,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       </>
     ),
     scrollsInternally: true,
-    ownComposer: true,
+    hidesComposeFab: true,
     Content: (props) => (
       <ChannelChat
         channelId={props.source.id}
@@ -730,6 +761,56 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       <FollowSetInfo
         pubkey={props.source.pubkey}
         identifier={props.source.identifier}
+      />
+    ),
+  },
+  napplet: {
+    meta: () => ({
+      icon: "i-material-symbols:widgets-outline-rounded",
+      subtitle: "アップレット",
+    }),
+    HeaderActions: (props) => (
+      <NappletInfoButton
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={(props.source.relays ?? []) as RelayUrl[]}
+      />
+    ),
+    scrollsInternally: true,
+    hidesComposeFab: true,
+    Content: (props) => (
+      <Napplet
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={props.source.relays}
+        inputs={props.inputs}
+      />
+    ),
+    Settings: (props) => <AppletConfigSettings source={props.source} />,
+  },
+  "napplet-list": {
+    meta: () => ({
+      icon: "i-material-symbols:widgets-outline-rounded",
+      subtitle: "Nostr で配られている小さなアプリ",
+    }),
+    Content: (props) => (
+      <NappletList
+        followees={() =>
+          props.inputs.signedIn ? props.inputs.followees() : []
+        }
+      />
+    ),
+  },
+  "napplet-info": {
+    meta: () => ({
+      icon: "i-material-symbols:info-outline-rounded",
+      subtitle: "アップレットの情報",
+    }),
+    Content: (props) => (
+      <NappletInfo
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={props.source.relays}
       />
     ),
   },

@@ -1,6 +1,7 @@
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { onMount } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import type { AppletNoticeMeta } from "./napplet/AppletNoticeToast";
 import { disconnectedToast } from "./SignerDisconnectedNotice";
 import { ToastStack, createAppToaster } from "./toast";
 import type { WriteToastMeta } from "./WriteProgressToast";
@@ -9,7 +10,7 @@ type Item = {
   type: "success" | "error" | "loading" | "info" | "warning";
   title: string;
   description?: string;
-  meta?: WriteToastMeta;
+  meta?: WriteToastMeta | AppletNoticeMeta;
   action?: { label: string; onClick: () => void };
 };
 
@@ -63,6 +64,23 @@ const writing: Item = {
           { relay: "wss://nos.lol/" as RelayUrl, state: "pending" },
         ],
       },
+    },
+  },
+};
+
+const appletNotice: Item = {
+  type: "info",
+  title: "新しいメッセージ",
+  description: "Alice: やあ",
+  meta: {
+    appletNotice: {
+      source: "Notify Tester",
+      actions: [
+        { id: "reply", label: "返信" },
+        { id: "later", label: "あとで" },
+      ],
+      onClick: () => {},
+      onAction: () => {},
     },
   },
 };
@@ -177,4 +195,19 @@ export const 長い理由: S = {
 export const 狭い画面: S = {
   args: { wide: false, items: [failed, saved] },
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** アップレットが出した知らせ（NAP-NOTIFY）。出したアップレットの名前を必ず添える。 */
+export const アップレットの知らせ: S = { args: { items: [appletNotice] } };
+
+export const アップレットの知らせが長い: S = {
+  args: {
+    items: [
+      {
+        ...appletNotice,
+        title: "とても長い題の知らせ".repeat(6),
+        description: "とても長い本文。".repeat(30),
+      },
+    ],
+  },
 };

@@ -11,6 +11,7 @@ type Args = {
   error?: string;
   multiline?: boolean;
   trailing?: boolean;
+  labelHidden?: boolean;
 };
 
 const Story = (props: Args) => {
@@ -25,6 +26,7 @@ const Story = (props: Args) => {
         hint={props.hint}
         error={props.error}
         multiline={props.multiline}
+        labelHidden={props.labelHidden}
         trailing={
           props.trailing ? (
             <IconButton
@@ -77,3 +79,6 @@ export const 複数行: S = {
 export const 後ろに道具: S = {
   args: { label: "いまの状態", initial: "☕ 休憩中", trailing: true },
 };
+
+/** 名前を外側に置く場所では、見た目の名前を隠す（読み上げには残る）。 */
+export const 名前を隠す: S = { args: { labelHidden: true } };

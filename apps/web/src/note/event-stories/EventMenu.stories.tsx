@@ -9,12 +9,28 @@ import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { setActionLayout } from "../../action-layout-setting";
 import {
+  type AppletIntents,
+  AppletIntentsProvider,
+} from "../../napplet/applet-intents";
+import {
   type EventScene,
   EventSceneProvider,
 } from "../../storybook/EventScene";
 import { createStoryAuthor } from "../../storybook/story-events";
 import EventMenu from "../EventMenu";
 import { alice, plain, profiles, scene, viewer } from "./event-story";
+
+// 投稿も人も開けるアップレットが 1 つ入っている、という見立て。
+const storyIntents: AppletIntents = {
+  installed: () => [],
+  catalog: () => [],
+  route: (column) => ({ column }),
+  routeCompose: () => undefined,
+  handlersFor: () => [{ id: "35129:story:viewer", title: "Nostr Viewer" }],
+  openIn: () => undefined,
+  join: () => ({ id: "story", leave: () => {} }),
+  emit: () => {},
+};
 
 const MenuStory: Component<{
   event: NostrEvent;
@@ -26,6 +42,8 @@ const MenuStory: Component<{
   nested?: boolean;
   /** 触る端末の形（ボトムシート）で開く。 */
   sheet?: boolean;
+  /** 投稿と人を開けるアップレットをインストールしている。 */
+  applets?: boolean;
 }> = (props) => {
   setActionLayout(
     props.crowded
@@ -43,13 +61,15 @@ const MenuStory: Component<{
           "h-[calc(100dvh-2rem)] items-end": props.crowded,
         }}
       >
-        <EventMenu
-          event={props.event}
-          withActions={props.withActions}
-          defaultOpen
-          defaultAuthorOpen={props.nested}
-          sheet={props.sheet}
-        />
+        <AppletIntentsProvider value={props.applets ? storyIntents : undefined}>
+          <EventMenu
+            event={props.event}
+            withActions={props.withActions}
+            defaultOpen
+            defaultAuthorOpen={props.nested}
+            sheet={props.sheet}
+          />
+        </AppletIntentsProvider>
       </div>
     </EventSceneProvider>
   );
@@ -81,6 +101,11 @@ export const フォロー中でピン留め済み: Story = {
 
 /** PC では、作者の項目を「@名前」の 1 項目にまとめ、その横の入れ子のメニューに出す。 */
 export const 作者の入れ子のメニュー: Story = { args: { nested: true } };
+
+/** インストールしたアップレットで、投稿や作者を開ける。 */
+export const アップレットで開ける: Story = {
+  args: { nested: true, applets: true },
+};
 
 const longName = createStoryAuthor(77, {
   name: "とても長い名前のひとがここにいて表示名もメニューの幅に収まらない",

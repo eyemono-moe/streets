@@ -1,5 +1,11 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
-import { decodeUserInput, encodeBech32 } from "@streets/core/nostr/nip19";
+import { columnForNaddr } from "@streets/core/deck/open-event";
+import { NAPPLET_NAMED_KIND } from "@streets/core/napplet/manifest";
+import {
+  decodeNip19,
+  decodeUserInput,
+  encodeBech32,
+} from "@streets/core/nostr/nip19";
 import { type Profile, profileLabel } from "@streets/core/nostr/profile";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { searchEntries } from "@streets/core/signal/search";
@@ -66,6 +72,17 @@ const CommandPalette: Component<{
         .replace(/^[@＠]/, ""),
     ),
   );
+  /** 貼った naddr。住所で指すもの（長文記事・リスト・napplet など）をカラムで開く。 */
+  const addressColumn = createMemo(() => {
+    const ref = decodeNip19(
+      query()
+        .trim()
+        .replace(/^nostr:/, ""),
+    );
+    if (ref?.kind !== "naddr") return undefined;
+    const column = columnForNaddr(ref);
+    return column ? { column, kind: ref.eventKind } : undefined;
+  });
   const [profile, setProfile] = createSignal<Profile>();
   const readLayer = useOptionalReadLayer();
   createEffect(() => {
@@ -104,6 +121,22 @@ const CommandPalette: Component<{
     })),
   ]);
   const results = createMemo<Command[]>(() => {
+    const address = addressColumn();
+    if (address) {
+      return [
+        {
+          kind: "action",
+          id: `address-column:${address.column.id}`,
+          title:
+            address.kind === NAPPLET_NAMED_KIND
+              ? "アップレットの情報をカラムで開く"
+              : "カラムで開く",
+          section: "操作",
+          keywords: [],
+          event: { type: "deck/add-column", column: address.column },
+        },
+      ];
+    }
     const pubkey = userPubkey();
     if (pubkey) {
       return [

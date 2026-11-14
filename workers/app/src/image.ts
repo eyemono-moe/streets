@@ -15,6 +15,9 @@ export const IMAGE_PRESETS = {
   // 表示は最大 80px（プロフィールの見出し）。2 倍の画面でも粗く見えない大きさ 1 種類に揃える。
   // `crop` は縮めるだけで、元が小さいときに引き伸ばさない。
   avatar: { width: 160, height: 160, fit: "crop", format: "webp" },
+  // napplet が CORS の無いところから画像を取るとき（NAP-RESOURCE）。napplet がどの大きさで
+  // 描くかは分からないので、縮めるのは大きすぎるものだけにする。
+  napplet: { width: 1600, height: 1600, fit: "scale-down", format: "webp" },
 } as const satisfies Record<string, RequestInitCfPropertiesImage>;
 
 export type ImagePreset = keyof typeof IMAGE_PRESETS;

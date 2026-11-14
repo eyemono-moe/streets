@@ -36,6 +36,7 @@ export type MessageKey =
   | "column.title.info"
   | "column.title.followSets"
   | "column.title.channels"
+  | "column.title.napplets"
   | "column.title.welcome"
   | "column.title.relays"
   | "column.title.note"

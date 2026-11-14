@@ -173,7 +173,8 @@
     "postedFrom": "Posted from {{ client }}",
     "label": "Post actions",
     "thisEvent": "This event",
-    "delete": "Delete"
+    "delete": "Delete",
+    "openIn": "Open in {{ name }}"
   },
   "linkCard": {
     "loading": "Loading link info"

@@ -2,7 +2,7 @@
  * 縮小の型。Worker（workers/app/src/image.ts の `IMAGE_PRESETS`）と同じ名前にする。
  * 大きさは Worker が型ごとに決める。投稿の添付画像を縮小するときは、両方に型を足す。
  */
-export type ImagePreset = "avatar";
+export type ImagePreset = "avatar" | "napplet";
 
 /**
  * 縮小して配る URL。縮小できない元（http や、このサイト自身の画像）は `undefined` を

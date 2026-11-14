@@ -46,6 +46,10 @@ const Story = (props: Args) => {
         url: `https://example.invalid/${file.name}`,
         sha256: "0".repeat(64),
         size: file.size,
+        server: {
+          url: "https://blossom.example/",
+          protocol: "blossom" as const,
+        },
       };
     },
   };
