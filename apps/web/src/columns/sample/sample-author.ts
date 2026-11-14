@@ -98,7 +98,7 @@ export const createSampleAuthor = (
       event(buildQuote(target, content)),
     repost: (target: NostrEvent) => {
       const draft = buildRepost(target);
-      if (!draft) throw new Error("kind:1 以外は kind:6 でリポストできません");
+      if (!draft) throw new Error("この kind はリポストできません");
       return event(draft);
     },
   };

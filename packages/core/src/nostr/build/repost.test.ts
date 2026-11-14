@@ -53,8 +53,8 @@ describe("buildRepost", () => {
     expect(buildRepost(evt({}))?.kind).toBe(6);
   });
 
-  it("kind:1 以外は undefined", () => {
+  it("kind:1 以外を kind:6 に入れない", () => {
     // 捕まえる変異: kind を見ずに常に kind:6 を作る —— kind:6 に kind:1 以外を入れるのは NIP-18 違反 (そちらは kind:16)
-    expect(buildRepost(evt({ kind: 30023 }))).toBeUndefined();
+    expect(buildRepost(evt({ kind: 30023 }))?.kind).toBe(16);
   });
 });

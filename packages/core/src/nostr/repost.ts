@@ -13,9 +13,15 @@
  *   (`kind:pubkey:d-tag`) of the reposted event."）。`a` が無ければ、その版を指している
  *   （"If the `"a"` tag is not present, it indicates that a specific version of a
  *   replaceable event is being reposted"）
+ * - 汎用リポストは `k` タグに元の kind を入れる（"`kind 16` reposts SHOULD contain a `"k"`
+ *   tag with the stringified kind number of the reposted event as its value."）
  */
 import type { RelayUrl } from "../relay/relay-connection";
-import { formatEventAddress, parseEventAddress } from "./address";
+import {
+  addressOfEvent,
+  formatEventAddress,
+  parseEventAddress,
+} from "./address";
 import type { EventDraft } from "./build/draft";
 import { type NostrEvent, isNostrEvent } from "./event";
 import {
@@ -99,23 +105,49 @@ const isProtected = (event: NostrEvent): boolean =>
   event.tags.some((tag) => tag[0] === "-");
 
 /**
- * `kind:1` 以外は `undefined`（kind:6 は kind:1 専用。kind:16 は使う面がまだ無い）。
+ * 汎用リポストで指せない kind。リポストそのもの・削除依頼は広めるものではない。
+ * 置換可能（0・3・10000 番台）は住所が `kind:pubkey:` の形になり、読む側の
+ * `parseEventAddress` が扱わない。どれもリストや設定で、人に広めるものでもない。
+ * 一時的なイベント（20000 番台）はリレーに残らず、指しても取りに行けない。
+ */
+const isGenericRepostable = (kind: number): boolean =>
+  kind !== 5 &&
+  kind !== 6 &&
+  kind !== GENERIC_REPOST_KIND &&
+  kind !== 0 &&
+  kind !== 3 &&
+  !(kind >= 10_000 && kind < 30_000);
+
+/**
+ * 投稿（kind:1）は kind:6、ほかは汎用リポスト（kind:16）で書く。指せない kind は
+ * `undefined`。
  *
  * 返信ではないので NIP-10 の印の位置を空けない —— 空けると、NIP-01 どおりに
  * 読む側には作者が `""` に見える。
+ *
+ * 住所を持つ先でも `content` に埋め込む。NIP-18 は `a` があれば埋め込みを求めないが、
+ * 埋め込めば読む側はリレーへ取りに行かずに描ける。
  */
 export const buildRepost = (
   target: NostrEvent,
   options?: { relayHint?: RelayUrl },
 ): EventDraft | undefined => {
-  if (target.kind !== 1) return undefined;
+  if (target.kind !== 1 && !isGenericRepostable(target.kind)) return undefined;
+  const hint = options?.relayHint ?? "";
+  // 保護された投稿を埋め込むと、作者以外が出せないはずのイベントを他のリレーへ運ぶことになり、リレーにも断られる。
+  const content = isProtected(target) ? "" : JSON.stringify(target);
+  const e = ["e", target.id, hint, target.pubkey];
+  const p = ["p", target.pubkey];
+  if (target.kind === 1) return { kind: 6, content, tags: [e, p] };
+  const address = addressOfEvent(target);
   return {
-    kind: 6,
-    // 保護された投稿を埋め込むと、作者以外が出せないはずのイベントを他のリレーへ運ぶことになり、リレーにも断られる。
-    content: isProtected(target) ? "" : JSON.stringify(target),
+    kind: GENERIC_REPOST_KIND,
+    content,
     tags: [
-      ["e", target.id, options?.relayHint ?? "", target.pubkey],
-      ["p", target.pubkey],
+      e,
+      ...(address ? [["a", formatEventAddress(address), hint]] : []),
+      ["k", String(target.kind)],
+      p,
     ],
   };
 };
