@@ -54,7 +54,7 @@ const quote = bob.quote(highlight, "これは良い一文。");
 
 const meta = {
   ...eventStoryMeta,
-  title: "イベント/描けないもの",
+  title: "イベント/専用の表示が無いもの",
 } satisfies Meta<typeof EventStory>;
 
 export default meta;
@@ -102,7 +102,7 @@ export const 引用の中: Story = {
  * 形の崩れたイベント（リレーから来るものは形を保証されない）。描画の途中で投げても、
  * この 1 件だけを「表示できませんでした」に置き換え、周りは描き続ける。
  */
-export const 描けないイベント: Story = {
+export const 形の崩れたイベント: Story = {
   args: {
     event: { ...nameless, kind: 1, tags: null } as unknown as NostrEvent,
     scene: scene(),
