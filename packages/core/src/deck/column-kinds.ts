@@ -14,17 +14,20 @@ import type { ColumnDef, ColumnShow, MutedDisplay } from "./deck";
 
 /**
  * 「誰かの投稿を時系列で並べる」列が集める kind。kind:6 はタイムラインへ
- * 流したものとして含め、kind:16 は対象外コンテンツで意図が曖昧になるため除外。
+ * 流したものとして含める。汎用リポスト（kind:16）とコメント（kind:1111）は
+ * 保存した kinds に書かず、読むときに足す（`column-sources.ts`）。ここに足すと、
+ * 保存済みのデッキと食い違い、旧形式のユーザーのカラムも移せなくなる。
  */
 export const TIMELINE_KINDS: readonly number[] = [1, 6];
 
 /**
- * 通知カラムが集める kind。kind:16 は表示不能だからではなく (対応済み)、
- * v1 がまだ長文を作れず e2e で確かめられないため外す (別の判断)。
+ * 通知カラムが集める kind。kind:16 は、記事や動画など kind:1 以外へのリポスト。
  * kind:42 はチャンネル（NIP-28）での自分への返信・メンション。
  * kind:1111 は、kind:1 への返信をコメントで書くクライアントからの返信。
  */
-export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735, 42, 1111];
+export const NOTIFICATION_KINDS: readonly number[] = [
+  1, 6, 16, 7, 9735, 42, 1111,
+];
 
 /** 「みんなのアクティビティ」が集める kind。リアクションとリポスト。 */
 export const FOLLOWEES_ACTIVITY_KINDS: readonly number[] = [7, 6, 16];

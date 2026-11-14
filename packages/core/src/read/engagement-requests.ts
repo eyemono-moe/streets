@@ -1,3 +1,4 @@
+import { GENERIC_REPOST_KIND } from "../nostr/repost";
 import { createBatchedFetch } from "./batched-fetch";
 import type { Scheduler } from "./scheduler";
 import type { SubscriptionManager } from "./subscription-manager";
@@ -53,7 +54,7 @@ export const createEngagementRequests = (
     batchWindowMs: ENGAGEMENT_BATCH_MS,
     keyOf: (targetId) => targetId,
     toRequest: (targetIds) => ({
-      filters: [{ kinds: [1, 6, 7], "#e": targetIds }],
+      filters: [{ kinds: [1, 6, 7, GENERIC_REPOST_KIND], "#e": targetIds }],
     }),
   });
 

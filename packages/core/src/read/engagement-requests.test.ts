@@ -28,7 +28,7 @@ describe("createEngagementRequests", () => {
     requests.request(OTHER);
     clock.advance(200);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toEqual([{ kinds: [1, 6, 7], "#e": [TARGET, OTHER] }]);
+    expect(calls[0]).toEqual([{ kinds: [1, 6, 7, 16], "#e": [TARGET, OTHER] }]);
   });
 
   it("同じ対象を 2 度要求しても 1 度しか投げない", () => {

@@ -270,6 +270,18 @@ export const ピン留めできない投稿: Story = {
   },
 };
 
+// kind:1 以外は汎用リポスト（kind:16）で書く。画像の投稿でもリポストを押せる。
+export const 画像の投稿をリポストする: Story = {
+  args: { event: picture, scene: scene(picture) },
+};
+
+export const 画像の投稿をリポスト済み: Story = {
+  args: {
+    event: picture,
+    scene: scene(picture, bob.repost(picture), viewer.repost(picture)),
+  },
+};
+
 /** 「ほかのリレーにも送る」を欄に出す。押すと送り先を選ぶダイアログが開く。 */
 export const ブロードキャストを欄に出す: Story = {
   args: {

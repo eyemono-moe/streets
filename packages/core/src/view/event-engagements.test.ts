@@ -97,6 +97,22 @@ describe("eventEngagements", () => {
     });
   });
 
+  it("汎用リポスト（kind:16）もリポストとして数える", () => {
+    // NIP-18: "we use `kind 16` as a "generic repost", that can include any kind of event
+    // inside other than `kind 1`."
+    const viewerRepost = event("3".repeat(64), 16, VIEWER, [
+      ["e", TARGET, "", OTHER],
+      ["k", "1111"],
+      ["p", OTHER],
+    ]);
+    const store = { eventsByTag: () => [viewerRepost] };
+
+    // 捕まえる変異: kind:6 だけを数える（コメントや記事のリポストが 0 件に見え、押し直せてしまう）。
+    const result = eventEngagements(store, TARGET, VIEWER);
+    expect(result.reposts).toBe(1);
+    expect(result.viewerReposted).toBe(true);
+  });
+
   it("ボタンで送る中身と同じものを自分が送ったときだけ「済み」にする", () => {
     const store = {
       eventsByTag: () => [

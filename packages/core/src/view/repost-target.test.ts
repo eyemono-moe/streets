@@ -29,6 +29,12 @@ const other = sign(1, "別の投稿", [], 1_700_000_001);
 const repost = (content: string, tags: string[][]): NostrEvent =>
   sign(6, content, tags, 1_700_000_100);
 
+const clip = sign(34236, "", [["d", "clip"]]);
+const otherClip = sign(34236, "", [["d", "other"]], 1_700_000_001);
+const clipAddress = `34236:${pubkey}:clip`;
+const genericRepost = (content: string, tags: string[][]): NostrEvent =>
+  sign(16, content, tags, 1_700_000_100);
+
 describe("resolveRepostTarget", () => {
   it("puts the embedded event into the store so it renders without a fetch", () => {
     const store = new EventStore();
@@ -96,5 +102,41 @@ describe("resolveRepostTarget", () => {
     const store = new EventStore();
 
     expect(resolveRepostTarget(repost("", []), store)).toBeUndefined();
+  });
+
+  it("prefers the a tag of a generic repost over the version in the e tag", () => {
+    // NIP-18 で `a` は住所を指す。置換されたあとの古い版はリレーから消えているので、版で引かない
+    const store = new EventStore();
+    const event = genericRepost("", [
+      ["e", clip.id],
+      ["a", clipAddress],
+      ["k", "34236"],
+    ]);
+
+    expect(resolveRepostTarget(event, store)).toEqual({
+      form: "address",
+      address: clipAddress,
+    });
+  });
+
+  it("puts an embedded event that lives at the a tag's address", () => {
+    const store = new EventStore();
+    const event = genericRepost(JSON.stringify(clip), [["a", clipAddress]]);
+
+    expect(resolveRepostTarget(event, store)).toEqual({
+      form: "address",
+      address: clipAddress,
+    });
+    expect(store.get(clip.id)).toEqual(clip);
+  });
+
+  it("ignores an embedded event that lives at another address", () => {
+    const store = new EventStore();
+    const event = genericRepost(JSON.stringify(otherClip), [
+      ["a", clipAddress],
+    ]);
+
+    resolveRepostTarget(event, store);
+    expect(store.get(otherClip.id)).toBeUndefined();
   });
 });

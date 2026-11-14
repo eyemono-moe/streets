@@ -1,7 +1,7 @@
 import { COMMENT_KIND } from "../nostr/comment";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
 import { replyTarget } from "../nostr/reply";
-import { repostTarget } from "../nostr/repost";
+import { GENERIC_REPOST_KIND, repostTarget } from "../nostr/repost";
 import type { EventStore } from "../read/event-store";
 import { reactionKey } from "./reaction-groups";
 
@@ -41,7 +41,10 @@ export const eventEngagements = (
       continue;
     }
 
-    if (event.kind === 6 && repostTarget(event)?.id === targetId) {
+    if (
+      (event.kind === 6 || event.kind === GENERIC_REPOST_KIND) &&
+      repostTarget(event)?.id === targetId
+    ) {
       reposts += 1;
       if (event.pubkey === viewerPubkey) viewerReposted = true;
       continue;
