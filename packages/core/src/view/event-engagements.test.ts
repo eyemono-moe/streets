@@ -131,7 +131,7 @@ describe("eventEngagements", () => {
     ).toBe(true);
   });
 
-  it("カスタム絵文字はショートコードで突き合わせる", () => {
+  it("カスタム絵文字は、ショートコードが同じでも URL が違えば済みにしない", () => {
     const custom = event(
       "8".repeat(64),
       7,
@@ -144,12 +144,19 @@ describe("eventEngagements", () => {
     );
     const store = { eventsByTag: () => [custom] };
 
-    // 捕まえる変異: URL まで比べる（チップの山と、ボタンの済みが食い違う）。
+    // 捕まえる変異: ショートコードだけで比べる（チップの山と、ボタンの済みが食い違う）。
     expect(
       eventEngagements(store, TARGET, VIEWER, {
         type: "emoji",
         name: "wave",
         url: "https://b.example/wave.png",
+      }).viewerReacted,
+    ).toBe(false);
+    expect(
+      eventEngagements(store, TARGET, VIEWER, {
+        type: "emoji",
+        name: "wave",
+        url: "https://a.example/wave.png",
       }).viewerReacted,
     ).toBe(true);
   });

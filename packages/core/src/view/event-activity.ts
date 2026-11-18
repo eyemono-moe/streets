@@ -2,6 +2,7 @@ import type { NostrEvent } from "../nostr/event";
 import { quoteTargets } from "../nostr/quote";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
 import { repostTarget } from "../nostr/repost";
+import { reactionKey } from "./reaction-groups";
 
 export type ActivityReaction = {
   pubkey: string;
@@ -13,13 +14,6 @@ export type EventActivity = {
   quotes: NostrEvent[];
   reactions: ActivityReaction[];
 };
-
-const reactionKey = (content: ReactionContent): string =>
-  content.type === "like"
-    ? "+"
-    : content.type === "emoji"
-      ? `:${content.name}:${content.url}`
-      : content.content;
 
 /** 同じ利用者による同種の操作をまとめ、壊れた参照は無視する。 */
 export const eventActivity = (

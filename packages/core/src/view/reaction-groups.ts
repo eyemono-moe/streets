@@ -15,15 +15,17 @@ export type ReactionGroup = {
 };
 
 /**
- * 鍵に**種別を含める**（絵文字 `:smile:` とテキスト "smile" は別物)。URL は
- * 含めない —— 別ドメインの同じショートコードで山が割れ数が読めなくなるため。
+ * 鍵に**種別を含める**（絵文字 `:smile:` とテキスト "smile" は別物)。絵文字は
+ * ショートコードだけで突き合わせない —— 同じ名前でも配る人ごとに絵が違い、まとめると
+ * 最初に届いた絵が別の絵のリアクションまで代表してしまう。`:` でつながないのは、
+ * 読み取りがショートコードの文字を確かめておらず、名前に `:` が入ると組の境目がずれるため。
  */
 export const reactionKey = (content: ReactionContent): string => {
   switch (content.type) {
     case "like":
       return "like";
     case "emoji":
-      return `emoji:${content.name}`;
+      return `emoji:${JSON.stringify([content.name, content.url])}`;
     case "text":
       return `text:${content.content}`;
   }
