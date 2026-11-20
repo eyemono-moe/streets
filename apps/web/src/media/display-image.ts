@@ -144,7 +144,7 @@ export const createDisplayImage = (
     on([url, active, imageDownscaling], ([current, ready, enabled]) => {
       setSrc(undefined);
       if (!current) return;
-      if (!enabled || !/^https?:/.test(current)) {
+      if (!enabled || !/^https?:/i.test(current)) {
         setSrc(current);
         return;
       }

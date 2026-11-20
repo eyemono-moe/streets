@@ -5,7 +5,7 @@ export type SharedFields = {
   url?: string;
 };
 
-const BARE_URL = /^https?:\/\/\S+$/;
+const BARE_URL = /^https?:\/\/\S+$/i;
 
 /**
  * 共有された文字から、投稿欄に入れる本文を作る。

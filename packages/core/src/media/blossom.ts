@@ -187,7 +187,7 @@ const parseBlob = (
   if (!json || typeof json !== "object") return undefined;
   const record = json as Record<string, unknown>;
   const url = record.url;
-  if (typeof url !== "string" || !/^https?:\/\//.test(url)) return undefined;
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return undefined;
   return {
     url,
     sha256: typeof record.sha256 === "string" ? record.sha256 : fallbackHash,
