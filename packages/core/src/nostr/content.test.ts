@@ -143,6 +143,19 @@ describe("parseContent: URL", () => {
     ] satisfies ContentToken[]);
   });
 
+  it("スキームに大文字が混じっていても URL として読む", () => {
+    // RFC 3986 §3.1: "schemes are case-insensitive" / "an implementation should accept uppercase letters as equivalent to lowercase in scheme names"
+    const content = "見て httpS://example.com/ と HTTP://example.com/a です";
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
+      { type: "text", text: "見て " },
+      { type: "url", url: "httpS://example.com/" },
+      { type: "text", text: " と " },
+      { type: "url", url: "HTTP://example.com/a" },
+      { type: "text", text: " です" },
+    ] satisfies ContentToken[]);
+  });
+
   it("符号化されていない日本語を URL に含める", () => {
     // 捕まえる変異: URL の文字集合を ASCII に戻す（アドレス欄からコピーした URL が途中で切れる）
     const event = noteWith(

@@ -92,7 +92,7 @@ export const parseNip96Upload = (
     return typeof tag?.[1] === "string" ? tag[1] : undefined;
   };
   const url = value("url");
-  if (!url || !/^https?:\/\//.test(url)) return undefined;
+  if (!url || !/^https?:\/\//i.test(url)) return undefined;
   const size = Number(value("size"));
   return {
     url,

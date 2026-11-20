@@ -18,7 +18,7 @@ type Match = { consumed: number; token: ContentToken };
  * 空白と日本語の約物・括弧で止める。区切りの無いまま続く文（`…/docを見て`）は区別できず飲み込む。
  */
 const URL_RE =
-  /https?:\/\/(?:[A-Za-z0-9\-._~%:/?#[\]@!$&'()*+,;=]|[^\p{ASCII}\s、。，．「」『』【】《》〈〉（）［］｛｝！？：；…“”‘’])+/uy;
+  /https?:\/\/(?:[A-Za-z0-9\-._~%:/?#[\]@!$&'()*+,;=]|[^\p{ASCII}\s、。，．「」『』【】《》〈〉（）［］｛｝！？：；…“”‘’])+/iuy;
 
 /** URL の外側にある約物であり、URL 自体が保持する情報ではない。 */
 const TRAILING_PUNCTUATION = new Set([
